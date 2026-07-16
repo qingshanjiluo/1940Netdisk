@@ -11,12 +11,30 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <!-- Vue 2 -->
-  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+  <!-- Vue 2 (多 CDN 源，提高在中国大陆的可用性) -->
+  <script>
+    window.__vueLoaded = false;
+    function loadVueFrom(src, fallback) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = function() { window.__vueLoaded = true; };
+      s.onerror = fallback;
+      document.head.appendChild(s);
+    }
+    // 优先使用 unpkg（在中国更稳定），jsdelivr 做 fallback
+    loadVueFrom('https://unpkg.com/vue@2.6.14/dist/vue.min.js', function() {
+      loadVueFrom('https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js', function() {
+        console.warn('[vue] Both CDN sources failed to load Vue.js');
+      });
+    });
+  </script>
   <!-- Theme -->
   <link rel="stylesheet" href="/theme.css">
   <link rel="stylesheet" href="/mobile-refactor.css">
   <style>
+    /* 隐藏未编译的 Vue 模板，直到 Vue 挂载完成 */
+    [v-cloak] { display: none !important; }
+
     /* ===== Index 页面覆盖样式 ===== */
     .header {
       position: fixed;
@@ -1038,6 +1056,15 @@
 
     const LOCAL_PREVIEW_PAGE = "/preview.html";
 
+    // 确保 Vue 已加载，若未加载则给出用户提示
+    if (typeof Vue === 'undefined') {
+      document.getElementById('app').innerHTML =
+        '<div style="padding:40px;text-align:center;color:#B8A88A;font-family:sans-serif;">' +
+        '<h2>1940Netdisk</h2>' +
+        '<p style="margin-top:20px;color:#8FA0B0;">Vue.js 加载失败，请刷新页面或检查网络连接。</p>' +
+        '<button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;background:#5A6B4A;color:#fff;border:none;border-radius:4px;cursor:pointer;">刷新页面</button>' +
+        '</div>';
+    } else {
     new Vue({
       el: "#app",
       data: {
@@ -2046,6 +2073,7 @@
         if (this.pasteUploadNoticeTimer) clearTimeout(this.pasteUploadNoticeTimer);
       },
     });
+    } // end if Vue defined
   </script>
 </body>
 </html>
