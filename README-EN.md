@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="K-Vault Logo" width="140">
+<img src="favicon.png" alt="1940Netdisk Logo" width="140">
 
 # K-Vault
 
