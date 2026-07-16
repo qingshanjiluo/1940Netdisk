@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1940Netdisk · 登录</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!-- Font Awesome 6 (免费) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- 字体 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- 全局主题样式 -->
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/mobile-refactor.css">
+  <style>
+    /* ===== Login 页面专用样式 ===== */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .login-wrapper {
+      width: 100%;
+      max-width: 420px;
+      padding: var(--space-md);
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    .login-brand .brand-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto var(--space-md);
+      background: linear-gradient(135deg, var(--olive), var(--olive-dark));
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+    }
+    .login-brand h1 {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      color: var(--khaki);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0 0 var(--space-xs);
+    }
+    .login-brand p {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+
+    /* ===== 登录/注册卡片 ===== */
+    .login-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: var(--space-xl);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+
+    /* 选项卡 */
+    .login-tabs {
+      display: flex;
+      margin: 0 0 var(--space-lg);
+      border-bottom: 1px solid rgba(90,107,74,0.3);
+      gap: 0;
+    }
+    .login-tabs .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      font-family: var(--font-display);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-align: center;
+    }
+    .login-tabs .tab-btn:hover {
+      color: var(--color-text-secondary);
+    }
+    .login-tabs .tab-btn.active {
+      color: var(--khaki);
+      border-bottom-color: var(--gold);
+    }
+
+    /* 错误 & 成功消息 */
+    .form-message {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 2px;
+      font-size: 0.8125rem;
+      margin-bottom: var(--space-md);
+      display: none;
+    }
+    .form-message.show {
+      display: block;
+    }
+    .form-message.error {
+      background: rgba(139, 90, 43, 0.12);
+      border: 1px solid rgba(139, 90, 43, 0.25);
+      color: var(--rust-light);
+    }
+    .form-message.success {
+      background: rgba(107, 143, 90, 0.12);
+      border: 1px solid rgba(107, 143, 90, 0.25);
+      color: var(--color-success);
+    }
+
+    /* 表单 */
+    .login-form .form-group {
+      margin-bottom: var(--space-md);
+    }
+    .login-form .form-group label {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-xs);
+      font-weight: 500;
+    }
+    .login-form .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .login-form .input-wrapper i {
+      position: absolute;
+      left: 12px;
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+      pointer-events: none;
+    }
+    .login-form .input-wrapper input {
+      width: 100%;
+      padding: 10px 12px 10px 38px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--steel);
+      border-radius: 3px;
+      color: var(--color-text);
+      font-size: 0.875rem;
+      font-family: var(--font-body);
+      outline: none;
+      transition: all var(--transition-fast);
+    }
+    .login-form .input-wrapper input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.12);
+    }
+    .login-form .input-wrapper input::placeholder {
+      color: var(--color-text-muted);
+    }
+    .login-form .input-wrapper .pw-toggle {
+      position: absolute;
+      right: 10px;
+      left: auto;
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      font-size: 0.875rem;
+      padding: 4px;
+    }
+    .login-form .input-wrapper .pw-toggle:hover {
+      color: var(--color-text-secondary);
+    }
+
+    /* 记住我 / 选项行 */
+    .login-form .form-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-md);
+    }
+    .login-form .remember-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+    .login-form .remember-label input[type="checkbox"] {
+      accent-color: var(--olive);
+      width: 16px;
+      height: 16px;
+    }
+
+    /* 提交按钮 */
+    .login-form .submit-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--olive);
+      border: 1.5px solid var(--khaki);
+      border-radius: 3px;
+      color: var(--khaki-light);
+      font-size: 0.9rem;
+      font-family: var(--font-display);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .login-form .submit-btn:hover {
+      background: var(--olive-light);
+      border-color: var(--gold);
+      color: var(--gold-light);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+    .login-form .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .login-form .submit-btn:disabled:hover {
+      background: var(--olive);
+      border-color: var(--khaki);
+      color: var(--khaki-light);
+      box-shadow: none;
+    }
+
+    /* 额外链接 */
+    .login-form .extra-links {
+      text-align: center;
+      margin-top: var(--space-md);
+      font-size: 0.8125rem;
+    }
+    .login-form .extra-links a {
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: color var(--transition-fast);
+    }
+    .login-form .extra-links a:hover {
+      color: var(--khaki);
+    }
+    .login-form .extra-links i {
+      margin-right: var(--space-xs);
+    }
+
+    /* ===== 账号切换面板 ===== */
+    .account-switcher {
+      margin-top: var(--space-lg);
+      padding-top: var(--space-lg);
+      border-top: 1px solid rgba(90,107,74,0.3);
+    }
+    .account-switcher .switcher-label {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--space-sm);
+      font-weight: 600;
+    }
+    .account-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .account-list::-webkit-scrollbar {
+      width: 3px;
+    }
+    .account-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 8px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 1px solid transparent;
+    }
+    .account-item:hover {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(90,107,74,0.3);
+    }
+    .account-item:active {
+      background: rgba(90, 107, 74, 0.08);
+    }
+    .account-item .acc-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--khaki), var(--steel));
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+    }
+    .account-item .acc-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .account-item .acc-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .account-item .acc-name {
+      font-size: 0.8125rem;
+      color: var(--color-text);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .account-item .acc-role {
+      font-size: 0.6875rem;
+      color: var(--color-text-muted);
+    }
+    .account-item .acc-check {
+      color: var(--olive);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+    .account-item.active .acc-check {
+      opacity: 1;
+    }
+    .account-item.active {
+      background: rgba(90, 107, 74, 0.08);
+      border-color: rgba(90, 107, 74, 0.4);
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 480px) {
+      .login-wrapper {
+        padding: var(--space-sm);
+      }
+      .login-card {
+        padding: var(--space-md);
+        border-radius: var(--radius-lg);
+      }
+      .login-brand h1 {
+        font-size: 1.5rem;
+      }
+      .login-brand .brand-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.25rem;
+      }
+      .login-form .submit-btn {
+        padding: 10px;
+        font-size: 0.875rem;
+      }
+      .login-tabs .tab-btn {
+        font-size: 0.8125rem;
+        padding: 8px;
+      }
+      .login-form .form-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-sm);
+      }
+    }
+
+    @media (max-width: 360px) {
+      .login-card {
+        padding: var(--space-sm);
+      }
+      .login-brand h1 {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <!-- 品牌标识 -->
+    <div class="login-brand">
+      <div class="brand-icon">
+        <i class="fas fa-hard-drive"></i>
+      </div>
+      <h1>1940Netdisk</h1>
+      <p>钢铁 · 工业 · 文件存储</p>
+    </div>
+
+    <!-- 登录卡片 -->
+    <div class="login-card">
+      <!-- 选项卡 -->
+      <div class="login-tabs" id="loginTabs">
+        <button class="tab-btn active" data-tab="login" onclick="switchTab('login')">
+          <i class="fas fa-sign-in-alt"></i> 登录
+        </button>
+        <button class="tab-btn" data-tab="register" onclick="switchTab('register')">
+          <i class="fas fa-user-plus"></i> 注册
+        </button>
+      </div>
+
+      <!-- 消息提示 -->
+      <div class="form-message" id="formMessage"></div>
+
+      <!-- 登录表单 -->
+      <form class="login-form" id="loginForm" onsubmit="handleLogin(event)" style="display:block;">
+        <div class="form-group">
+          <label for="loginUsername">用户名</label>
+          <div class="input-wrapper">
+            <i class="fas fa-user"></i>
+            <input type="text" id="loginUsername" placeholder="输入用户名" autocomplete="username" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">密码</label>
+          <div class="input-wrapper">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="loginPassword" placeholder="输入密码" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" onclick="togglePassword('loginPassword', this)" tabindex="-1" aria-label="切换密码可见">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-options">
+          <label class="remember-label">
+            <input type="checkbox" id="rememberMe" checked>
+            记住我
+          </label>
+          <div></div>
+        </div>
+        <button type="submit" class="submit-btn" id="loginBtn">
+          <i class="fas fa-sign-in-alt"></i> 登录
+        </button>
+        <div class="extra-links">
+          <a onclick="switchTab('register')"><i class="fas fa-user-plus"></i> 创建新账号</a>
+        </div>
+      </form>
+
+      <!-- 注册表单 -->
+      <form class="login-form" id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+        <div class="form-group">
+          <label for="regUsername">用户名</label>
+          <div class="input-wrapper">
+            <i class="fas fa-user"></i>
+            <input type="text" id="regUsername" placeholder="3-16位字母数字组合" autocomplete="username" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="regNickname">昵称</label>
+          <div class="input-wrapper">
+            <i class="fas fa-id-card"></i>
+            <input type="text" id="regNickname" placeholder="显示名称（可选）" autocomplete="nickname">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="regPassword">密码</label>
+          <div class="input-wrapper">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="regPassword" placeholder="至少6位" autocomplete="new-password" required>
+            <button type="button" class="pw-toggle" onclick="togglePassword('regPassword', this)" tabindex="-1" aria-label="切换密码可见">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="regConfirm">确认密码</label>
+          <div class="input-wrapper">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="regConfirm" placeholder="再次输入密码" autocomplete="new-password" required>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn" id="regBtn">
+          <i class="fas fa-user-plus"></i> 注册
+        </button>
+        <div class="extra-links">
+          <a onclick="switchTab('login')"><i class="fas fa-sign-in-alt"></i> 已有账号？立即登录</a>
+        </div>
+      </form>
+
+      <!-- 账号切换 -->
+      <div class="account-switcher" id="accountSwitcher">
+        <div class="switcher-label"><i class="fas fa-exchange-alt"></i> 快速切换账号</div>
+        <div class="account-list" id="accountList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 1940Netdisk · 登录页逻辑
+    // ============================================================
+
+    // ========== 数据管理 ==========
+    var DB_KEY = '1940netdisk_data';
+
+    // 默认演示数据
+    var DEFAULT_DATA = {
+      // 用户列表
+      users: [
+        { id: 'u1', username: 'admin',   nickname: '管理员',   password: 'admin123', role: 'admin',  avatar: '', createdAt: Date.now() - 86400000 * 30 },
+        { id: 'u2', username: 'demo',    nickname: '演示用户',  password: 'demo123',  role: 'user',   avatar: '', createdAt: Date.now() - 86400000 * 15 },
+        { id: 'u3', username: 'guest',   nickname: '访客',     password: 'guest123', role: 'guest',  avatar: '', createdAt: Date.now() - 86400000 * 7 }
+      ],
+      // 身份组
+      groups: [
+        { id: 'g1', name: '管理员组', description: '系统管理员', permissions: 'all', createdAt: Date.now() - 86400000 * 30 },
+        { id: 'g2', name: '普通用户组', description: '标准用户', permissions: 'write', createdAt: Date.now() - 86400000 * 15 },
+        { id: 'g3', name: '只读组', description: '仅可查看', permissions: 'read', createdAt: Date.now() - 86400000 * 7 }
+      ],
+      // 用户-身份组映射
+      userGroups: [
+        { userId: 'u1', groupId: 'g1' },
+        { userId: 'u2', groupId: 'g2' },
+        { userId: 'u3', groupId: 'g3' }
+      ],
+      // 版块
+      sections: [
+        { id: 's1', name: '公共区', description: '所有用户可访问', icon: 'fa-folder' },
+        { id: 's2', name: '内部资料', description: '仅内部用户', icon: 'fa-lock' },
+        { id: 's3', name: '开发资源', description: '开发相关', icon: 'fa-code' }
+      ],
+      // 版块-身份组 权限: 'write' | 'read' | 'none'
+      sectionPermissions: [
+        { sectionId: 's1', groupId: 'g1', permission: 'write' },
+        { sectionId: 's1', groupId: 'g2', permission: 'write' },
+        { sectionId: 's1', groupId: 'g3', permission: 'read' },
+        { sectionId: 's2', groupId: 'g1', permission: 'write' },
+        { sectionId: 's2', groupId: 'g2', permission: 'read' },
+        { sectionId: 's2', groupId: 'g3', permission: 'none' },
+        { sectionId: 's3', groupId: 'g1', permission: 'write' },
+        { sectionId: 's3', groupId: 'g2', permission: 'none' },
+        { sectionId: 's3', groupId: 'g3', permission: 'none' }
+      ],
+      // 文件记录 (现有功能保留)
+      files: [],
+      // 当前登录用户
+      currentUser: null
+    };
+
+    function loadData() {
+      try {
+        var raw = localStorage.getItem(DB_KEY);
+        if (raw) {
+          var data = JSON.parse(raw);
+          // 合并默认值（确保新字段存在）
+          for (var key in DEFAULT_DATA) {
+            if (!data.hasOwnProperty(key)) {
+              data[key] = JSON.parse(JSON.stringify(DEFAULT_DATA[key]));
+            }
+          }
+          return data;
+        }
+      } catch (e) {
+        console.warn('Failed to load data, using defaults');
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+
+    function saveData(data) {
+      try {
+        localStorage.setItem(DB_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error('Failed to save data', e);
+      }
+    }
+
+    // ========== 工具函数 ==========
+    function getInitials(str) {
+      if (!str) return '?';
+      // 取第一个字符（如果是中文取前两个字）
+      var trimmed = str.trim();
+      if (/[\u4e00-\u9fff]/.test(trimmed)) {
+        return trimmed.slice(0, 2);
+      }
+      return trimmed.slice(0, 2).toUpperCase();
+    }
+
+    function showMessage(text, type) {
+      var el = document.getElementById('formMessage');
+      el.textContent = text;
+      el.className = 'form-message show ' + (type || 'error');
+      // 自动隐藏
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(function () {
+        el.classList.remove('show');
+      }, 4000);
+    }
+
+    function hideMessage() {
+      var el = document.getElementById('formMessage');
+      el.classList.remove('show');
+    }
+
+    function togglePassword(inputId, btn) {
+      var input = document.getElementById(inputId);
+      if (!input || !btn) return;
+      var isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      btn.innerHTML = isPassword
+        ? '<i class="fas fa-eye-slash"></i>'
+        : '<i class="fas fa-eye"></i>';
+    }
+
+    // ========== 选项卡切换 ==========
+    function switchTab(tab) {
+      hideMessage();
+      var tabs = document.querySelectorAll('.tab-btn');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === tab);
+      }
+      document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+    }
+
+    // ========== 登录逻辑 ==========
+    function handleLogin(event) {
+      event.preventDefault();
+      hideMessage();
+
+      var username = document.getElementById('loginUsername').value.trim();
+      var password = document.getElementById('loginPassword').value;
+      var remember = document.getElementById('rememberMe').checked;
+
+      if (!username || !password) {
+        showMessage('请输入用户名和密码');
+        return;
+      }
+
+      var data = loadData();
+      var user = null;
+
+      for (var i = 0; i < data.users.length; i++) {
+        if (data.users[i].username === username) {
+          user = data.users[i];
+          break;
+        }
+      }
+
+      if (!user) {
+        showMessage('用户名不存在');
+        return;
+      }
+
+      if (user.password !== password) {
+        showMessage('密码错误');
+        return;
+      }
+
+      // 登录成功
+      data.currentUser = user.id;
+      saveData(data);
+
+      // 记住我：存储到 sessionStorage 或 localStorage
+      try {
+        if (remember) {
+          localStorage.setItem('1940netdisk_session', user.id);
+        } else {
+          sessionStorage.setItem('1940netdisk_session', user.id);
+        }
+      } catch (e) { /* noop */ }
+
+      // 跳转到首页
+      window.location.href = '/';
+    }
+
+    // ========== 注册逻辑 ==========
+    function handleRegister(event) {
+      event.preventDefault();
+      hideMessage();
+
+      var username = document.getElementById('regUsername').value.trim();
+      var nickname = document.getElementById('regNickname').value.trim() || username;
+      var password = document.getElementById('regPassword').value;
+      var confirm = document.getElementById('regConfirm').value;
+
+      // 验证
+      if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+        showMessage('用户名需为 3-16 位字母/数字/下划线');
+        return;
+      }
+
+      if (password.length < 6) {
+        showMessage('密码至少 6 位');
+        return;
+      }
+
+      if (password !== confirm) {
+        showMessage('两次密码不一致');
+        return;
+      }
+
+      var data = loadData();
+
+      // 检查重名
+      for (var i = 0; i < data.users.length; i++) {
+        if (data.users[i].username === username) {
+          showMessage('用户名已存在');
+          return;
+        }
+      }
+
+      // 创建新用户
+      var newUser = {
+        id: 'u' + Date.now(),
+        username: username,
+        nickname: nickname,
+        password: password,
+        role: 'user',  // 默认普通用户
+        avatar: '',
+        createdAt: Date.now()
+      };
+
+      data.users.push(newUser);
+
+      // 默认加入普通用户组 (g2)
+      if (data.userGroups) {
+        data.userGroups.push({
+          userId: newUser.id,
+          groupId: 'g2'
+        });
+      }
+
+      saveData(data);
+
+      showMessage('注册成功！请登录', 'success');
+
+      // 自动填入登录表单
+      document.getElementById('loginUsername').value = username;
+      document.getElementById('loginPassword').value = '';
+
+      // 切换到登录选项卡
+      setTimeout(function () {
+        switchTab('login');
+        document.getElementById('loginPassword').focus();
+      }, 500);
+    }
+
+    // ========== 账号切换列表 ==========
+    function renderAccountList() {
+      var data = loadData();
+      var list = document.getElementById('accountList');
+      list.innerHTML = '';
+
+      // 按角色排序：admin > user > guest
+      var sorted = data.users.slice().sort(function (a, b) {
+        var order = { admin: 0, user: 1, guest: 2 };
+        return (order[a.role] || 3) - (order[b.role] || 3);
+      });
+
+      for (var i = 0; i < sorted.length; i++) {
+        var u = sorted[i];
+        var isCurrent = u.id === data.currentUser;
+        var roleMap = { admin: '管理员', user: '用户', guest: '访客' };
+        var item = document.createElement('div');
+        item.className = 'account-item' + (isCurrent ? ' active' : '');
+        item.setAttribute('data-userid', u.id);
+        var avatarHtml = u.avatar
+          ? '<img src="' + escapeHtml(u.avatar) + '" alt="avatar">'
+          : getInitials(u.nickname);
+        item.innerHTML =
+          '<div class="acc-avatar">' + avatarHtml + '</div>' +
+          '<div class="acc-info">' +
+            '<div class="acc-name">' + escapeHtml(u.nickname) + '</div>' +
+            '<div class="acc-role">' + (roleMap[u.role] || u.role) + ' · @' + escapeHtml(u.username) + '</div>' +
+          '</div>' +
+          '<div class="acc-check"><i class="fas fa-check-circle"></i></div>';
+        item.addEventListener('click', function (userId) {
+          return function () { switchAccount(userId); };
+        }(u.id));
+        list.appendChild(item);
+      }
+    }
+
+    function switchAccount(userId) {
+      var data = loadData();
+
+      // 查找用户
+      var user = null;
+      for (var i = 0; i < data.users.length; i++) {
+        if (data.users[i].id === userId) {
+          user = data.users[i];
+          break;
+        }
+      }
+
+      if (!user) {
+        showMessage('用户不存在');
+        return;
+      }
+
+      data.currentUser = userId;
+      saveData(data);
+
+      try {
+        localStorage.setItem('1940netdisk_session', userId);
+      } catch (e) { /* noop */ }
+
+      // 更新 UI
+      renderAccountList();
+      showMessage('已切换到 ' + user.nickname, 'success');
+
+      // 自动跳转
+      setTimeout(function () {
+        window.location.href = '/';
+      }, 800);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    // ========== 检查已登录状态 ==========
+    function checkSession() {
+      try {
+        var sessionId = localStorage.getItem('1940netdisk_session') ||
+                        sessionStorage.getItem('1940netdisk_session');
+        if (sessionId) {
+          var data = loadData();
+          for (var i = 0; i < data.users.length; i++) {
+            if (data.users[i].id === sessionId) {
+              // 已登录，跳转首页
+              window.location.href = '/';
+              return;
+            }
+          }
+        }
+      } catch (e) { /* noop */ }
+    }
+
+    // ========== 初始化 ==========
+    function init() {
+      // 检查是否已登录
+      checkSession();
+
+      // 初始化数据（第一次使用时创建默认数据）
+      var data = loadData();
+      saveData(data);
+
+      // 渲染账号列表
+      renderAccountList();
+
+      // 键盘快捷键: ESC 清除消息
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') hideMessage();
+      });
+    }
+
+    // 等 DOM 加载完毕
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

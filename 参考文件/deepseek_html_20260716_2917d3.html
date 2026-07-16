@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>1940 · 身份组管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+        /* ===== 完整样式（与 index.html 一致，仅保留必要差异） ===== */
+        :root {
+            --olive: #5A6B4A;
+            --olive-dark: #3F4D34;
+            --olive-light: #6B7E56;
+            --steel: #6B7A8A;
+            --steel-dark: #4A5560;
+            --khaki: #B8A88A;
+            --khaki-light: #D4C9AD;
+            --rust: #8B5A2B;
+            --rust-light: #A87040;
+            --gold: #D4AF37;
+            --gold-light: #E8CF9E;
+            --bg-dark: #1a1c1a;
+            --bg-surface: #222422;
+            --bg-elevated: #2a2c2a;
+            --bg-hover: #303230;
+            --text-primary: #E8E0D0;
+            --text-secondary: #B8A88A;
+            --text-muted: #7A7568;
+            --border-subtle: rgba(90, 107, 74, 0.4);
+            --border-gold: rgba(212, 175, 55, 0.3);
+            --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+            --font-title: 'Bebas Neue', 'Impact', 'Arial Black', sans-serif;
+            --font-body: 'Roboto', 'Segoe UI', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+            --radius-sharp: 2px;
+            --radius-card: 3px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        *,
+        *::before,
+        *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 15px; background: var(--bg-dark); }
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-image:
+                url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"),
+                radial-gradient(ellipse at 15% 30%, rgba(90, 107, 74, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 75% 60%, rgba(139, 90, 43, 0.08) 0%, transparent 45%);
+            background-attachment: fixed;
+        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--olive); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+        /* 导航栏 */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1.8rem;
+            height: 56px;
+            background: var(--bg-surface);
+            border-bottom: 2px solid var(--olive);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logo {
+            font-family: var(--font-title);
+            font-size: 1.6rem;
+            color: var(--khaki);
+            letter-spacing: 0.06em;
+            text-decoration: none;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+        .logo span { color: var(--gold); font-size: 0.8em; margin-left: 0.2em; }
+        .nav-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            padding-left: 1.2rem;
+            border-left: 1px solid var(--border-subtle);
+        }
+        .nav-breadcrumb a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .nav-breadcrumb a:hover { color: var(--gold); }
+        .nav-breadcrumb .sep { color: var(--steel); font-size: 0.7rem; }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .btn {
+            padding: 0.5rem 1.2rem;
+            font-family: var(--font-title);
+            font-size: 0.85rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1.5px solid var(--khaki);
+            background: var(--olive);
+            color: var(--khaki-light);
+            border-radius: var(--radius-sharp);
+            transition: all var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background: var(--olive-light);
+            border-color: var(--gold);
+            color: var(--gold-light);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+        .btn-outline {
+            background: transparent;
+            border-color: var(--steel);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.05);
+        }
+        .btn-danger {
+            background: var(--rust);
+            border-color: var(--rust-light);
+            color: var(--khaki-light);
+        }
+        .btn-primary {
+            background: rgba(90, 130, 255, 0.2);
+            border-color: rgba(90, 130, 255, 0.3);
+            color: #8aafff;
+        }
+        .btn-primary:hover {
+            background: rgba(90, 130, 255, 0.3);
+            border-color: rgba(90, 130, 255, 0.5);
+        }
+        .btn-sm { padding: 0.25rem 0.8rem; font-size: 0.7rem; }
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--olive);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-title);
+            font-size: 1rem;
+            color: var(--khaki-light);
+            cursor: pointer;
+            border: 2px solid var(--khaki);
+            transition: all var(--transition);
+        }
+        .user-avatar:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+        }
+        .user-dropdown {
+            position: fixed;
+            top: 64px;
+            right: 2rem;
+            background: var(--bg-surface);
+            border: 2px solid var(--olive);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-lg);
+            z-index: 150;
+            min-width: 200px;
+            padding: 0.5rem 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all var(--transition);
+        }
+        .user-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+        .user-dropdown a {
+            display: block;
+            padding: 0.6rem 1.2rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+        .user-dropdown a:hover {
+            background: var(--bg-hover);
+            color: var(--khaki);
+        }
+
+        /* 主布局 */
+        .main-layout {
+            display: flex;
+            min-height: calc(100vh - 56px);
+        }
+        .sidebar {
+            width: 220px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-subtle);
+            padding: 1.2rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+        .sidebar-section {
+            padding: 0.5rem 1rem;
+            font-family: var(--font-title);
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.55rem 1rem;
+            margin: 0 0.4rem;
+            border-radius: var(--radius-sharp);
+            transition: all var(--transition);
+            color: var(--text-secondary);
+            font-size: 0.84rem;
+            border-left: 3px solid transparent;
+            text-decoration: none;
+        }
+        .sidebar-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .sidebar-item.active {
+            background: rgba(90, 107, 74, 0.25);
+            border-left-color: var(--gold);
+            color: var(--khaki-light);
+        }
+        .sidebar-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            stroke: currentColor;
+        }
+        .storage-info {
+            margin: auto 0.8rem 0.5rem;
+            padding: 1rem;
+            background: var(--bg-dark);
+            border-radius: var(--radius-sharp);
+            border: 1px solid var(--border-subtle);
+        }
+        .storage-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+        .storage-bar {
+            height: 4px;
+            background: var(--bg-elevated);
+            border-radius: 2px;
+            margin-bottom: 0.4rem;
+            overflow: hidden;
+        }
+        .storage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--olive), var(--gold));
+            border-radius: 2px;
+            transition: width 0.6s;
+        }
+        .storage-text {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        .content-area {
+            flex: 1;
+            padding: 1.5rem 2rem;
+            overflow-y: auto;
+            min-width: 0;
+        }
+
+        /* 通用 */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+        }
+        .section-header h2 {
+            font-family: var(--font-title);
+            font-size: 1.5rem;
+            letter-spacing: 0.05em;
+            color: var(--khaki);
+            font-weight: 400;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-card);
+            padding: 1.2rem 1.5rem;
+            backdrop-filter: blur(8px);
+        }
+        .input-glass {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sharp);
+            padding: 0.5rem 0.8rem;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color var(--transition);
+            width: 100%;
+            max-width: 260px;
+        }
+        .input-glass:focus {
+            border-color: var(--gold);
+        }
+        .flex-row {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .group-chip {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 30px;
+            background: rgba(100, 200, 255, 0.08);
+            border: 1px solid rgba(100, 200, 255, 0.1);
+            font-size: 0.7rem;
+            color: #8ac4ff;
+            margin: 0.1rem 0.2rem;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 300;
+            background: var(--bg-surface);
+            border: 1px solid var(--gold);
+            padding: 0.7rem 1.2rem;
+            border-radius: var(--radius-sharp);
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            animation: toastIn 0.35s ease;
+        }
+        @keyframes toastIn {
+            from { transform: translateX(80px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .navbar { padding: 0 0.8rem; }
+            .content-area { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <a href="home.html" class="logo">1940<span>· 网盘</span></a>
+            <div class="nav-breadcrumb">
+                <a href="home.html">首页</a><span class="sep">/</span>
+                <span style="color:var(--khaki);">身份组管理</span>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="user-avatar" onclick="alert('身份组管理')">司</div>
+        </div>
+    </nav>
+
+    <!-- 主布局 -->
+    <div class="main-layout">
+        <aside class="sidebar">
+            <span class="sidebar-section">导航</span>
+            <a href="home.html" class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>首页
+            </a>
+            <a href="index.html" class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>全部文件
+            </a>
+            <a href="users.html" class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>用户管理
+            </a>
+            <a href="groups.html" class="sidebar-item active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>身份组
+            </a>
+            <a href="sections.html" class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>版块管理
+            </a>
+            <div class="storage-info">
+                <div class="storage-label">存储空间</div>
+                <div class="storage-bar"><div class="storage-fill" style="width:62%;"></div></div>
+                <div class="storage-text">已用 6.2 GB / 10 GB</div>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <div class="section-header">
+                <h2>身份组管理</h2>
+                <button class="btn btn-primary" onclick="document.getElementById('addGroupPanel').style.display='block'">+ 创建身份组</button>
+            </div>
+            <div id="groupListContainer"></div>
+            <div id="addGroupPanel" style="display:none; margin-top:20px;" class="glass-card">
+                <h4 style="margin-bottom:12px;">创建身份组</h4>
+                <div class="flex-row">
+                    <input class="input-glass" id="newGroupName" placeholder="组名" />
+                    <button class="btn btn-primary" onclick="confirmAddGroup()">创建</button>
+                    <button class="btn" onclick="document.getElementById('addGroupPanel').style.display='none'">取消</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        // ================================================================
+        //  数据层（与 index 相同）
+        // ================================================================
+        const STORAGE_KEY = 'netdisk1940_data';
+        function getDefaultData() {
+            return {
+                users: [
+                    { id: 'u1', username: 'admin', password: 'admin123', role: 'admin', groupIds: [] },
+                    { id: 'u2', username: 'user1', password: '123456', role: 'user', groupIds: [] },
+                ],
+                groups: [
+                    { id: 'g1', name: '管理组', userIds: ['u1'], permissions: {} },
+                    { id: 'g2', name: '普通用户组', userIds: ['u2'], permissions: {} },
+                ],
+                sections: [
+                    { id: 's1', name: '公共资源' },
+                    { id: 's2', name: '项目文档' },
+                ],
+                files: [
+                    { id: 'f1', name: '项目计划', type: 'folder', parentId: null, size: 0, uploadDate: Date.now() - 3600000 },
+                    { id: 'f2', name: '会议纪要.docx', type: 'file', parentId: null, size: 24576, uploadDate: Date.now() - 7200000 },
+                    { id: 'f3', name: 'logo.png', type: 'file', parentId: null, size: 102400, uploadDate: Date.now() - 1800000 },
+                    { id: 'f4', name: '设计稿', type: 'folder', parentId: null, size: 0, uploadDate: Date.now() - 5400000 },
+                ],
+                currentUserId: 'u1',
+                nextId: { user: 3, group: 3, section: 3, file: 5 }
+            };
+        }
+        function loadData() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                try { return JSON.parse(raw); } catch (e) {}
+            }
+            const def = getDefaultData();
+            saveData(def);
+            return def;
+        }
+        function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+        let data = loadData();
+
+        // ================================================================
+        //  工具函数
+        // ================================================================
+        function findUser(id) { return data.users.find(u => u.id === id); }
+        function findGroup(id) { return data.groups.find(g => g.id === id); }
+        function findSection(id) { return data.sections.find(s => s.id === id); }
+        function findFile(id) { return data.files.find(f => f.id === id); }
+        function genId(prefix, key) {
+            const id = data.nextId[key] || 1;
+            data.nextId[key] = id + 1;
+            saveData(data);
+            return prefix + id;
+        }
+        function formatSize(bytes) { /* 不需要，但保留 */ }
+        function formatDate(ts) { /* 不需要，但保留 */ }
+
+        // ================================================================
+        //  身份组管理模块
+        // ================================================================
+        function renderGroups() {
+            const container = document.getElementById('groupListContainer');
+            if (!container) return;
+            let html = '';
+            data.groups.forEach(g => {
+                const userNames = g.userIds.map(id => findUser(id)?.username).filter(Boolean).join(', ') || '无';
+                html += `
+                    <div class="glass-card" style="margin-bottom:14px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <strong style="font-size:16px;">${g.name}</strong>
+                                <span style="margin-left:16px; font-size:13px; color:var(--text-muted);">成员：${userNames}</span>
+                            </div>
+                            <button class="btn btn-sm btn-danger" onclick="deleteGroup('${g.id}')">删除组</button>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <span style="font-size:13px; color:var(--text-muted);">分配用户：</span>
+                            ${data.users.map(u => `
+                                <label style="font-size:13px; margin-right:12px; cursor:pointer;">
+                                    <input type="checkbox" ${g.userIds.includes(u.id) ? 'checked' : ''} 
+                                           onchange="toggleUserInGroup('${g.id}','${u.id}')" />
+                                    ${u.username}
+                                </label>
+                            `).join('')}
+                        </div>
+                        <div style="margin-top:8px; font-size:12px; color:var(--text-muted);">
+                            版块权限：${data.sections.map(s => {
+                                const perm = g.permissions[s.id] || 'none';
+                                return `<span class="group-chip">${s.name}: ${perm}</span>`;
+                            }).join(' ')}
+                            <button class="btn btn-sm" style="margin-left:8px;" onclick="editGroupPermissions('${g.id}')">编辑权限</button>
+                        </div>
+                    </div>
+                `;
+            });
+            if (!data.groups.length) {
+                html = '<div style="color:var(--text-muted); padding:20px 0;">暂无身份组，请创建</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function toggleUserInGroup(groupId, userId) {
+            const group = findGroup(groupId);
+            if (!group) return;
+            const idx = group.userIds.indexOf(userId);
+            if (idx > -1) {
+                group.userIds.splice(idx, 1);
+            } else {
+                group.userIds.push(userId);
+            }
+            saveData(data);
+            renderGroups();
+        }
+
+        function deleteGroup(id) {
+            if (!confirm('删除此身份组？')) return;
+            data.groups = data.groups.filter(g => g.id !== id);
+            data.users.forEach(u => {
+                u.groupIds = u.groupIds.filter(gid => gid !== id);
+            });
+            saveData(data);
+            renderGroups();
+            showToast('已删除身份组');
+        }
+
+        function editGroupPermissions(groupId) {
+            const group = findGroup(groupId);
+            if (!group) return;
+            for (const s of data.sections) {
+                const current = group.permissions[s.id] || 'none';
+                const newPerm = prompt(`版块 "${s.name}" 权限 (输入 read / write / none)：`, current);
+                if (newPerm !== null) {
+                    const val = newPerm.trim().toLowerCase();
+                    if (['read', 'write', 'none'].includes(val)) {
+                        group.permissions[s.id] = val;
+                    } else {
+                        alert('无效值，保持原样');
+                    }
+                }
+            }
+            saveData(data);
+            renderGroups();
+            showToast('权限已更新');
+        }
+
+        function confirmAddGroup() {
+            const name = document.getElementById('newGroupName').value.trim();
+            if (!name) return alert('请输入组名');
+            if (data.groups.some(g => g.name === name)) return alert('组名已存在');
+            const newGroup = {
+                id: genId('g', 'group'),
+                name,
+                userIds: [],
+                permissions: {}
+            };
+            data.groups.push(newGroup);
+            saveData(data);
+            renderGroups();
+            document.getElementById('addGroupPanel').style.display = 'none';
+            showToast('身份组已创建');
+        }
+
+        // ================================================================
+        //  Toast
+        // ================================================================
+        function showToast(msg) {
+            const container = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            container.appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transition = '0.3s';
+                setTimeout(() => t.remove(), 300);
+            }, 2000);
+        }
+
+        // ================================================================
+        //  初始化
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            renderGroups();
+        });
+
+        // 暴露全局函数
+        window.renderGroups = renderGroups;
+        window.toggleUserInGroup = toggleUserInGroup;
+        window.deleteGroup = deleteGroup;
+        window.editGroupPermissions = editGroupPermissions;
+        window.confirmAddGroup = confirmAddGroup;
+        window.showToast = showToast;
+    </script>
+</body>
+</html>

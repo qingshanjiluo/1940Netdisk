@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta name="robots" content="noindex, nofollow">
+<title>白名单模式已开启 — 1940Netdisk</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/mobile-refactor.css">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+<style>
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    background: var(--bg-primary);
+  }
+  .glass-card {
+    max-width: 460px;
+    text-align: center;
+    padding: var(--space-xl) var(--space-lg);
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid rgba(90,107,74,0.4);
+    border-radius: 3px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    animation: fadeSlide .35s ease-out;
+  }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .icon-circle {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--space-md);
+    font-size: 2rem;
+    color: #fff;
+    background: var(--khaki);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--khaki) 30%, transparent);
+  }
+  .icon-circle i { filter: drop-shadow(0 2px 4px rgba(0,0,0,.2)); }
+  h1 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--khaki);
+    margin-bottom: var(--space-sm);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .msg {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    font-size: .88rem;
+    margin-bottom: var(--space-sm);
+  }
+  .msg-en {
+    color: var(--text-muted);
+    font-size: .8rem;
+    margin-bottom: var(--space-lg);
+  }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 10px 24px;
+    border: 1.5px solid var(--khaki);
+    border-radius: 3px;
+    background: var(--olive);
+    color: var(--khaki-light);
+    font-family: var(--font-display);
+    font-size: .85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .2s;
+    margin-bottom: var(--space-lg);
+  }
+  .back-btn:hover {
+    background: var(--olive-light);
+    border-color: var(--gold);
+    color: var(--gold-light);
+    box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    transform: translateY(-1px);
+  }
+  .footer {
+    font-size: .78rem;
+    color: var(--text-muted);
+  }
+  .footer a {
+    color: var(--gold);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="glass-card">
+    <div class="icon-circle"><i class="fas fa-shield-alt"></i></div>
+    <h1>白名单模式已开启</h1>
+    <p class="msg">当前已开启白名单模式，上传的文件需要审核通过后才能展示。请等待管理员审核通过后再访问。</p>
+    <p class="msg-en">Whitelist mode is enabled. Uploaded files need approval before display.</p>
+    <a href="javascript:history.back()" class="back-btn"><i class="fas fa-arrow-left"></i> 返回上一页</a>
+    <p class="footer">Powered by <a href="https://github.com/K-Vault">1940Netdisk</a></p>
+  </div>
+</body>
+</html>

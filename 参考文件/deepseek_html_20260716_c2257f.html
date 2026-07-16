@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1940 · 项目组网盘 — 钢铁存储</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --olive: #5A6B4A;
+            --olive-dark: #3F4D34;
+            --olive-light: #6B7E56;
+            --steel: #6B7A8A;
+            --steel-dark: #4A5560;
+            --khaki: #B8A88A;
+            --khaki-light: #D4C9AD;
+            --rust: #8B5A2B;
+            --rust-light: #A87040;
+            --gold: #D4AF37;
+            --gold-light: #E8CF9E;
+            --bg-dark: #1a1c1a;
+            --bg-surface: #222422;
+            --bg-elevated: #2a2c2a;
+            --bg-hover: #303230;
+            --text-primary: #E8E0D0;
+            --text-secondary: #B8A88A;
+            --text-muted: #7A7568;
+            --border-subtle: rgba(90, 107, 74, 0.4);
+            --border-gold: rgba(212, 175, 55, 0.3);
+            --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.6);
+            --font-title: 'Bebas Neue', 'Impact', 'Arial Black', sans-serif;
+            --font-body: 'Roboto', 'Segoe UI', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+            --radius-sharp: 2px;
+            --radius-card: 3px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html {
+            font-size: 15px;
+            background: var(--bg-dark);
+        }
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-image:
+                url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"),
+                radial-gradient(ellipse at 15% 30%, rgba(90, 107, 74, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 75% 60%, rgba(139, 90, 43, 0.08) 0%, transparent 45%),
+                radial-gradient(ellipse at 40% 80%, rgba(107, 122, 138, 0.1) 0%, transparent 55%);
+            background-attachment: fixed;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--olive);
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gold);
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1.8rem;
+            height: 56px;
+            background: var(--bg-surface);
+            border-bottom: 2px solid var(--olive);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logo {
+            font-family: var(--font-title);
+            font-size: 1.6rem;
+            color: var(--khaki);
+            letter-spacing: 0.06em;
+            text-decoration: none;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+        .logo span {
+            color: var(--gold);
+            font-size: 0.8em;
+            margin-left: 0.2em;
+            letter-spacing: 0.1em;
+        }
+        .nav-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            padding-left: 1.2rem;
+            border-left: 1px solid var(--border-subtle);
+        }
+        .nav-breadcrumb a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .nav-breadcrumb a:hover {
+            color: var(--gold);
+        }
+        .nav-breadcrumb .sep {
+            color: var(--steel);
+            font-size: 0.7rem;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sharp);
+            padding: 0.4rem 0.8rem;
+            gap: 0.4rem;
+            transition: border-color var(--transition);
+        }
+        .search-box:focus-within {
+            border-color: var(--gold);
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.82rem;
+            width: 200px;
+        }
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+        .search-box svg {
+            width: 15px;
+            height: 15px;
+            stroke: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .btn {
+            padding: 0.5rem 1.2rem;
+            font-family: var(--font-title);
+            font-size: 0.85rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1.5px solid var(--khaki);
+            background: var(--olive);
+            color: var(--khaki-light);
+            border-radius: var(--radius-sharp);
+            transition: all var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background: var(--olive-light);
+            border-color: var(--gold);
+            color: var(--gold-light);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+        .btn-outline {
+            background: transparent;
+            border-color: var(--steel);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.05);
+        }
+        .btn-danger {
+            background: var(--rust);
+            border-color: var(--rust-light);
+            color: var(--khaki-light);
+        }
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--olive);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-title);
+            font-size: 1rem;
+            color: var(--khaki-light);
+            cursor: pointer;
+            border: 2px solid var(--khaki);
+            transition: all var(--transition);
+        }
+        .user-avatar:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+        }
+
+        /* 用户中心下拉 */
+        .user-dropdown {
+            position: fixed;
+            top: 64px;
+            right: 2rem;
+            background: var(--bg-surface);
+            border: 2px solid var(--olive);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-lg);
+            z-index: 150;
+            min-width: 200px;
+            padding: 0.5rem 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all var(--transition);
+        }
+        .user-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .user-dropdown a {
+            display: block;
+            padding: 0.6rem 1.2rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        .user-dropdown a:hover {
+            background: var(--bg-hover);
+            color: var(--khaki);
+        }
+
+        /* 主布局 */
+        .main-layout {
+            display: flex;
+            min-height: calc(100vh - 56px);
+        }
+        /* 左侧边栏 */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-subtle);
+            padding: 1.2rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+        .sidebar-section {
+            padding: 0.5rem 1rem;
+            font-family: var(--font-title);
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.55rem 1rem;
+            margin: 0 0.4rem;
+            border-radius: var(--radius-sharp);
+            cursor: pointer;
+            transition: all var(--transition);
+            color: var(--text-secondary);
+            font-size: 0.84rem;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .sidebar-item.active {
+            background: rgba(90, 107, 74, 0.25);
+            border-left-color: var(--gold);
+            color: var(--khaki-light);
+        }
+        .sidebar-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            stroke: currentColor;
+        }
+        .storage-info {
+            margin: auto 0.8rem 0.5rem;
+            padding: 1rem;
+            background: var(--bg-dark);
+            border-radius: var(--radius-sharp);
+            border: 1px solid var(--border-subtle);
+        }
+        .storage-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+        .storage-bar {
+            height: 4px;
+            background: var(--bg-elevated);
+            border-radius: 2px;
+            margin-bottom: 0.4rem;
+            overflow: hidden;
+        }
+        .storage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--olive), var(--gold));
+            border-radius: 2px;
+            width: 62%;
+            transition: width 0.6s;
+        }
+        .storage-text {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        /* 主内容区 */
+        .content-area {
+            flex: 1;
+            padding: 1.5rem 2rem;
+            overflow-y: auto;
+            min-width: 0;
+        }
+        /* 批量操作栏 */
+        .batch-bar {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--gold);
+            border-radius: var(--radius-sharp);
+            margin-bottom: 1rem;
+            animation: fadeSlide 0.3s ease;
+        }
+        .batch-bar.active {
+            display: flex;
+        }
+        .batch-bar span {
+            font-size: 0.82rem;
+            color: var(--khaki);
+        }
+        @keyframes fadeSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+        }
+        .toolbar-left {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .view-toggle {
+            display: flex;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sharp);
+            overflow: hidden;
+        }
+        .view-btn {
+            padding: 0.4rem 0.7rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all var(--transition);
+        }
+        .view-btn.active {
+            background: var(--olive);
+            color: var(--khaki-light);
+        }
+        .view-btn:hover {
+            color: var(--text-primary);
+        }
+        .view-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* 文件表格 */
+        .table-wrap {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-card);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th,
+        td {
+            padding: 0.7rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+            white-space: nowrap;
+            font-size: 0.84rem;
+        }
+        th {
+            font-family: var(--font-title);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            background: var(--bg-dark);
+            font-weight: 400;
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            color: var(--khaki);
+        }
+        tr:hover td {
+            background: var(--bg-hover);
+        }
+        .file-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+        .file-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+        .file-name {
+            color: var(--text-primary);
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .file-name:hover {
+            color: var(--gold);
+        }
+        .file-meta {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-sharp);
+            font-size: 0.68rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+        }
+        .badge-code {
+            background: rgba(90, 107, 74, 0.2);
+            color: var(--olive-light);
+        }
+        .badge-image {
+            background: rgba(139, 90, 43, 0.2);
+            color: var(--rust-light);
+        }
+        .badge-text {
+            background: rgba(107, 122, 138, 0.2);
+            color: var(--steel);
+        }
+        .badge-folder {
+            background: rgba(212, 175, 55, 0.15);
+            color: var(--gold);
+        }
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: var(--radius-sharp);
+            font-size: 0.7rem;
+            transition: all var(--transition);
+            margin-right: 0.3rem;
+            font-family: var(--font-body);
+        }
+        .action-btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.06);
+        }
+        .checkbox-cell {
+            width: 20px;
+        }
+        .checkbox-cell input {
+            accent-color: var(--gold);
+        }
+
+        /* 网格视图 */
+        .grid-view {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+        .grid-view.active {
+            display: grid;
+        }
+        .grid-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-card);
+            padding: 1.2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+        }
+        .grid-card:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+            transform: translateY(-2px);
+        }
+        .grid-card .check-overlay {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--gold);
+            display: none;
+        }
+        .grid-card.selecting .check-overlay {
+            display: block;
+        }
+        .grid-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 0.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .grid-icon svg {
+            width: 36px;
+            height: 36px;
+        }
+        .grid-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            word-break: break-all;
+            line-height: 1.3;
+            margin-bottom: 0.3rem;
+        }
+        .grid-meta {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
+
+        /* 图库视图 */
+        .gallery-view {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .gallery-view.active {
+            display: grid;
+        }
+        .gallery-item {
+            aspect-ratio: 16 / 10;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-card);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--bg-elevated);
+        }
+        .gallery-item:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+            transform: scale(1.02);
+        }
+        .gallery-item .gal-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.5rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            color: var(--khaki-light);
+            font-size: 0.72rem;
+            text-align: center;
+        }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(3px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition);
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-dialog {
+            background: var(--bg-surface);
+            border: 2px solid var(--olive);
+            border-radius: var(--radius-card);
+            padding: 2rem;
+            width: 500px;
+            max-width: 90vw;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-dialog h3 {
+            font-family: var(--font-title);
+            font-size: 1.4rem;
+            letter-spacing: 0.05em;
+            color: var(--khaki);
+            margin-bottom: 1.2rem;
+            border-bottom: 2px solid var(--olive);
+            padding-bottom: 0.5rem;
+        }
+        .drop-zone {
+            border: 2px dashed var(--border-subtle);
+            border-radius: var(--radius-sharp);
+            padding: 2.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all var(--transition);
+            margin-bottom: 1rem;
+        }
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.04);
+            color: var(--khaki);
+        }
+        .drop-zone svg {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 0.5rem;
+            stroke: currentColor;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: flex-end;
+        }
+        .upload-log {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            background: var(--bg-dark);
+            padding: 0.6rem;
+            border-radius: var(--radius-sharp);
+        }
+        .upload-log div {
+            padding: 0.2rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 300;
+            background: var(--bg-surface);
+            border: 1px solid var(--gold);
+            padding: 0.7rem 1.2rem;
+            border-radius: var(--radius-sharp);
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            animation: toastIn 0.35s ease;
+        }
+        @keyframes toastIn {
+            from {
+                transform: translateX(80px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .navbar {
+                padding: 0 0.8rem;
+            }
+            .search-box input {
+                width: 120px;
+            }
+            .content-area {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 用户中心下拉 -->
+    <div class="user-dropdown" id="userDropdown">
+        <a href="#" onclick="showUploadLog()">上传记录</a>
+        <a href="#" onclick="showToast('个人设置页面开发中')">个人设置</a>
+        <a href="#" onclick="showToast('已退出登录')">退出</a>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <a href="#" class="logo">1940<span>· 网盘</span></a>
+            <div class="nav-breadcrumb">
+                <a href="#">根目录</a><span class="sep">/</span>
+                <a href="#">项目文件</a><span class="sep">/</span>
+                <span style="color:var(--khaki);">源代码</span>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="搜索文件..." id="searchInput" oninput="filterFiles()">
+            </div>
+            <button class="btn" onclick="openUploadModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>上传
+            </button>
+            <button class="btn btn-outline" onclick="createFolder()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>新建文件夹
+            </button>
+            <div class="user-avatar" id="userAvatar" onclick="toggleUserDropdown()">司</div>
+        </div>
+    </nav>
+
+    <!-- 主布局 -->
+    <div class="main-layout">
+        <aside class="sidebar">
+            <span class="sidebar-section">导航</span>
+            <div class="sidebar-item active" data-view="list">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>全部文件
+            </div>
+            <div class="sidebar-item" data-view="code">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>源代码
+            </div>
+            <div class="sidebar-item" data-view="gallery">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>图库
+            </div>
+            <div class="sidebar-item" data-view="text">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>文档文本
+            </div>
+            <div class="storage-info">
+                <div class="storage-label">存储空间</div>
+                <div class="storage-bar"><div class="storage-fill"></div></div>
+                <div class="storage-text">已用 6.2 GB / 10 GB</div>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <!-- 批量操作栏 -->
+            <div class="batch-bar" id="batchBar">
+                <span id="batchCount">已选择 0 项</span>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-outline" onclick="batchDownload()">批量下载</button>
+                    <button class="btn btn-danger" onclick="batchDelete()">批量删除</button>
+                </div>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <span style="color:var(--text-muted);font-size:0.8rem;" id="fileCount">共 12 个项目</span>
+                    <div class="view-toggle">
+                        <button class="view-btn active" onclick="switchView('list')" title="列表视图">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg>
+                        </button>
+                        <button class="view-btn" onclick="switchView('grid')" title="网格视图">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        </button>
+                        <button class="view-btn" onclick="switchView('gallery')" title="图库视图">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);">最后同步：2026-07-04 14:32</span>
+            </div>
+
+            <div id="listView" class="table-wrap">
+                <table><thead><tr><th class="checkbox-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th><th style="width:30%;">文件名</th><th style="width:10%;">类型</th><th style="width:12%;">大小</th><th style="width:18%;">修改时间</th><th style="width:25%;">操作</th></tr></thead><tbody id="fileTableBody"></tbody></table>
+            </div>
+            <div id="gridView" class="grid-view"></div>
+            <div id="galleryView" class="gallery-view"></div>
+        </main>
+    </div>
+
+    <!-- 上传弹窗 -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal-dialog"><h3>上传文件 / 文件夹</h3>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <p>拖拽文件/文件夹到此处（支持保留文件夹结构）</p></div>
+            <input type="file" id="fileInput" style="display:none;" multiple webkitdirectory onchange="handleFiles(this.files,true)">
+            <div class="upload-log" id="uploadLog"><div style="color:var(--text-muted);">暂无上传记录</div></div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeUploadModal()">取消</button>
+                <button class="btn" onclick="confirmUpload()">确认上传</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传记录弹窗 -->
+    <div class="modal-overlay" id="logModal">
+        <div class="modal-dialog"><h3>上传记录</h3>
+            <div class="upload-log" id="historyLog"><div style="color:var(--text-muted);">暂无上传记录</div></div>
+            <div class="modal-actions"><button class="btn btn-outline" onclick="closeLogModal()">关闭</button></div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        (function() {
+            const files = [
+                { name: 'src', type: 'folder', size: '--', time: '2026-07-04 14:20', badge: 'badge-folder',
+                    icon: 'folder' },
+                { name: 'assets', type: 'folder', size: '--', time: '2026-07-03 09:15', badge: 'badge-folder',
+                    icon: 'folder' },
+                { name: 'main.cpp', type: 'code', size: '24.5 KB', time: '2026-07-04 14:32', badge: 'badge-code',
+                    icon: 'code' },
+                { name: 'tank_controller.py', type: 'code', size: '18.2 KB', time: '2026-07-04 11:08',
+                    badge: 'badge-code', icon: 'code' },
+                { name: 'battle_scene.unity', type: 'code', size: '156 KB', time: '2026-07-03 22:45',
+                    badge: 'badge-code', icon: 'code' },
+                { name: 'texture_tank_diffuse.png', type: 'image', size: '2.1 MB', time: '2026-07-02 16:30',
+                    badge: 'badge-image', icon: 'image' },
+                { name: 'ui_blueprint.png', type: 'image', size: '1.4 MB', time: '2026-07-02 15:22',
+                    badge: 'badge-image', icon: 'image' },
+                { name: 'design_doc_v3.txt', type: 'text', size: '42 KB', time: '2026-07-01 10:00',
+                    badge: 'badge-text', icon: 'text' },
+                { name: 'build_log.txt', type: 'text', size: '8.6 KB', time: '2026-07-04 13:55', badge: 'badge-text',
+                    icon: 'text' },
+            ];
+            let currentView = 'list';
+            let selectedFiles = new Set();
+            let uploadHistory = [];
+            const icons = {
+                folder: '<svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
+                code: '<svg viewBox="0 0 24 24" fill="none" stroke="#6B7E56" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+                image: '<svg viewBox="0 0 24 24" fill="none" stroke="#A87040" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+                text: '<svg viewBox="0 0 24 24" fill="none" stroke="#6B7A8A" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+            };
+            const fakeImgColors = ['#5a6b4a', '#6b7a8a', '#8b5a2b', '#4a5560', '#3f4d34'];
+            function renderAll(data) { renderListView(data);
+                renderGridView(data);
+                renderGalleryView(data);
+                updateFileCount(data); }
+
+            function renderListView(data) {
+                document.getElementById('fileTableBody').innerHTML = data.map((f, i) => `
+                    <tr data-index="${i}">
+                        <td class="checkbox-cell"><input type="checkbox" ${selectedFiles.has(f.name)?'checked':''} onchange="toggleSelect('${f.name}',this.checked)"></td>
+                        <td><span class="file-icon">${icons[f.icon]}</span><span class="file-name" onclick="${f.type==='folder'?'navigateToFolder(\''+f.name+'\')':''}">${f.name}</span></td>
+                        <td><span class="badge ${f.badge}">${f.type==='folder'?'文件夹':f.type==='code'?'源代码':f.type==='image'?'图片':'文本'}</span></td>
+                        <td class="file-meta">${f.size}</td><td class="file-meta">${f.time}</td>
+                        <td>
+                            <button class="action-btn" onclick="downloadFile('${f.name}')">下载</button>
+                            <button class="action-btn" onclick="shareFile('${f.name}')">分享</button>
+                            <button class="action-btn" onclick="deleteFile('${f.name}')">删除</button>
+                        </td>
+                    </tr>`).join('');
+                updateBatchBar();
+            }
+            function renderGridView(data) {
+                document.getElementById('gridView').innerHTML = data.map(f => `
+                    <div class="grid-card ${selectedFiles.has(f.name)?'selecting':''}" onclick="${f.type==='folder'?'navigateToFolder(\''+f.name+'\')':'toggleSelect(\''+f.name+'\',!selectedFiles.has(\''+f.name+'\'))'}">
+                        <input type="checkbox" class="check-overlay" ${selectedFiles.has(f.name)?'checked':''} onclick="event.stopPropagation();toggleSelect('${f.name}',this.checked)">
+                        <div class="grid-icon">${icons[f.icon]}</div>
+                        <div class="grid-name">${f.name}</div><div class="grid-meta">${f.size}</div>
+                    </div>`).join('');
+            }
+            function renderGalleryView(data) {
+                const imgs = data.filter(f => f.type === 'image');
+                document.getElementById('galleryView').innerHTML = imgs.map(f => `
+                    <div class="gallery-item" style="background-image:linear-gradient(135deg,${fakeImgColors[Math.floor(Math.random()*fakeImgColors.length)]},${fakeImgColors[Math.floor(Math.random()*fakeImgColors.length)]});">
+                        <div class="gal-overlay">${f.name}<br>${f.size}</div>
+                    </div>`).join('');
+            }
+            function updateFileCount(data) { document.getElementById('fileCount').textContent = '共 ' + (data || files)
+                    .length + ' 个项目'; }
+            window.switchView = function(view) {
+                currentView = view;
+                document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
+                document.getElementById('gridView').style.display = view === 'grid' ? 'grid' : 'none';
+                document.getElementById('galleryView').style.display = view === 'gallery' ? 'grid' : 'none';
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                const idx = view === 'list' ? 0 : view === 'grid' ? 1 : 2;
+                document.querySelectorAll('.view-btn')[idx].classList.add('active');
+            };
+            window.filterFiles = function() {
+                const q = document.getElementById('searchInput').value.toLowerCase();
+                renderAll(files.filter(f => f.name.toLowerCase().includes(q)));
+            };
+            window.toggleSelect = function(name, checked) {
+                checked ? selectedFiles.add(name) : selectedFiles.delete(name);
+                document.getElementById('selectAll').checked = selectedFiles.size === files.length;
+                renderAll(files);
+            };
+            window.toggleSelectAll = function() {
+                const checked = document.getElementById('selectAll').checked;
+                files.forEach(f => checked ? selectedFiles.add(f.name) : selectedFiles.delete(f.name));
+                renderAll(files);
+            };
+            function updateBatchBar() {
+                const bar = document.getElementById('batchBar');
+                const count = selectedFiles.size;
+                document.getElementById('batchCount').textContent = '已选择 ' + count + ' 项';
+                bar.classList.toggle('active', count > 0);
+            }
+            window.batchDownload = function() { showToast('正在打包下载 ' + selectedFiles.size + ' 个文件'); };
+            window.batchDelete = function() { showToast('已删除 ' + selectedFiles.size + ' 个文件');
+                selectedFiles.clear();
+                renderAll(files); };
+            window.downloadFile = function(name) { showToast('正在下载: ' + name); };
+            window.shareFile = function(name) { navigator.clipboard.writeText('https://1940.drive/' + name).then(() =>
+                    showToast('分享链接已复制')); };
+            window.deleteFile = function(name) { showToast('已删除: ' + name); };
+            window.navigateToFolder = function(name) { showToast('进入文件夹: ' + name); };
+            window.createFolder = function() { const n = prompt('文件夹名称：'); if (n) showToast('已创建文件夹: ' + n); };
+
+            // 上传系统
+            let uploadQueue = [];
+            window.openUploadModal = function() { document.getElementById('uploadModal').classList.add('open'); };
+            window.closeUploadModal = function() { document.getElementById('uploadModal').classList.remove('open'); };
+            window.handleFiles = function(fileList, preserveStructure) {
+                uploadQueue = [];
+                Array.from(fileList).forEach(file => {
+                    const path = file.webkitRelativePath || file.name;
+                    uploadQueue.push({ name: path, file: file, time: new Date().toLocaleString() });
+                });
+                const logEl = document.getElementById('uploadLog');
+                logEl.innerHTML = uploadQueue.map(f => '<div>' + f.name + '</div>').join('') ||
+                    '<div style="color:var(--text-muted);">已选择 ' + uploadQueue.length + ' 个文件</div>';
+            };
+            window.confirmUpload = function() {
+                if (uploadQueue.length > 0) {
+                    uploadHistory.push(...uploadQueue);
+                    showToast('上传完成：' + uploadQueue.length + ' 个文件（保留目录结构）');
+                    uploadQueue = [];
+                    document.getElementById('uploadLog').innerHTML =
+                    '<div style="color:var(--text-muted);">暂无上传记录</div>';
+                }
+                closeUploadModal();
+            };
+            // 拖拽处理
+            const dropZone = document.getElementById('dropZone');
+            dropZone.addEventListener('dragover', e => { e.preventDefault();
+                dropZone.classList.add('dragover'); });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+            dropZone.addEventListener('drop', async e => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const items = e.dataTransfer.items;
+                const allFiles = [];
+                async function traverse(item, path) {
+                    if (item.isFile) {
+                        const file = item.getAsFile();
+                        file.newPath = path + file.name;
+                        allFiles.push(file);
+                    } else if (item.isDirectory) {
+                        const dirReader = item.createReader();
+                        const entries = await new Promise(resolve => dirReader.readEntries(resolve));
+                        for (const entry of entries) {
+                            await traverse(entry, path + item.name + '/');
+                        }
+                    }
+                }
+                for (const item of items) {
+                    if (item.webkitGetAsEntry) {
+                        const entry = item.webkitGetAsEntry();
+                        if (entry) await traverse(entry, '');
+                    }
+                }
+                if (allFiles.length > 0) {
+                    uploadQueue = allFiles.map(f => ({ name: f.newPath || f.name, file: f, time: new Date()
+                            .toLocaleString() }));
+                    const logEl = document.getElementById('uploadLog');
+                    logEl.innerHTML = uploadQueue.map(f => '<div>' + f.name + '</div>').join('');
+                }
+            });
+
+            // 上传记录
+            window.showUploadLog = function() {
+                const logEl = document.getElementById('historyLog');
+                logEl.innerHTML = uploadHistory.length > 0 ? uploadHistory.map(f => '<div>' + f.time + ' ' + f
+                    .name + '</div>').join('') : '<div style="color:var(--text-muted);">暂无上传记录</div>';
+                document.getElementById('logModal').classList.add('open');
+                document.getElementById('userDropdown').classList.remove('open');
+            };
+            window.closeLogModal = function() { document.getElementById('logModal').classList.remove('open'); };
+
+            // 用户菜单
+            window.toggleUserDropdown = function() { document.getElementById('userDropdown').classList.toggle(
+                    'open'); };
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#userAvatar') && !e.target.closest('.user-dropdown')) {
+                    document.getElementById('userDropdown').classList.remove('open');
+                }
+            });
+
+            function showToast(msg) {
+                const t = document.createElement('div');
+                t.className = 'toast';
+                t.textContent = msg;
+                document.getElementById('toastContainer').appendChild(t);
+                setTimeout(() => { t.style.opacity = '0';
+                    t.style.transition = '0.3s';
+                    setTimeout(() => t.remove(), 300); }, 2000);
+            }
+            window.showToast = showToast;
+            renderAll(files);
+        })();
+    </script>
+</body>
+</html>

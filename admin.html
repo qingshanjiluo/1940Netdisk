@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1940Netdisk | 管理后台</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/theme.js?v=20260305"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+  <script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
+  <style>
+    /* Admin-specific overrides */
+    .admin-header { display:flex; align-items:center; gap:var(--space-md); padding:var(--space-sm) var(--space-md); background:var(--glass-bg); border-bottom:2px solid var(--olive); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); position:sticky; top:0; z-index:100; flex-wrap:wrap; }
+    .admin-header .breadcrumb { display:flex; align-items:center; gap:6px; font-family:var(--font-display); }
+    .admin-header .breadcrumb-item { cursor:pointer; font-size:1.05em; letter-spacing:.04em; opacity:.7; transition:all .2s; white-space:nowrap; }
+    .admin-header .breadcrumb-item:hover { opacity:1; color:var(--gold); }
+    .admin-header .breadcrumb-item.is-active { opacity:1; color:var(--khaki); cursor:pointer; font-size:1.2em; }
+    .admin-header .breadcrumb-sep { font-size:.55em; opacity:.35; display:flex; align-items:center; }
+    .admin-header .search-card { flex:1; min-width:140px; max-width:280px; }
+    .admin-header .stats { font-size:.82em; opacity:.8; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+    .admin-header .stats-text { font-weight:600; }
+    .admin-header .stats-loaded { opacity:.6; }
+    .admin-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+    .admin-actions .action-btn { background:transparent; border:1px solid var(--steel); color:var(--color-text-secondary); width:34px; height:34px; border-radius:3px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; font-size:.9em; position:relative; }
+    .admin-actions .action-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.05); }
+    .admin-actions .action-btn .badge-dot { position:absolute; top:-2px; right:-2px; width:8px; height:8px; border-radius:50%; background:var(--rust); }
+    .status-panel { display:flex; gap:3px; cursor:pointer; padding:4px 8px; border-radius:var(--radius-sm); transition:background .2s; }
+    .status-panel:hover { background:var(--glass-hover); }
+    .status-item { display:flex; align-items:center; gap:3px; font-size:.72em; }
+    .status-item i { font-size:.6em; }
+    .admin-dropdown { position:relative; display:inline-flex; }
+    .admin-dropdown-menu { position:absolute; top:calc(100% + 4px); right:0; min-width:180px; background:var(--glass-bg); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--steel); border-radius:3px; padding:4px 0; z-index:200; display:none; box-shadow:var(--shadow-lg); }
+    .admin-dropdown-menu.show { display:block; }
+    .admin-dropdown-item { display:flex; align-items:center; gap:8px; padding:8px 14px; cursor:pointer; font-size:.85em; transition:background .15s; white-space:nowrap; }
+    .admin-dropdown-item:hover { background:var(--glass-hover); }
+    .admin-dropdown-item i { width:18px; text-align:center; }
+    .admin-dropdown-item.is-disabled { opacity:.4; cursor:not-allowed; }
+    .admin-dropdown-item.is-selected { background:rgba(90,107,74,.15); color:var(--gold); }
+    .admin-dropdown-divider { height:1px; background:var(--border); margin:4px 0; }
+
+    .main-layout { display:flex; gap:var(--space-md); padding:var(--space-md); min-height:calc(100vh - 70px); }
+    .folder-sidebar { width:220px; min-width:220px; background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; padding:var(--space-sm); display:flex; flex-direction:column; gap:var(--space-sm); max-height:calc(100vh - 100px); overflow-y:auto; transition:border-color .2s; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .folder-sidebar.is-drag-active { border-color:var(--gold); box-shadow:0 0 20px rgba(212,175,55,.15); }
+    .folder-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-xs); }
+    .folder-head-title { display:flex; align-items:center; gap:6px; font-size:.85em; font-weight:600; }
+    .folder-head-actions { display:flex; gap:2px; }
+    .folder-current { font-size:.78em; opacity:.6; padding:2px 0; word-break:break-all; }
+    .folder-drop-hint { padding:8px 10px; background:rgba(212,175,55,.1); border:1px dashed var(--gold); border-radius:var(--radius-sm); font-size:.78em; }
+    .folder-tree { display:flex; flex-direction:column; gap:2px; }
+    .folder-node { display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border-radius:var(--radius-sm); cursor:pointer; border:none; background:transparent; color:var(--text); font-size:.82em; text-align:left; transition:all .15s; width:100%; }
+    .folder-node:hover { background:var(--glass-hover); }
+    .folder-node.is-active { background:rgba(90,107,74,.2); color:var(--gold); }
+    .folder-node.is-drop-target { background:rgba(212,175,55,.15); border:1px dashed var(--gold); }
+    .folder-node-main { display:flex; align-items:center; gap:6px; flex:1; min-width:0; }
+    .folder-node-main i { width:14px; }
+    .folder-node-main span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .folder-node-count { font-size:.75em; opacity:.5; }
+    .disk-content { flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--space-md); }
+    .folder-breadcrumb { display:flex; align-items:center; gap:6px; font-size:.85em; flex-wrap:wrap; }
+    .folder-crumb { cursor:pointer; opacity:.7; transition:all .15s; padding:2px 4px; border-radius:4px; }
+    .folder-crumb:hover { opacity:1; color:var(--gold); background:var(--glass-hover); }
+    .folder-crumb:last-child { opacity:1; color:var(--gold); cursor:default; }
+    .content-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:var(--space-md); }
+
+    /* File cards */
+    .file-card { background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; overflow:hidden; transition:all .2s; cursor:default; position:relative; }
+    .file-card:hover { border-color:var(--gold); box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .file-card.selected { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold), 0 4px 20px rgba(0,0,0,0.4); }
+    .file-card.dragging-file-card { opacity:.5; }
+    .file-card .collect-icon { position:absolute; top:8px; right:8px; z-index:5; cursor:pointer; font-size:.9em; opacity:.6; transition:opacity .2s; }
+    .file-card .collect-icon:hover { opacity:1; }
+    .file-card .collect-icon .liked { color:var(--gold); }
+    .preview-stage { position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; background:#0a0e17; cursor:pointer; }
+    .preview-stage img { width:100%; height:100%; object-fit:cover; }
+    .preview-stage video { width:100%; height:100%; object-fit:cover; }
+    .preview-stage audio { width:100%; }
+    .preview-skeleton { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:2.5em; opacity:.3; }
+    .preview-gate { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; border:none; background:rgba(0,0,0,.5); color:#fff; cursor:pointer; transition:background .2s; }
+    .preview-gate:hover { background:rgba(0,0,0,.7); }
+    .preview-gate-icon { font-size:1.5em; }
+    .preview-gate-title { font-size:.85em; font-weight:600; }
+    .preview-gate-subtitle { font-size:.72em; opacity:.7; }
+    .overlay-buttons { position:absolute; bottom:0; left:0; right:0; display:flex; gap:4px; padding:6px; background:linear-gradient(transparent,rgba(0,0,0,.7)); opacity:0; transition:opacity .2s; }
+    .file-card:hover .overlay-buttons { opacity:1; }
+    .card-footer { padding:8px 10px; font-size:.78em; }
+    .card-footer span { cursor:pointer; }
+    .card-footer span:hover { color:var(--gold); }
+    .card-header-actions { display:flex; align-items:center; gap:4px; }
+
+    /* Video/Audio card */
+    .video-card .video-content, .audio-card .audio-content, .file-card .file-content { display:flex; flex-direction:column; }
+    .video-title, .audio-header, .file-header { padding:8px 10px; }
+    .audio-avatar, .file-avatar { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:var(--radius-sm); background:var(--glass-hover); }
+    .audio-avatar img { width:32px; height:32px; }
+    .audio-info, .file-info { flex:1; }
+    .audio-subtitle, .file-subtitle { font-size:.72em; opacity:.5; }
+    .video-controls, .audio-controls, .file-controls { display:flex; gap:2px; padding:6px 8px; }
+    .control-btn { background:transparent; border:none; color:var(--text); width:30px; height:30px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; font-size:.85em; }
+    .control-btn:hover { background:var(--glass-hover); color:var(--gold); }
+    .control-btn .liked, .control-btn .selected { color:var(--gold); }
+
+    /* List view */
+    .list-view-card { background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .table-wrap { overflow-x:auto; }
+    .table-wrap table { width:100%; border-collapse:collapse; font-size:.82em; }
+    .table-wrap th, .table-wrap td { padding:8px 12px; text-align:left; border-bottom:1px solid rgba(90,107,74,0.3); white-space:nowrap; }
+    .table-wrap th { background:rgba(90,107,74,.15); font-family:var(--font-display); font-weight:400; font-size:.7rem; text-transform:uppercase; letter-spacing:0.1em; position:sticky; top:0; z-index:2; }
+    .table-wrap tr:hover td { background:var(--glass-hover); }
+    .table-wrap .list-actions { display:flex; gap:4px; flex-wrap:wrap; }
+    .table-wrap .row-drag-handle { cursor:grab; padding:0 4px; opacity:.4; }
+    .table-wrap .row-drag-handle:hover { opacity:1; }
+
+    .pagination-bar { display:flex; align-items:center; justify-content:center; gap:4px; padding:var(--space-md) 0; }
+    .page-btn { min-width:34px; height:34px; border:1px solid var(--steel); background:transparent; color:var(--color-text-secondary); border-radius:3px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; font-size:.82em; }
+    .page-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.05); }
+    .page-btn.is-active { background:rgba(90,107,74,.25); border-color:var(--gold); color:var(--gold); }
+    .page-btn[disabled] { opacity:.3; cursor:not-allowed; }
+    .page-total { font-size:.78em; opacity:.6; margin:0 8px; }
+
+    /* Admin tabs */
+    .admin-tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:var(--space-md); }
+    .admin-tab { padding:10px 20px; cursor:pointer; font-size:.88em; border-bottom:2px solid transparent; transition:all .2s; font-weight:500; }
+    .admin-tab:hover { color:var(--gold); }
+    .admin-tab.is-active { color:var(--gold); border-bottom-color:var(--gold); }
+
+    /* Admin management panels */
+    .admin-panel { display:flex; flex-direction:column; gap:var(--space-md); }
+    .admin-toolbar { display:flex; align-items:center; gap:var(--space-sm); flex-wrap:wrap; }
+    .admin-table-wrap { overflow-x:auto; background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .admin-table { width:100%; border-collapse:collapse; font-size:.82em; }
+    .admin-table th, .admin-table td { padding:8px 12px; text-align:left; border-bottom:1px solid rgba(90,107,74,0.3); }
+    .admin-table th { background:rgba(90,107,74,.15); font-family:var(--font-display); font-weight:400; font-size:.7rem; text-transform:uppercase; letter-spacing:0.1em; position:sticky; top:0; }
+    .admin-table tr:hover td { background:var(--glass-hover); }
+    .admin-table .perm-cell { display:flex; gap:6px; align-items:center; }
+    .perm-select { background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:4px 8px; font-size:.78em; cursor:pointer; }
+    .perm-select:focus { border-color:var(--gold); outline:none; }
+
+    .modal-inner { padding:var(--space-md); }
+    .modal-form { display:flex; flex-direction:column; gap:var(--space-md); }
+    .modal-form .form-row { display:flex; gap:var(--space-sm); align-items:flex-end; flex-wrap:wrap; }
+    .modal-form .form-group { display:flex; flex-direction:column; gap:6px; }
+    .modal-form label { font-size:.82em; opacity:.8; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:var(--space-sm); padding:var(--space-md); border-top:1px solid var(--border); }
+
+    .batch-toolbar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; align-items:center; gap:var(--space-sm); padding:10px 18px; background:var(--glass-bg); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(90,107,74,0.4); border-radius:3px; box-shadow:0 4px 20px rgba(0,0,0,0.4); cursor:grab; }
+    .batch-toolbar.is-dragging { cursor:grabbing; }
+    .batch-count { font-size:.82em; font-weight:600; white-space:nowrap; }
+    .batch-shortcuts { font-size:.7em; opacity:.5; white-space:nowrap; display:none; }
+    @media(min-width:768px){ .batch-shortcuts { display:inline; } }
+
+    .footer { text-align:center; padding:var(--space-md); font-size:.78em; opacity:.5; display:flex; justify-content:center; gap:var(--space-md); }
+    .footer a { color:var(--text); text-decoration:none; }
+    .footer a:hover { color:var(--gold); }
+
+    .load-more-end { text-align:center; font-size:.82em; opacity:.5; padding:var(--space-md); }
+
+    .move-folder-panel { display:flex; flex-direction:column; gap:var(--space-md); }
+    .move-folder-summary { display:flex; justify-content:space-between; align-items:center; font-size:.85em; }
+    .move-folder-toolbar { display:flex; gap:var(--space-sm); }
+    .move-folder-list { display:flex; flex-direction:column; gap:4px; max-height:300px; overflow-y:auto; }
+    .move-folder-option { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; border:none; background:transparent; color:var(--text); font-size:.82em; text-align:left; transition:all .15s; width:100%; }
+    .move-folder-option:hover { background:var(--glass-hover); }
+    .move-folder-option.is-active { background:rgba(90,107,74,.2); color:var(--gold); }
+    .move-folder-option-name { flex:1; }
+    .move-folder-option-meta { font-size:.75em; opacity:.5; }
+    .move-folder-empty { text-align:center; padding:20px; font-size:.82em; opacity:.6; }
+    .move-folder-create { display:flex; flex-direction:column; gap:var(--space-sm); }
+    .move-folder-create-row { display:flex; gap:var(--space-sm); }
+    .move-folder-target { font-size:.78em; opacity:.6; }
+    .move-folder-footer { display:flex; justify-content:space-between; align-items:center; }
+
+    /* Token dialog */
+    .token-toolbar { display:flex; gap:var(--space-sm); margin-bottom:var(--space-md); }
+    .token-loading, .token-empty { text-align:center; padding:40px 20px; font-size:.85em; opacity:.6; }
+    .token-empty i { font-size:2em; display:block; margin-bottom:10px; }
+    .token-scope-group { display:flex; flex-wrap:wrap; gap:8px; }
+    .token-scope-group label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:.82em; }
+    .token-scope-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.72em; background:rgba(90,107,74,.2); margin:2px; }
+    .token-time-hint { font-size:.72em; opacity:.5; }
+    .token-status-text { margin-left:6px; font-size:.78em; }
+    .token-status-text.is-enabled { color:#67c23a; }
+    .token-once-warning { display:flex; align-items:center; gap:8px; padding:10px 14px; background:rgba(212,175,55,.1); border:1px solid var(--gold); border-radius:var(--radius-sm); font-size:.82em; margin-bottom:var(--space-md); }
+    .token-created-actions { margin-top:var(--space-sm); }
+
+    .btn-icon-sm { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+
+    .empty-tip { text-align:center; padding:60px 20px; font-size:.88em; opacity:.6; }
+
+    /* Preview modal */
+    .preview-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:linear-gradient(180deg,rgba(5,10,18,.94),rgba(8,13,22,.98)); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10000; padding:24px; }
+    .preview-modal img { max-width:min(92vw,1280px); max-height:78vh; border-radius:8px; object-fit:contain; background:#070b12; box-shadow:0 28px 90px rgba(0,0,0,.46); }
+    .preview-modal .iframe-container { width:min(92vw,1280px); height:min(78vh,820px); position:relative; border-radius:8px; overflow:hidden; background:#070b12; border:1px solid rgba(255,255,255,.12); box-shadow:0 28px 90px rgba(0,0,0,.46); }
+    .preview-modal .iframe-container iframe { width:100%; height:100%; border:none; }
+    .preview-close { position:absolute; top:20px; right:20px; width:44px; height:44px; border:none; border-radius:8px; background:rgba(255,255,255,.12); color:#fff; font-size:1.2em; cursor:pointer; z-index:10001; transition:background .2s; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+    .preview-close:hover { background:rgba(255,255,255,.35); }
+    .preview-toolbar-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; width:min(92vw,1280px); padding:10px 12px 10px 16px; background:rgba(15,23,42,.72); border:1px solid rgba(255,255,255,.12); border-radius:8px; margin-top:16px; backdrop-filter:blur(16px); }
+    .preview-filename { font-size:.85em; opacity:.8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    /* Preview modal 高于普通弹窗 */
+    .preview-modal { z-index:5000 !important; }
+
+    @media(max-width:768px){
+      .admin-header { padding:var(--space-xs) var(--space-sm); }
+      .admin-header .stats-loaded { display:none; }
+      .status-panel .status-item span { display:none; }
+      .folder-sidebar { display:none; }
+      .main-layout { padding:var(--space-sm); }
+      .content-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:var(--space-sm); }
+    }
+    @media(max-width:560px){
+      .admin-header .search-card { max-width:120px; }
+      .admin-actions .action-btn { width:30px; height:30px; font-size:.82em; }
+      .content-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <!-- Header -->
+    <div class="admin-header">
+      <div class="breadcrumb">
+        <span class="breadcrumb-item" @click="goHome"><i class="fas fa-home"></i> 首页</span>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <span class="breadcrumb-item is-active" @click="refreshDashboard">管理后台</span>
+      </div>
+      <div class="search-card"><input class="input-glass" v-model="search" placeholder="输入关键字搜索" style="width:100%;"></div>
+      <span class="stats">
+        <i class="fas fa-chart-line stats-icon"></i>
+        <span class="stats-text" v-if="activeTab === 'files'">总记录: {{ totalCount || Number }}</span>
+        <small class="stats-loaded" v-if="activeTab === 'files'">已加载 {{ Number }}</small>
+        <span class="stats-text" v-else>{{ adminList.length }}</span>
+      </span>
+      <div class="admin-actions">
+        <!-- File type dropdown -->
+        <div class="admin-dropdown" v-if="activeTab === 'files'" ref="fileTypeDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('fileType')"><i :class="fileTypeIcon"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'fileType' }">
+            <div class="admin-dropdown-item" :class="{ 'is-selected': fileType === 'all' }" @click="switchFileType('all')"><i class="fas fa-th-large"></i> 全部</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': fileType === 'image' }" @click="switchFileType('image')"><i :class="fileConfig.image.icon"></i> 图片</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': fileType === 'video' }" @click="switchFileType('video')"><i :class="fileConfig.video.icon"></i> 视频</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': fileType === 'audio' }" @click="switchFileType('audio')"><i :class="fileConfig.audio.icon"></i> 音频</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': fileType === 'document' }" @click="switchFileType('document')"><i :class="fileConfig.document.icon"></i> 文件</div>
+          </div>
+        </div>
+        <!-- Storage filter dropdown -->
+        <div class="admin-dropdown" v-if="activeTab === 'files'" ref="storageDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('storage')"><i :class="storageFilterIcon"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'storage' }">
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'all' }" @click="switchStorageFilter('all')"><i class="fas fa-database"></i> 全部存储</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'telegram' }" @click="switchStorageFilter('telegram')"><i class="fab fa-telegram"></i> Telegram</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'r2' }" @click="switchStorageFilter('r2')"><i class="fas fa-cloud"></i> R2 存储</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 's3' }" @click="switchStorageFilter('s3')"><i class="fas fa-database"></i> S3 存储</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'discord' }" @click="switchStorageFilter('discord')"><i class="fab fa-discord"></i> Discord</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'huggingface' }" @click="switchStorageFilter('huggingface')"><i class="fas fa-robot"></i> HuggingFace</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'webdav' }" @click="switchStorageFilter('webdav')"><i class="fas fa-hard-drive"></i> WebDAV</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': storageFilter === 'github' }" @click="switchStorageFilter('github')"><i class="fab fa-github"></i> GitHub</div>
+          </div>
+        </div>
+        <!-- Sort dropdown -->
+        <div class="admin-dropdown" v-if="activeTab === 'files'" ref="sortDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('sort')"><i :class="sortIcon"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'sort' }">
+            <div class="admin-dropdown-item" :class="{ 'is-selected': sortOption === 'dateDesc' }" @click="sort('dateDesc')"><i class="fas fa-sort-amount-down"></i> 按时间倒序</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': sortOption === 'nameAsc' }" @click="sort('nameAsc')"><i class="fas fa-sort-alpha-up"></i> 按名称升序</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': sortOption === 'sizeDesc' }" @click="sort('sizeDesc')"><i class="fas fa-sort-amount-down"></i> 按大小倒序</div>
+          </div>
+        </div>
+        <!-- Filter dropdown -->
+        <div class="admin-dropdown" v-if="activeTab === 'files'" ref="filterDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('filter')"><i :class="filterIcon"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'filter' }">
+            <div class="admin-dropdown-item" :class="{ 'is-selected': filterOption === 'all' }" @click="filter('all')"><i class="fas fa-filter"></i> 全部</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': filterOption === 'favorites' }" @click="filter('favorites')"><i class="fas fa-bookmark"></i> 收藏</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': filterOption === 'blocked' }" @click="filter('blocked')"><i class="fas fa-lock"></i> 黑名单</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': filterOption === 'unblocked' }" @click="filter('unblocked')"><i class="fas fa-unlock"></i> 白名单</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': filterOption === 'adult' }" @click="filter('adult')"><i class="fas fa-user-secret"></i> NSFW</div>
+          </div>
+        </div>
+        <!-- View mode dropdown -->
+        <div class="admin-dropdown" v-if="activeTab === 'files'" ref="viewDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('view')"><i :class="viewModeIcon"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'view' }">
+            <div class="admin-dropdown-item" :class="{ 'is-selected': viewMode === 'grid' }" @click="switchViewMode('grid')"><i class="fas fa-th-large"></i> 平铺视图</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': viewMode === 'list' }" @click="switchViewMode('list')"><i class="fas fa-list"></i> 详细视图</div>
+          </div>
+        </div>
+        <!-- Batch dropdown -->
+        <div class="admin-dropdown" v-if="activeTab === 'files'" ref="batchDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('batch')"><i class="fas fa-tasks"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'batch' }">
+            <div class="admin-dropdown-item" @click="selectAllInPage"><i class="fas fa-check-double"></i> {{ isAllSelected ? '取消全选' : '全选当前页' }}</div>
+            <div class="admin-dropdown-item" @click="selectAllLoaded"><i class="fas fa-check-square"></i> 全选已加载 ({{ tableData.length }})</div>
+            <div class="admin-dropdown-divider"></div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchCopy"><i class="fas fa-link"></i> 批量复制</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchCopyMarkdown"><i class="fab fa-markdown"></i> 复制Markdown</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchCopyHtml"><i class="fas fa-code"></i> 复制HTML</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchDelete"><i class="fas fa-trash-alt"></i> 批量删除</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchDownload"><i class="fas fa-download"></i> 批量下载</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="moveSelectedToFolder"><i class="fas fa-folder-tree"></i> 移动到目录</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchBlock('Block')"><i class="fas fa-lock"></i> 加入黑名单</div>
+            <div class="admin-dropdown-item" :class="{ 'is-disabled': selectedFiles.length === 0 }" @click="handleBatchBlock('White')"><i class="fas fa-unlock"></i> 加入白名单</div>
+          </div>
+        </div>
+        <!-- Quick websites dropdown -->
+        <div class="admin-dropdown" ref="webDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('web')"><i class="fas fa-external-link-alt"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'web' }">
+            <div class="admin-dropdown-item" v-for="site in quickWebsites" :key="site.url" @click="window.open(site.url,'_blank')">
+              <i :class="site.icon"></i> {{ site.name }}
+            </div>
+          </div>
+        </div>
+        <!-- Toolkit dropdown -->
+        <div class="admin-dropdown" ref="toolkitDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('toolkit')"><i class="fas fa-toolbox"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'toolkit' }">
+            <div class="admin-dropdown-item" @click="selectAllInPage"><i class="fas fa-check-square"></i> 全选当前页</div>
+            <div class="admin-dropdown-item" @click="checkBrokenFiles"><i class="fas fa-wrench"></i> 检测失效文件</div>
+            <div class="admin-dropdown-item" @click="editWebsites"><i class="fas fa-edit"></i> 编辑快捷方式</div>
+            <div class="admin-dropdown-item" @click="openUploader"><i class="fas fa-cloud-upload-alt"></i> 打开上传中心</div>
+            <div class="admin-dropdown-item" @click="exportAllLinks"><i class="fas fa-file-export"></i> 导出全部链接</div>
+            <div class="admin-dropdown-item" @click="openApiTokenDialog"><i class="fas fa-key"></i> API Token 管理</div>
+            <div class="admin-dropdown-divider"></div>
+            <div class="admin-dropdown-item" @click="checkConnectionStatus"><i class="fas fa-heartbeat"></i> 检查连接状态</div>
+          </div>
+        </div>
+        <!-- Status panel -->
+        <div class="status-panel" @click="checkConnectionStatus" title="点击检查连接状态">
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.telegram.connected ? '#67c23a' : '#f56c6c' }"></i><span>TG</span></div>
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.kv.connected ? '#67c23a' : '#f56c6c' }"></i><span>KV</span></div>
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.r2.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.r2) ? '#909399' : '#f56c6c') }"></i><span>R2</span></div>
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.s3.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.s3) ? '#909399' : '#f56c6c') }"></i><span>S3</span></div>
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.discord.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.discord) ? '#909399' : '#f56c6c') }"></i><span>DC</span></div>
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.huggingface.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.huggingface) ? '#909399' : '#f56c6c') }"></i><span>HF</span></div>
+          <div class="status-item"><i class="fas fa-circle" :style="{ color: systemStatus.github.connected ? '#67c23a' : (isUnconfiguredStatus(systemStatus.github) ? '#909399' : '#f56c6c') }"></i><span>GH</span></div>
+        </div>
+        <!-- Settings dropdown -->
+        <div class="admin-dropdown" ref="settingsDropdown">
+          <button class="action-btn" @click.stop="toggleDropdown('settings')"><i class="fas fa-cog"></i></button>
+          <div class="admin-dropdown-menu" :class="{ show: openDropdown === 'settings' }">
+            <div class="admin-dropdown-item" :class="{ 'is-selected': loadMode === 'normal' }" @click="setLoadMode('normal')"><i class="fas fa-eye"></i> 正常模式</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': loadMode === 'dataSaver' }" @click="setLoadMode('dataSaver')"><i class="fas fa-bolt"></i> 省流模式</div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': loadMode === 'noImage' }" @click="setLoadMode('noImage')"><i class="fas fa-eye-slash"></i> 无图模式</div>
+            <div class="admin-dropdown-divider"></div>
+            <div class="admin-dropdown-item" :class="{ 'is-selected': safeMode }" @click="safeMode = !safeMode"><i class="fas fa-shield-alt"></i> {{ safeMode ? '✓' : '' }} 安全模式(NSFW)</div>
+            <div class="admin-dropdown-divider"></div>
+            <div class="admin-dropdown-item" @click="showUiDesignSettingsPanel"><i class="fas fa-sliders-h"></i> 前端 UI 设计</div>
+          </div>
+        </div>
+        <button class="action-btn" title="前端 UI 设计" @click="showUiDesignSettingsPanel"><i class="fas fa-sliders-h"></i></button>
+        <button class="action-btn" title="退出登录" @click="handleLogout"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </div>
+
+    <!-- Admin Tabs -->
+    <div class="main-layout" style="padding-top:var(--space-sm);">
+      <div style="width:100%;">
+        <div class="admin-tabs">
+          <div class="admin-tab" :class="{ 'is-active': activeTab === 'files' }" @click="activeTab = 'files'"><i class="fas fa-file"></i> 文件管理</div>
+          <div class="admin-tab" :class="{ 'is-active': activeTab === 'users' }" @click="activeTab = 'users'; loadAdminData()"><i class="fas fa-users"></i> 用户管理</div>
+          <div class="admin-tab" :class="{ 'is-active': activeTab === 'groups' }" @click="activeTab = 'groups'; loadAdminData()"><i class="fas fa-user-tag"></i> 身份组管理</div>
+          <div class="admin-tab" :class="{ 'is-active': activeTab === 'sections' }" @click="activeTab = 'sections'; loadAdminData()"><i class="fas fa-layer-group"></i> 版块管理</div>
+        </div>
+
+        <!-- === FILE MANAGEMENT TAB === -->
+        <div v-show="activeTab === 'files'">
+          <div class="disk-layout" style="display:flex;gap:var(--space-md);">
+            <!-- Folder sidebar -->
+            <aside class="folder-sidebar" :class="{ 'is-drag-active': dragState.active }" @dragover.prevent="handleFolderSidebarDragOver">
+              <div class="folder-head">
+                <span class="folder-head-title"><i class="fas fa-folder-tree"></i><span>目录管理</span></span>
+                <span class="folder-head-actions">
+                  <button class="btn btn-ghost btn-icon" title="刷新目录与文件" :disabled="folderMutating" @click="refreshFolderResources"><i class="fas fa-sync-alt"></i></button>
+                  <button class="btn btn-ghost btn-icon" title="新建目录" :disabled="folderMutating" @click="createFolder"><i class="fas fa-plus"></i></button>
+                  <button class="btn btn-ghost btn-icon" title="重命名目录" :disabled="folderMutating || !folderPath" @click="renameCurrentFolder"><i class="fas fa-edit"></i></button>
+                  <button class="btn btn-ghost btn-icon" title="删除目录" :disabled="folderMutating || !folderPath" @click="deleteCurrentFolder"><i class="fas fa-trash-alt"></i></button>
+                </span>
+              </div>
+              <div class="folder-current">当前位置：/{{ folderPath || '' }}</div>
+              <div class="folder-drop-hint" v-if="dragState.active">
+                <strong>{{ dragState.fileIds.length || selectedFiles.length || 1 }} 个文件待移动</strong><br>
+                <span>拖到下方任意目录后松开</span>
+              </div>
+              <div class="folder-tree">
+                <button v-for="folder in folderTreeNodes" :key="'folder-'+folder.path" class="folder-node"
+                  :class="{ 'is-active': folder.path === folderPath, 'is-drop-target': dragState.active && dragState.targetPath === folder.path }"
+                  @click="selectFolder(folder.path)" @dragover.prevent="handleFolderDragOver(folder.path,$event)"
+                  @dragenter.prevent="handleFolderDragEnter(folder.path)" @dragleave="handleFolderDragLeave(folder.path,$event)"
+                  @drop.prevent="handleFolderDrop(folder.path,$event)">
+                  <span class="folder-node-main" :style="{ paddingLeft: (folder.depth * 14 + 6) + 'px' }">
+                    <i class="fas" :class="folder.path === folderPath ? 'fa-folder-open' : 'fa-folder'"></i>
+                    <span>{{ folder.name }}</span>
+                  </span>
+                  <span class="folder-node-count">{{ folder.fileCount }}</span>
+                </button>
+              </div>
+            </aside>
+            <!-- Main content -->
+            <section class="disk-content">
+              <div class="folder-breadcrumb">
+                <i class="fas fa-location-arrow"></i>
+                <span class="folder-crumb" @click="selectFolder('')">根目录</span>
+                <template v-for="item in folderBreadcrumbs">
+                  <i :key="'sep-'+item.path" class="fas fa-chevron-right" style="font-size:.6em;opacity:.4;"></i>
+                  <span :key="'crumb-'+item.path" class="folder-crumb" @click="selectFolder(item.path)">{{ item.name }}</span>
+                </template>
+              </div>
+
+              <!-- Grid View -->
+              <template v-if="viewMode === 'grid'">
+                <div class="content-grid">
+                  <template v-for="(item, index) in paginatedTableData">
+                    <!-- Image -->
+                    <div v-if="getActualFileType(item.name) === 'image'" :key="index" class="file-card" :class="{ selected: item.selected }" :draggable="true" @dragstart="handleFileDragStart(item,$event)" @dragend="handleFileDragEnd">
+                      <span class="collect-icon" @click.stop="toggleLike(index,item.name)">
+                        <i :class="item.metadata.liked ? 'fa-solid fa-bookmark liked' : 'fa-regular fa-bookmark not-liked'"></i>
+                      </span>
+                      <label class="checkbox-wrap" style="position:absolute;top:8px;left:8px;z-index:5;">
+                        <input type="checkbox" :checked="item.selected" @change="toggleSelectByName(item.name)">
+                      </label>
+                      <div class="preview-stage image-preview-stage" :class="{ 'is-gated': isPreviewGated(item,'image') }" @click.stop="revealPreview(item)">
+                        <img v-if="!isPreviewGated(item,'image')" :src="'/file/' + item.name" :alt="item.metadata.fileName" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
+                        <div v-else class="preview-skeleton image-skeleton"><i :class="getFileIcon(item.name)"></i></div>
+                        <button v-if="isPreviewGated(item,'image')" class="preview-gate" type="button" @click.stop="revealPreview(item)">
+                          <span class="preview-gate-icon"><i class="fas fa-eye"></i></span>
+                          <span class="preview-gate-title">{{ getPreviewGateTitle(item,'image') }}</span>
+                          <span class="preview-gate-subtitle">{{ getPreviewGateSubtitle(item,'image') }}</span>
+                        </button>
+                      </div>
+                      <div class="overlay-buttons">
+                        <button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:.72em;" @click.stop="handleQuickCopy('url',item.name)">复制 <i class="fas fa-chevron-down"></i></button>
+                        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:.72em;" @click.stop="handleEditName(item)">编辑</button>
+                        <button class="btn btn-sm" style="padding:2px 8px;font-size:.72em;color:var(--rust);" @click.stop="handleDelete(index,item.name)">删除</button>
+                      </div>
+                      <div class="card-footer">
+                        <span @click.stop="showFileDetail(item)" :style="{ color: item.metadata.ListType !== 'Block' ? '#fff' : '#aaa' }">
+                          {{ item.metadata.fileName || item.name }}
+                        </span>
+                      </div>
+                    </div>
+                    <!-- Video -->
+                    <div v-else-if="getActualFileType(item.name) === 'video'" :key="index" class="file-card video-card" :class="{ selected: item.selected }" :draggable="true" @dragstart="handleFileDragStart(item,$event)" @dragend="handleFileDragEnd">
+                      <div class="video-content">
+                        <div class="preview-stage video-preview-stage" :class="{ 'is-gated': isPreviewGated(item,'video') }" @click.stop="revealPreview(item)">
+                          <video v-if="!isPreviewGated(item,'video')" :src="'/file/'+item.name" controls playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>
+                          <div v-else class="preview-skeleton video-skeleton"><i class="fas fa-film"></i></div>
+                          <button v-if="isPreviewGated(item,'video')" class="preview-gate" type="button" @click.stop="revealPreview(item)">
+                            <span class="preview-gate-icon"><i class="fas fa-play"></i></span>
+                            <span class="preview-gate-title">{{ getPreviewGateTitle(item,'video') }}</span>
+                            <span class="preview-gate-subtitle">{{ getPreviewGateSubtitle(item,'video') }}</span>
+                          </button>
+                        </div>
+                        <div class="video-title"><span @click.stop="showFileDetail(item)" :style="{ color: item.metadata.ListType !== 'Block' ? '#fff' : '#aaa' }">{{ item.metadata.fileName || item.name }}</span></div>
+                        <div class="video-controls">
+                          <button class="control-btn like-btn" @click.stop="toggleLike(index,item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
+                          <button class="control-btn edit-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
+                          <button class="control-btn" @click.stop="toggleSelectByName(item.name)"><i :class="item.selected ? 'fas fa-square-check selected' : 'far fa-square'"></i></button>
+                          <button class="control-btn" @click.stop="openPreview(item)" title="预览"><i class="fas fa-eye"></i></button>
+                          <button class="control-btn" @click.stop="handleCopy(index,item.name)"><i class="fas fa-link"></i></button>
+                          <button class="control-btn" @click.stop="handleDelete(index,item.name)"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Audio -->
+                    <div v-else-if="getActualFileType(item.name) === 'audio'" :key="index" class="file-card audio-card" :class="{ selected: item.selected }" :draggable="true" @dragstart="handleFileDragStart(item,$event)" @dragend="handleFileDragEnd">
+                      <div class="audio-content">
+                        <div class="audio-header" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                          <div class="audio-avatar"><img src="./music.svg" alt="Music"></div>
+                          <div class="audio-info">
+                            <div class="audio-title"><span @click.stop="showFileDetail(item)" :style="{ color: item.metadata.ListType !== 'Block' ? '#fff' : '#aaa' }">{{ item.metadata.fileName || item.name }}</span></div>
+                            <div class="audio-subtitle">{{ getFileType(item.name) }}</div>
+                          </div>
+                        </div>
+                        <div class="preview-stage audio-preview-stage" :class="{ 'is-gated': isPreviewGated(item,'audio') }" @click.stop="revealPreview(item)" style="aspect-ratio:auto;min-height:50px;">
+                          <audio v-if="!isPreviewGated(item,'audio')" class="custom-audio-player" :src="'/file/'+item.name" controls preload="metadata" style="width:100%;"></audio>
+                          <div v-else class="preview-skeleton audio-skeleton"><i class="fas fa-wave-square"></i></div>
+                          <button v-if="isPreviewGated(item,'audio')" class="preview-gate compact" type="button" @click.stop="revealPreview(item)">
+                            <span class="preview-gate-icon"><i class="fas fa-play"></i></span>
+                            <span class="preview-gate-title">{{ getPreviewGateTitle(item,'audio') }}</span>
+                            <span class="preview-gate-subtitle">{{ getPreviewGateSubtitle(item,'audio') }}</span>
+                          </button>
+                        </div>
+                        <div class="audio-controls">
+                          <button class="control-btn like-btn" @click.stop="toggleLike(index,item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
+                          <button class="control-btn edit-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
+                          <button class="control-btn" @click.stop="toggleSelectByName(item.name)"><i :class="item.selected ? 'fas fa-square-check selected' : 'far fa-square'"></i></button>
+                          <button class="control-btn" @click.stop="openPreview(item)" title="预览"><i class="fas fa-eye"></i></button>
+                          <button class="control-btn" @click.stop="handleCopy(index,item.name)"><i class="fas fa-copy"></i></button>
+                          <button class="control-btn" @click.stop="handleDelete(index,item.name)"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Document -->
+                    <div v-else :key="index" class="file-card file-card-doc" :class="{ selected: item.selected }" :draggable="true" @dragstart="handleFileDragStart(item,$event)" @dragend="handleFileDragEnd">
+                      <div class="file-content">
+                        <div class="file-header" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                          <div class="file-avatar"><i :class="getFileIcon(item.name)" style="font-size:32px;"></i></div>
+                          <div class="file-info">
+                            <div class="file-title"><span @click.stop="showFileDetail(item)" :style="{ color: item.metadata.ListType !== 'Block' ? '#fff' : '#aaa' }">{{ item.metadata.fileName || item.name }}</span></div>
+                            <div class="file-subtitle">{{ getFileType(item.name) }}</div>
+                          </div>
+                        </div>
+                        <div class="file-controls">
+                          <button class="control-btn like-btn" @click.stop="toggleLike(index,item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
+                          <button class="control-btn edit-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
+                          <button class="control-btn" @click.stop="toggleSelectByName(item.name)"><i :class="item.selected ? 'fas fa-square-check selected' : 'far fa-square'"></i></button>
+                          <button class="control-btn" @click.stop="openPreview(item)" title="预览"><i class="fas fa-eye"></i></button>
+                          <button class="control-btn" @click.stop="handleCopy(index,item.name)"><i class="fas fa-copy"></i></button>
+                          <button class="control-btn" @click.stop="handleDelete(index,item.name)"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                  <div v-if="paginatedTableData.length === 0" class="empty-tip" style="grid-column:1/-1;">
+                    当前目录下没有符合条件的文件。
+                    <div><button class="btn btn-primary btn-sm" @click="resetViewConditions">清空筛选并返回根目录</button></div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- List View -->
+              <template v-else>
+                <div class="list-view-card">
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style="width:50px;">选择</th>
+                          <th style="min-width:200px;">文件名</th>
+                          <th style="width:140px;">目录</th>
+                          <th style="width:70px;">类型</th>
+                          <th style="width:90px;text-align:right;">大小</th>
+                          <th style="width:100px;">存储</th>
+                          <th style="width:200px;">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(item, idx) in paginatedTableData" :key="idx">
+                          <td><label class="checkbox-wrap"><input type="checkbox" :checked="item.selected" @change="toggleSelectByName(item.name)"></label></td>
+                          <td>
+                            <span class="row-drag-handle" draggable="true" @dragstart="handleFileDragStart(item,$event)" @dragend="handleFileDragEnd"><i class="fas fa-grip-lines"></i></span>
+                            <span :style="{ color: item.metadata.ListType === 'Block' ? '#999' : '' }">{{ item.metadata.fileName || item.name }}</span>
+                          </td>
+                          <td>{{ item.metadata.folderPath || '根目录' }}</td>
+                          <td>{{ getFileType(item.name) }}</td>
+                          <td style="text-align:right;">{{ formatFileSize(item.metadata.fileSize || 0) }}</td>
+                          <td>{{ getStorageLabel(item.name) }}</td>
+                          <td>
+                            <div class="list-actions">
+                              <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:.72em;" @click="toggleLike(0,item.name)">{{ item.metadata.liked ? '取消收藏' : '收藏' }}</button>
+                              <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:.72em;" @click="handleCopy(0,item.name)">复制</button>
+                              <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:.72em;" @click="handleEditName(item)">重命名</button>
+                              <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:.72em;" @click="openPreview(item)">预览</button>
+                              <button class="btn btn-sm" style="padding:2px 6px;font-size:.72em;color:var(--rust);" @click="handleDelete(0,item.name)">删除</button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div v-if="paginatedTableData.length === 0" class="empty-tip">
+                      当前目录下没有符合条件的文件。
+                      <div><button class="btn btn-primary btn-sm" @click="resetViewConditions">清空筛选并返回根目录</button></div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Pagination -->
+              <div class="pagination-bar">
+                <button class="page-btn" :disabled="currentPage <= 1" @click="handlePageChange(currentPage - 1)"><i class="fas fa-chevron-left"></i></button>
+                <template v-for="p in displayPages">
+                  <span v-if="p === '...'" :key="'dots-'+p" style="opacity:.4;padding:0 4px;">...</span>
+                  <button v-else :key="'page-'+p" class="page-btn" :class="{ 'is-active': p === currentPage }" @click="handlePageChange(p)">{{ p }}</button>
+                </template>
+                <button class="page-btn" :disabled="currentPage >= totalPages" @click="handlePageChange(currentPage + 1)"><i class="fas fa-chevron-right"></i></button>
+                <span class="page-total">共 {{ totalPages }} 页 / {{ paginationTotal }} 条</span>
+              </div>
+              <div style="text-align:center;margin-top:8px;">
+                <button v-if="nextCursor && viewMode === 'list'" class="btn btn-ghost" :disabled="isLoadingMore" @click="loadMore">
+                  {{ isLoadingMore ? '加载中...' : ('加载更多 (' + Number + '/' + (totalCount || Number) + ')') }}
+                </button>
+                <div v-else-if="(totalCount || Number) > 0 && Number >= (totalCount || Number)" class="load-more-end">
+                  全部加载完成，共 {{ totalCount || Number }} 条
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- === USER MANAGEMENT TAB === -->
+        <div class="admin-panel" v-show="activeTab === 'users'">
+          <div class="admin-toolbar">
+            <button class="btn btn-primary btn-sm" @click="showAdminModal('user', null)"><i class="fas fa-plus"></i> 新建用户</button>
+            <span style="font-size:.78em;opacity:.5;">共 {{ adminList.length }} 个用户</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr>
+                <th>用户名</th><th>昵称</th><th>角色</th><th>身份组</th><th>状态</th><th>操作</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="u in adminList" :key="u.id">
+                  <td><strong>{{ u.username }}</strong></td>
+                  <td>{{ u.nickname || '-' }}</td>
+                  <td><span class="badge" :class="u.role === 'admin' ? 'badge-admin' : u.role === 'user' ? 'badge-success' : 'badge'">{{ u.role === 'admin' ? '管理员' : u.role === 'user' ? '用户' : '访客' }}</span></td>
+                  <td>
+                    <template v-if="getUserGroups(u.id).length">
+                      <span class="badge badge-info" v-for="g in getUserGroups(u.id)" :key="g" style="margin:2px;">{{ getGroupName(g) }}</span>
+                    </template>
+                    <span v-else style="opacity:.4;font-size:.82em;">无</span>
+                  </td>
+                  <td><span class="badge" :class="u.enabled !== false ? 'badge-success' : 'badge-danger'">{{ u.enabled !== false ? '正常' : '禁用' }}</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" @click="showAdminModal('user', u)" title="编辑"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-ghost btn-sm" @click="resetUserPassword(u)" :disabled="u.username === 'admin'" title="重置密码"><i class="fas fa-key"></i></button>
+                    <button class="btn btn-sm" style="color:var(--rust);" @click="deleteAdminItem('user', u.id)" :disabled="u.username === 'admin'"><i class="fas fa-trash-alt"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="!adminList.length" class="empty-tip">暂无用户数据</div>
+          </div>
+        </div>
+
+        <!-- === GROUP MANAGEMENT TAB === -->
+        <div class="admin-panel" v-show="activeTab === 'groups'">
+          <div class="admin-toolbar">
+            <button class="btn btn-primary btn-sm" @click="showAdminModal('group', null)"><i class="fas fa-plus"></i> 新建身份组</button>
+            <span style="font-size:.78em;opacity:.5;">共 {{ adminList.length }} 个身份组</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr>
+                <th>组名</th><th>描述</th><th>成员数</th><th>版块权限</th><th>操作</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="g in adminList" :key="g.id">
+                  <td><strong>{{ g.name }}</strong></td>
+                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.description || '-' }}</td>
+                  <td>{{ getGroupMemberCount(g.id) }}</td>
+                  <td>
+                    <div class="perm-cell" v-if="getGroupPermissions(g.id).length">
+                      <template v-for="p in getGroupPermissions(g.id).slice(0,3)">
+                        <span class="badge" :key="p.sectionId" :class="p.level === 'write' ? 'badge-success' : p.level === 'read' ? 'badge-info' : 'badge'">{{ getSectionName(p.sectionId) || p.sectionId }}:{{ p.level === 'write' ? '可写' : p.level === 'read' ? '只读' : '拒绝' }}</span>
+                      </template>
+                      <span v-if="getGroupPermissions(g.id).length > 3" style="font-size:.72em;opacity:.5;">+{{ getGroupPermissions(g.id).length - 3 }}</span>
+                    </div>
+                    <span v-else style="opacity:.4;font-size:.82em;">无权限</span>
+                  </td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" @click="showAdminModal('group', g)"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm" style="color:var(--rust);" @click="deleteAdminItem('group', g.id)"><i class="fas fa-trash-alt"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="!adminList.length" class="empty-tip">暂无身份组数据</div>
+          </div>
+        </div>
+
+        <!-- === SECTION MANAGEMENT TAB === -->
+        <div class="admin-panel" v-show="activeTab === 'sections'">
+          <div class="admin-toolbar">
+            <button class="btn btn-primary btn-sm" @click="showAdminModal('section', null)"><i class="fas fa-plus"></i> 新建版块</button>
+            <span style="font-size:.78em;opacity:.5;">共 {{ adminList.length }} 个版块</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr>
+                <th>版块名称</th><th>标识</th><th>描述</th><th>访问身份组</th><th>操作</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="s in adminList" :key="s.id">
+                  <td><strong>{{ s.name }}</strong></td>
+                  <td><code>{{ s.slug }}</code></td>
+                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.description || '-' }}</td>
+                  <td>
+                    <template v-if="getSectionGroups(s.id).length">
+                      <span class="badge badge-info" v-for="g in getSectionGroups(s.id)" :key="g" style="margin:2px;">{{ getGroupName(g.groupId) || g.groupId }}({{ g.level === 'write' ? '可写' : g.level === 'read' ? '只读' : '拒绝' }})</span>
+                    </template>
+                    <span v-else style="opacity:.4;font-size:.82em;">无限制</span>
+                  </td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" @click="showAdminModal('section', s)"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm" style="color:var(--rust);" @click="deleteAdminItem('section', s.id)"><i class="fas fa-trash-alt"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="!adminList.length" class="empty-tip">暂无版块数据</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>Powered By 1940Netdisk</div>
+      <a href="https://github.com/katelya77/K-Vault" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github"></i> GitHub</a>
+    </div>
+
+    <!-- File Detail Modal -->
+    <div class="modal-overlay" :class="{ active: fileDetailVisible }" v-if="fileDetailVisible" @click.self="fileDetailVisible = false">
+      <div class="modal-dialog" style="max-width:480px;">
+        <div class="modal-header"><span class="modal-title">文件详情</span><button class="modal-close" @click="fileDetailVisible = false">&times;</button></div>
+        <div class="modal-body" v-html="fileDetailHtml" style="padding:var(--space-md);line-height:1.8;font-size:.85em;"></div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="fileDetailVisible = false">关闭</button></div>
+      </div>
+    </div>
+
+    <!-- API Token Management Modal -->
+    <div class="modal-overlay" :class="{ active: tokenDialogVisible }" v-if="tokenDialogVisible" @click.self="tokenDialogVisible = false">
+      <div class="modal-dialog" style="max-width:860px;">
+        <div class="modal-header"><span class="modal-title">API Token 管理</span><button class="modal-close" @click="tokenDialogVisible = false">&times;</button></div>
+        <div class="modal-inner">
+          <div class="token-toolbar">
+            <button class="btn btn-primary btn-sm" @click="openCreateTokenDialog"><i class="fas fa-plus"></i> 新建 Token</button>
+            <button class="btn btn-ghost btn-sm" :disabled="tokenLoading" @click="loadApiTokens"><i class="fas fa-sync-alt"></i> 刷新</button>
+          </div>
+          <div v-if="tokenLoading" class="token-loading"><i class="fas fa-spinner fa-spin"></i> 正在加载 Token...</div>
+          <div v-else-if="apiTokens.length === 0" class="token-empty">
+            <i class="fas fa-key"></i><p>暂无 API Token，可创建后用于脚本、curl 或 ShareX 上传。</p>
+          </div>
+          <div class="table-wrap" v-else>
+            <table class="admin-table">
+              <thead><tr><th>名称</th><th>权限</th><th>创建时间</th><th>最后使用</th><th>Token 预览</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="t in apiTokens" :key="t.id">
+                  <td>{{ t.name }}</td>
+                  <td><span class="token-scope-tag" v-for="s in t.scopes" :key="t.id+'-'+s">{{ s }}</span></td>
+                  <td><div>{{ formatDateTime(t.createdAt) }}</div><small class="token-time-hint">{{ formatRelativeTime(t.createdAt) }}</small></td>
+                  <td><span v-if="t.lastUsedAt">{{ formatRelativeTime(t.lastUsedAt) }}</span><span v-else class="token-time-hint">从未使用</span></td>
+                  <td><code>{{ t.tokenPreview }}</code></td>
+                  <td>
+                    <label class="toggle-switch">
+                      <input type="checkbox" :checked="t.enabled" :disabled="Boolean(tokenMutatingMap[t.id])" @change="toggleApiTokenEnabled(t)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="token-status-text" :class="{ 'is-enabled': t.enabled }">{{ t.enabled ? '启用' : '禁用' }}</span>
+                  </td>
+                  <td><button class="btn btn-sm" style="color:var(--rust);" :disabled="Boolean(tokenMutatingMap[t.id])" @click="removeApiToken(t)">删除</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Token Modal -->
+    <div class="modal-overlay" :class="{ active: createTokenDialogVisible }" v-if="createTokenDialogVisible" @click.self="createTokenDialogVisible = false">
+      <div class="modal-dialog" style="max-width:560px;">
+        <div class="modal-header"><span class="modal-title">创建 API Token</span><button class="modal-close" @click="createTokenDialogVisible = false">&times;</button></div>
+        <div class="modal-inner">
+          <div class="modal-form">
+            <div class="form-group">
+              <label>Token 名称</label>
+              <input class="input-glass" v-model="tokenForm.name" maxlength="64" placeholder="例如：ShareX 截图上传 / CI 备份脚本">
+            </div>
+            <div class="form-group">
+              <label>权限</label>
+              <div class="token-scope-group">
+                <label><input type="checkbox" value="upload" v-model="tokenForm.scopes"> <i class="fas fa-upload"></i> 上传文件</label>
+                <label><input type="checkbox" value="read" v-model="tokenForm.scopes"> <i class="fas fa-eye"></i> 读取/列表/下载</label>
+                <label><input type="checkbox" value="delete" v-model="tokenForm.scopes"> <i class="fas fa-trash-alt"></i> 删除文件/粘贴</label>
+                <label><input type="checkbox" value="paste" v-model="tokenForm.scopes"> <i class="fas fa-file-alt"></i> 创建文本粘贴</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>过期时间</label>
+              <select class="input-glass" v-model="tokenForm.expiryPreset">
+                <option value="never">永不过期</option>
+                <option value="7d">7 天后过期</option>
+                <option value="30d">30 天后过期</option>
+                <option value="90d">90 天后过期</option>
+                <option value="custom">自定义时间</option>
+              </select>
+            </div>
+            <div class="form-group" v-if="tokenForm.expiryPreset === 'custom'">
+              <label>自定义过期时间</label>
+              <input class="input-glass" type="datetime-local" v-model="tokenForm.customExpiresAt">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" @click="createTokenDialogVisible = false">取消</button>
+          <button class="btn btn-primary" :disabled="tokenCreateLoading" @click="createApiToken">{{ tokenCreateLoading ? '创建中...' : '创建' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token Created Modal -->
+    <div class="modal-overlay" :class="{ active: createdTokenDialogVisible }" v-if="createdTokenDialogVisible" @click.self="createdTokenDialogVisible = false">
+      <div class="modal-dialog" style="max-width:620px;">
+        <div class="modal-header"><span class="modal-title">Token 已创建</span><button class="modal-close" @click="createdTokenDialogVisible = false">&times;</button></div>
+        <div class="modal-inner">
+          <div class="token-once-warning"><i class="fas fa-exclamation-triangle"></i> 完整 Token 仅在此处展示一次，请立即复制并妥善保存。</div>
+          <textarea class="input-glass" readonly :value="createdTokenValue" rows="3" style="width:100%;font-family:var(--font-mono);font-size:.82em;"></textarea>
+          <div class="token-created-actions">
+            <button class="btn btn-primary btn-sm" @click="copyCreatedTokenValue">{{ createdTokenCopied ? '已复制 ✓' : '复制 Token' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move File Modal -->
+    <div class="modal-overlay" :class="{ active: moveDialogVisible }" v-if="moveDialogVisible" @click.self="moveDialogVisible = false">
+      <div class="modal-dialog" style="max-width:680px;">
+        <div class="modal-header"><span class="modal-title">移动文件</span><button class="modal-close" @click="moveDialogVisible = false">&times;</button></div>
+        <div class="modal-inner">
+          <div class="move-folder-panel">
+            <div class="move-folder-summary">
+              <div><strong>{{ moveDialogFiles.length }}</strong> 个文件将移动到新的目录</div>
+              <span>当前目标：{{ moveDialogTargetLabel }}</span>
+            </div>
+            <div class="move-folder-toolbar">
+              <input class="input-glass" v-model="moveDialogFolderSearch" placeholder="搜索后端已有目录" style="flex:1;">
+              <button class="btn btn-ghost btn-sm" :disabled="moveDialogFoldersLoading" @click="refreshMoveDialogFolders(true)"><i class="fas fa-sync-alt"></i> 刷新目录</button>
+            </div>
+            <div class="move-folder-list">
+              <button v-for="folder in moveDialogFolderOptions" :key="'mf-'+folder.path" type="button" class="move-folder-option"
+                :class="{ 'is-active': moveDialogTargetPath === folder.path }" @click="selectMoveDialogFolder(folder.path)">
+                <i :class="folder.path ? 'fas fa-folder' : 'fas fa-house'"></i>
+                <span class="move-folder-option-name">{{ folder.label }}</span>
+                <span class="move-folder-option-meta">{{ folder.fileCountLabel }}</span>
+              </button>
+              <div v-if="!moveDialogFoldersLoading && moveDialogFolderOptions.length === 0" class="move-folder-empty">没有匹配的目录，可以在下方新建后直接移动。</div>
+            </div>
+            <div class="move-folder-create">
+              <div class="move-folder-target">新建目录并移动：输入路径后点击"新建并移动"，不会改变文件原始直链。</div>
+              <div class="move-folder-create-row">
+                <input class="input-glass" v-model="moveDialogNewFolderPath" placeholder="例如：图片/2026/七月" style="flex:1;" @keyup.enter="createFolderAndMoveSelected">
+                <button class="btn btn-success btn-sm" :disabled="moveDialogLoading" @click="createFolderAndMoveSelected"><i class="fas fa-folder-plus"></i> 新建并移动</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer move-folder-footer">
+          <span class="move-folder-target">将移动到：{{ moveDialogTargetLabel }}</span>
+          <span>
+            <button class="btn btn-ghost" @click="moveDialogVisible = false">取消</button>
+            <button class="btn btn-primary" :disabled="moveDialogLoading" @click="confirmMoveDialog">{{ moveDialogLoading ? '移动中...' : '移动到所选目录' }}</button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin CRUD Modal -->
+    <div class="modal-overlay" :class="{ active: adminModalVisible }" v-if="adminModalVisible" @click.self="closeAdminModal">
+      <div class="modal-dialog" style="max-width:560px;">
+        <div class="modal-header"><span class="modal-title">{{ adminModalMode === 'edit' ? '编辑' : '新建' }} {{ adminModalType === 'user' ? '用户' : adminModalType === 'group' ? '身份组' : '版块' }}</span><button class="modal-close" @click="closeAdminModal">&times;</button></div>
+        <div class="modal-inner">
+          <div class="modal-form">
+            <!-- User fields -->
+            <template v-if="adminModalType === 'user'">
+              <div class="form-group"><label>用户名</label><input class="input-glass" v-model="adminForm.username" placeholder="用户名" :disabled="adminModalMode === 'edit'"></div>
+              <div class="form-group"><label>昵称</label><input class="input-glass" v-model="adminForm.nickname" placeholder="显示昵称"></div>
+              <div class="form-group" v-if="adminModalMode === 'create'"><label>密码</label>
+                <div style="display:flex;gap:6px;">
+                  <input class="input-glass" type="password" v-model="adminForm.password" placeholder="密码（至少6位）" style="flex:1;">
+                  <button class="btn btn-ghost btn-sm" type="button" @click="adminForm.password = '123456'" title="设为默认密码 123456" style="white-space:nowrap;"><i class="fas fa-magic"></i> 123456</button>
+                </div>
+              </div>
+              <div class="form-group"><label>角色</label>
+                <select class="input-glass" v-model="adminForm.role">
+                  <option value="user">用户</option>
+                  <option value="admin">管理员</option>
+                  <option value="guest">访客</option>
+                </select>
+              </div>
+              <div class="form-group"><label>身份组</label>
+                <div class="token-scope-group">
+                  <label v-for="g in allGroups" :key="g.id"><input type="checkbox" :value="g.id" v-model="adminForm.groupIds"> {{ g.name }}</label>
+                  <span v-if="!allGroups.length" style="opacity:.4;font-size:.82em;">暂无身份组</span>
+                </div>
+              </div>
+              <div class="form-group"><label><input type="checkbox" v-model="adminForm.enabled"> 启用账号</label></div>
+            </template>
+            <!-- Group fields -->
+            <template v-if="adminModalType === 'group'">
+              <div class="form-group"><label>组名</label><input class="input-glass" v-model="adminForm.name" placeholder="身份组名称"></div>
+              <div class="form-group"><label>描述</label><input class="input-glass" v-model="adminForm.description" placeholder="身份组描述"></div>
+              <div class="form-group"><label>版块权限</label>
+                <div v-for="s in allSections" :key="s.id" style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.82em;">
+                  <span style="min-width:80px;">{{ s.name }}</span>
+                  <select class="perm-select" :value="getSectionPermissionForGroup(s.id, adminForm.id)" @change="setSectionPermissionForGroup(s.id, $event.target.value)">
+                    <option value="write">可写</option>
+                    <option value="read">只读</option>
+                    <option value="none">拒绝</option>
+                  </select>
+                </div>
+                <span v-if="!allSections.length" style="opacity:.4;font-size:.82em;">暂无版块</span>
+              </div>
+            </template>
+            <!-- Section fields -->
+            <template v-if="adminModalType === 'section'">
+              <div class="form-group"><label>版块名称</label><input class="input-glass" v-model="adminForm.name" placeholder="版块名称"></div>
+              <div class="form-group"><label>标识 (slug)</label><input class="input-glass" v-model="adminForm.slug" placeholder="唯一标识，如 forum"></div>
+              <div class="form-group"><label>描述</label><input class="input-glass" v-model="adminForm.description" placeholder="版块描述"></div>
+            </template>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" @click="closeAdminModal">取消</button>
+          <button class="btn btn-primary" @click="saveAdminModal">{{ adminModalMode === 'edit' ? '保存' : '创建' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="preview-modal" v-if="previewData" @click="closePreview">
+      <button class="preview-close" @click.stop="closePreview"><i class="fas fa-times"></i></button>
+      <img v-if="previewData.type === 'native-image'" :src="previewData.url" @click.stop>
+      <div v-else-if="previewData.type === 'iframe'" class="iframe-container" @click.stop>
+        <iframe ref="previewIframe" :src="previewData.iframeUrl" allow="clipboard-write;autoplay;fullscreen;encrypted-media" allowfullscreen></iframe>
+      </div>
+      <div class="preview-toolbar-bar" @click.stop>
+        <span class="preview-filename">{{ previewData.fileName }}</span>
+        <div class="flex-row gap-xs">
+          <button class="btn btn-primary btn-sm" @click="copyPreviewLink"><i class="fas fa-copy"></i> 复制直链</button>
+          <button class="btn btn-ghost btn-sm" @click="downloadPreviewFile"><i class="fas fa-download"></i> 下载</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch toolbar -->
+    <div class="batch-toolbar" v-if="selectedFiles.length > 0" ref="batchToolbar"
+      @mousedown.stop="startBatchDrag" :class="{ 'is-dragging': batchDragState.dragging }"
+      :style="batchToolbarStyle">
+      <span class="batch-count">已选 {{ selectedFiles.length }} 项</span>
+      <button class="btn btn-ghost btn-sm" @click="handleBatchCopy"><i class="fas fa-link"></i> 复制链接</button>
+      <button class="btn btn-ghost btn-sm" @click="moveSelectedToFolder"><i class="fas fa-folder-open"></i> 移动目录</button>
+      <button class="btn btn-sm" style="color:var(--rust);" @click="handleBatchDelete"><i class="fas fa-trash-alt"></i> 删除</button>
+      <button class="btn btn-ghost btn-sm" @click="handleBatchDownload"><i class="fas fa-download"></i> 下载</button>
+      <button class="btn btn-ghost btn-sm" @click="clearSelection"><i class="fas fa-times"></i> 取消选择</button>
+      <span class="batch-shortcuts">快捷键：Ctrl/Cmd + C 复制 · M 移动 · D 下载 · Del 删除 · Esc 取消</span>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+  <script>
+    // Toast utility
+    function showToast(message, type, duration) {
+      type = type || 'info'; duration = duration || 3000;
+      var container = document.getElementById('toastContainer');
+      if (!container) return;
+      var t = document.createElement('div');
+      t.className = 'toast toast-' + type;
+      t.innerHTML = message;
+      container.appendChild(t);
+      requestAnimationFrame(function(){ t.classList.add('toast-in'); });
+      setTimeout(function(){
+        t.classList.remove('toast-in'); t.classList.add('toast-out');
+        setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 400);
+      }, duration);
+    }
+    function showConfirm(message, title, options) {
+      options = options || {};
+      return new Promise(function(resolve, reject){
+        var container = document.getElementById('toastContainer');
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
+        overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+(title||'提示')+'</h3><p style="font-size:.88em;margin:0 0 20px;line-height:1.6;">'+message+'</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost" id="confirmCancel">'+(options.cancelButtonText||'取消')+'</button><button class="btn btn-primary" id="confirmOk">'+(options.confirmButtonText||'确定')+'</button></div></div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('#confirmOk').onclick = function(){ document.body.removeChild(overlay); resolve(); };
+        overlay.querySelector('#confirmCancel').onclick = function(){ document.body.removeChild(overlay); reject('cancel'); };
+      });
+    }
+    function showPrompt(message, title, opts) {
+      opts = opts || {};
+      return new Promise(function(resolve, reject){
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
+        overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><input class="input-glass" id="promptInput" value="'+(opts.inputValue||'')+'" style="width:100%;margin-bottom:12px;" placeholder="请输入"><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost" id="promptCancel">'+(opts.cancelButtonText||'取消')+'</button><button class="btn btn-primary" id="promptOk">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
+        document.body.appendChild(overlay);
+        var input = overlay.querySelector('#promptInput');
+        setTimeout(function(){ input.focus(); input.select(); }, 50);
+        overlay.querySelector('#promptOk').onclick = function(){ document.body.removeChild(overlay); resolve({ value: input.value }); };
+        overlay.querySelector('#promptCancel').onclick = function(){ document.body.removeChild(overlay); reject('cancel'); };
+        input.onkeydown = function(e){ if(e.key==='Enter'){ overlay.querySelector('#promptOk').click(); } };
+      });
+    }
+    function showAlert(html, title, opts) {
+      opts = opts || {};
+      return new Promise(function(resolve){
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
+        overlay.innerHTML = '<div class="glass-card" style="max-width:480px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><div style="font-size:.85em;margin-bottom:20px;line-height:1.8;">'+html+'</div><div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" id="alertOk">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('#alertOk').onclick = function(){ document.body.removeChild(overlay); resolve(); };
+      });
+    }
+
+    new Vue({
+      el: '#app',
+      data: {
+        baseURL: document.location.origin,
+        Number: 0,
+        totalCount: 0,
+        fileConfig: {
+          all: { name: '全部', exts: [], icon: 'fas fa-th-large', count: 0 },
+          image: { name: '图片', exts: ['jpg','jpeg','jfif','pjpeg','pjp','png','apng','gif','webp','bmp','tif','tiff','ico','svg','heic','heif','avif','jxl'], icon: 'fas fa-image', count: 0 },
+          video: { name: '视频', exts: ['mp4','webm','ogg','ogv','avi','mov','wmv','flv','mkv','m4v','m3u8','3gp','ts','mts','m2ts'], icon: 'fas fa-video', count: 0 },
+          audio: { name: '音频', exts: ['mp3','mpeg','wav','ogg','oga','flac','aac','m4a','wma','ape','opus','weba','midi','mid','aif','aiff'], icon: 'fas fa-music', count: 0 },
+          document: { name: '文件', exts: ['pdf','ofd','typ','typst','doc','dot','docx','docm','dotx','dotm','rtf','odt','xls','xlsb','xlsx','xlsm','xlt','xltx','xltm','ods','fods','numbers','ppt','pptx','pptm','ppsx','ppsm','potx','potm','odp','txt','md','markdown','zip','zipx','jar','war','ear','rar','7z','tar','tgz','gz','gzip','bz2','bzip2','tbz','tbz2','xz','txz','lzma','zst','cab','iso','exe','apk','dmg','msi','deb','rpm','json','jsonc','json5','xml','csv','tsv','sql','html','css','js','ts','tsx','jsx','vue','py','java','go','rs','cpp','c','h','ttf','otf','woff','woff2','eml','msg','mbox','psd','ai','eps','sqlite','sqlite3','db','parquet','avro','wasm','webarchive','dwg','dxf','dwf','dwfx','xps','xmind','drawio','dio','excalidraw','mermaid','mmd','plantuml','puml','epub','umd','geojson','kml','gpx','shp','glb','gltf','obj','stl','ply','fbx','dae','3ds','3mf','usd','usdz','kmz','step','stp','iges','igs','ifc','olb','dra','gds','oas','oasis'], icon: 'fas fa-folder-open', count: 0 }
+        },
+        uploadConfig: { maxSize: 20 * 1024 * 1024, maxConcurrent: 3 },
+        tableData: [], nextCursor: null, isLoadingMore: false, search: '',
+        currentPage: 1, pageSize: 24, selectedFiles: [], sortOption: 'dateDesc',
+        filterOption: 'all', fileType: 'all', storageFilter: 'all', viewMode: 'grid',
+        folders: [], folderPath: '', folderLoading: false, folderMutating: false,
+        folderMutatingAction: '', listRequestSeq: 0, isMobileViewport: false,
+        mobileNavMetricsRaf: 0, headerResizeObserver: null,
+        folderListCache: {}, folderCacheTTL: 3*60*1000, folderCacheMaxEntries: 12,
+        dragState: { active: false, fileIds: [], targetPath: null, leaveTimer: null, rafId: null },
+        loadMode: 'normal', safeMode: true,
+        systemStatus: {
+          telegram: { connected: false, message: '检查中...' },
+          kv: { connected: false, message: '检查中...' },
+          r2: { connected: false, message: '检查中...', enabled: false },
+          s3: { connected: false, message: '检查中...', enabled: false },
+          discord: { connected: false, message: '检查中...', enabled: false },
+          huggingface: { connected: false, message: '检查中...', enabled: false },
+          github: { connected: false, message: '检查中...', enabled: false },
+          auth: { enabled: false, message: '检查中...' }
+        },
+        batchToolbarPosition: { left: null, top: null },
+        batchDragState: { dragging: false, offsetX: 0, offsetY: 0 },
+        previewData: null, revealedPreviewKeys: {},
+        quickWebsites: [
+          { name: '上传中心', url: './', icon: 'fas fa-cloud-upload-alt' },
+          { name: '图片浏览', url: './gallery.html', icon: 'fas fa-images' },
+          { name: 'Movavi', url: 'https://www.movavi.com/zh/movavi-video-converter.html', icon: 'fas fa-file-video' },
+          { name: 'FreeConvert', url: 'https://www.freeconvert.com/zh/video-compressor', icon: 'fas fa-file' },
+          { name: 'YouCompress', url: 'https://www.youcompress.com/zh-cn/', icon: 'fas fa-file-zipper' },
+          { name: 'Cloudinary', url: 'https://console.cloudinary.com/', icon: 'fas fa-cloud' },
+        ],
+        tokenDialogVisible: false, tokenLoading: false, createTokenDialogVisible: false,
+        tokenCreateLoading: false, createdTokenDialogVisible: false, createdTokenValue: '',
+        createdTokenCopied: false, apiTokens: [], tokenMutatingMap: {},
+        tokenForm: { name: '', scopes: ['upload','read'], expiryPreset: 'never', customExpiresAt: '' },
+        moveDialogVisible: false, moveDialogLoading: false, moveDialogFoldersLoading: false,
+        moveDialogFiles: [], moveDialogTargetPath: '', moveDialogFolderSearch: '', moveDialogNewFolderPath: '',
+        openDropdown: null, fileDetailVisible: false, fileDetailHtml: '',
+
+        // Admin management
+        activeTab: 'files',
+        adminModalVisible: false, adminModalType: 'user', adminModalMode: 'create',
+        adminForm: {}, adminEditingId: null,
+        adminList: [], adminFormPerms: {},
+      },
+      computed: {
+        filteredTableData: function() {
+          var self = this;
+          return self.tableData.filter(function(data){
+            var searchLower = self.search.toLowerCase();
+            var matchesSearch = !searchLower || [
+              (data.metadata.fileName || '').toLowerCase(),
+              (data.name || '').toLowerCase(),
+            ].some(function(f){ return f.indexOf(searchLower) !== -1; });
+            var matchesFilter = (
+              self.filterOption === 'all' ? true :
+              self.filterOption === 'favorites' ? data.metadata.liked :
+              self.filterOption === 'blocked' ? data.metadata.ListType === 'Block' :
+              self.filterOption === 'unblocked' ? data.metadata.ListType === 'White' :
+              self.filterOption === 'adult' ? (data.metadata.Label||'').toLowerCase() === 'adult' : true
+            );
+            var ext = data.name.split('.').pop().toLowerCase();
+            var matchesType = true;
+            if (self.fileType === 'all') matchesType = true;
+            else if (self.fileType === 'document')
+              matchesType = !Object.keys(self.fileConfig).some(function(t){ return t !== 'document' && t !== 'all' && self.fileConfig[t].exts.indexOf(ext) !== -1; });
+            else matchesType = self.fileConfig[self.fileType].exts.indexOf(ext) !== -1;
+            var storagePrefix = self.getStorageType(data.name);
+            var matchesStorage = self.storageFilter === 'all' || self.storageFilter === storagePrefix;
+            return matchesSearch && matchesFilter && matchesType && matchesStorage;
+          });
+        },
+        paginatedTableData: function(){
+          return this.sortData(this.filteredTableData).slice((this.currentPage-1)*this.pageSize, this.currentPage*this.pageSize);
+        },
+        paginationTotal: function(){ return this.filteredTableData.length; },
+        paginatedData: function(){ return this.paginatedTableData; },
+        isAllSelected: function(){ return this.paginatedData.length > 0 && this.paginatedData.every(function(f){ return f.selected; }); },
+        sortIcon: function(){ return 'fas fa-sort-' + (this.sortOption === 'dateDesc' ? 'amount-down' : 'alpha-up'); },
+        filterIcon: function(){
+          return this.filterOption === 'all' ? 'fas fa-filter' :
+            this.filterOption === 'favorites' ? 'fas fa-bookmark' :
+            this.filterOption === 'blocked' ? 'fas fa-lock' :
+            this.filterOption === 'unblocked' ? 'fas fa-unlock' :
+            this.filterOption === 'adult' ? 'fas fa-user-secret' : '';
+        },
+        fileTypeIcon: function(){
+          return this.fileType === 'all' ? 'fas fa-th-large' :
+            this.fileType === 'image' ? 'fas fa-image' :
+            this.fileType === 'video' ? 'fas fa-video' :
+            this.fileType === 'audio' ? 'fas fa-music' :
+            this.fileType === 'document' ? 'fas fa-folder-open' : 'fas fa-th-large';
+        },
+        storageFilterIcon: function(){
+          return this.storageFilter === 'all' ? 'fas fa-database' :
+            this.storageFilter === 'telegram' ? 'fab fa-telegram' :
+            this.storageFilter === 'r2' ? 'fas fa-cloud' :
+            this.storageFilter === 's3' ? 'fas fa-database' :
+            this.storageFilter === 'discord' ? 'fab fa-discord' :
+            this.storageFilter === 'huggingface' ? 'fas fa-robot' :
+            this.storageFilter === 'webdav' ? 'fas fa-hard-drive' :
+            this.storageFilter === 'github' ? 'fab fa-github' : 'fas fa-database';
+        },
+        viewModeIcon: function(){ return this.viewMode === 'list' ? 'fas fa-list' : 'fas fa-th-large'; },
+        folderBreadcrumbs: function(){
+          var parts = this.normalizeFolderPath(this.folderPath).split('/').filter(Boolean);
+          var result = [];
+          for (var i = 0; i < parts.length; i++) result.push({ name: parts[i], path: parts.slice(0,i+1).join('/') });
+          return result;
+        },
+        folderTreeNodes: function(){
+          var self = this;
+          var list = [{ path: '', name: '根目录', depth: 0, fileCount: self.folderPath ? '-' : self.Number }];
+          var nodes = (self.folders || []).map(function(folder){
+            var path = self.normalizeFolderPath(folder.path || folder.folderPath || '');
+            var depth = Number.isFinite(folder.depth) ? folder.depth : (path ? path.split('/').length : 0);
+            return { path: path, name: folder.name || (path.split('/').pop() || path || '未命名目录'), depth: depth, fileCount: Number(folder.fileCount || 0) };
+          }).sort(function(a,b){
+            if (a.depth !== b.depth) return a.depth - b.depth;
+            return a.path.localeCompare(b.path, 'zh-CN');
+          });
+          return list.concat(nodes);
+        },
+        dragTargetLabel: function(){
+          if (!this.dragState.active) return '未选择目录';
+          return this.normalizeFolderPath(this.dragState.targetPath || '') || '根目录';
+        },
+        moveDialogTargetLabel: function(){ return this.normalizeFolderPath(this.moveDialogTargetPath || '') || '根目录'; },
+        moveDialogFolderOptions: function(){
+          var self = this;
+          var keyword = String(self.moveDialogFolderSearch || '').trim().toLowerCase();
+          var normalized = {};
+          normalized[''] = { path: '', label: '根目录', fileCount: self.folderPath ? 0 : self.Number };
+          (self.folders || []).forEach(function(folder){
+            var path = self.normalizeFolderPath(folder.path || folder.folderPath || '');
+            if (!path) return;
+            normalized[path] = { path: path, label: path, fileCount: Number(folder.fileCount || 0) };
+          });
+          return Object.values(normalized).filter(function(f){
+            if (!keyword) return true;
+            return f.label.toLowerCase().indexOf(keyword) !== -1;
+          }).map(function(f){
+            return Object.assign({}, f, { fileCountLabel: f.path ? (f.fileCount + ' 个文件') : '根目录' });
+          }).sort(function(a,b){
+            if (!a.path) return -1; if (!b.path) return 1;
+            var da = a.path.split('/').length, db = b.path.split('/').length;
+            if (da !== db) return da - db;
+            return a.path.localeCompare(b.path, 'zh-CN');
+          });
+        },
+        batchToolbarStyle: function(){
+          if (this.isMobileViewport) return {};
+          if (this.batchToolbarPosition.left === null || this.batchToolbarPosition.top === null) return {};
+          return { left: this.batchToolbarPosition.left + 'px', top: this.batchToolbarPosition.top + 'px', bottom: 'auto', transform: 'translate(0,0)' };
+        },
+        totalPages: function(){ return Math.max(1, Math.ceil((this.paginationTotal||0) / this.pageSize)); },
+        displayPages: function(){
+          var pages = []; var total = this.totalPages; var curr = this.currentPage;
+          if (total <= 7) { for (var i=1;i<=total;i++) pages.push(i); return pages; }
+          pages.push(1);
+          if (curr > 3) pages.push('...');
+          for (var j=Math.max(2,curr-1); j<=Math.min(total-1,curr+1); j++) pages.push(j);
+          if (curr < total-2) pages.push('...');
+          pages.push(total);
+          return pages;
+        },
+        // Admin computed
+        allGroups: function(){
+          var data = this.loadAdminDataRaw();
+          return data.groups || [];
+        },
+        allSections: function(){
+          var data = this.loadAdminDataRaw();
+          return data.sections || [];
+        },
+      },
+      watch: {
+        tableData: {
+          handler: function(newData){ this.selectedFiles = newData.filter(function(f){ return f.selected; }); },
+          deep: true
+        },
+        search: function(){ this.currentPage = 1; this.normalizeCurrentPage(); },
+        selectedFiles: function(newValue){
+          if (newValue.length === 0){ this.batchToolbarPosition.left = null; this.batchToolbarPosition.top = null; return; }
+          if (this.isMobileViewport){ this.batchToolbarPosition.left = null; this.batchToolbarPosition.top = null; return; }
+          if (this.batchToolbarPosition.left === null) this.$nextTick(function(){ this.snapBatchToolbarToBottom(); }.bind(this));
+        },
+        sortOption: function(v){ localStorage.setItem('sortOption', v); },
+        filterOption: function(v){ localStorage.setItem('filterOption', v); this.currentPage = 1; this.normalizeCurrentPage(); },
+        paginationTotal: function(){ this.normalizeCurrentPage(); },
+        viewMode: function(v){ localStorage.setItem('adminViewMode', v); },
+        folderPath: function(v){ localStorage.setItem('adminFolderPath', this.normalizeFolderPath(v)); },
+        activeTab: function(v){ if(v!=='files') this.openDropdown = null; },
+      },
+      methods: {
+        // ====== Admin Data Methods ======
+        loadAdminDataRaw: function(){
+          try {
+            var raw = localStorage.getItem('1940netdisk_data');
+            if (raw) return JSON.parse(raw);
+          } catch(e){}
+          return { users: [], groups: [], userGroups: [], sections: [], sectionPermissions: [] };
+        },
+        loadAdminData: function(){
+          var data = this.loadAdminDataRaw();
+          var self = this;
+          if (self.activeTab === 'users') self.adminList = data.users || [];
+          else if (self.activeTab === 'groups') self.adminList = data.groups || [];
+          else if (self.activeTab === 'sections') self.adminList = data.sections || [];
+        },
+        saveAdminData: function(){
+          var data = this.loadAdminDataRaw();
+          data.users = data.users || []; data.groups = data.groups || [];
+          data.userGroups = data.userGroups || []; data.sections = data.sections || [];
+          data.sectionPermissions = data.sectionPermissions || [];
+          localStorage.setItem('1940netdisk_data', JSON.stringify(data));
+          this.loadAdminData();
+        },
+        getUserGroups: function(userId){
+          var data = this.loadAdminDataRaw();
+          return (data.userGroups || []).filter(function(ug){ return ug.userId === userId; }).map(function(ug){ return ug.groupId; });
+        },
+        getGroupName: function(groupId){
+          var data = this.loadAdminDataRaw();
+          var g = (data.groups || []).find(function(g){ return g.id === groupId; });
+          return g ? g.name : groupId;
+        },
+        getGroupMemberCount: function(groupId){
+          var data = this.loadAdminDataRaw();
+          return (data.userGroups || []).filter(function(ug){ return ug.groupId === groupId; }).length;
+        },
+        getGroupPermissions: function(groupId){
+          var data = this.loadAdminDataRaw();
+          return (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === groupId; });
+        },
+        getSectionName: function(sectionId){
+          var data = this.loadAdminDataRaw();
+          var s = (data.sections || []).find(function(s){ return s.id === sectionId; });
+          return s ? s.name : sectionId;
+        },
+        getSectionGroups: function(sectionId){
+          var data = this.loadAdminDataRaw();
+          return (data.sectionPermissions || []).filter(function(sp){ return sp.sectionId === sectionId; });
+        },
+        getSectionPermissionForGroup: function(sectionId, groupId){
+          var perm = this.adminFormPerms[sectionId + '_' + groupId];
+          return perm || 'none';
+        },
+        setSectionPermissionForGroup: function(sectionId, value){
+          var self = this;
+          self.$set(self.adminFormPerms, sectionId + '_' + (self.adminForm.id || ''), value);
+        },
+        showAdminModal: function(type, item){
+          this.adminModalType = type;
+          this.adminModalMode = item ? 'edit' : 'create';
+          this.adminEditingId = item ? item.id : null;
+          this.adminFormPerms = {};
+          var self = this;
+
+          if (type === 'user') {
+            if (item) {
+              var data = this.loadAdminDataRaw();
+              var ug = (data.userGroups || []).filter(function(ug){ return ug.userId === item.id; }).map(function(ug){ return ug.groupId; });
+              self.adminForm = { username: item.username, nickname: item.nickname || '', role: item.role || 'user', enabled: item.enabled !== false, groupIds: ug.slice() };
+            } else {
+              self.adminForm = { username: '', nickname: '', role: 'user', password: '', enabled: true, groupIds: [] };
+            }
+          } else if (type === 'group') {
+            if (item) {
+              var data = this.loadAdminDataRaw();
+              self.adminForm = { id: item.id, name: item.name, description: item.description || '' };
+              // Load permissions
+              var perms = (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === item.id; });
+              perms.forEach(function(p){ self.$set(self.adminFormPerms, p.sectionId + '_' + p.groupId, p.level); });
+            } else {
+              var nextId = 'group_' + Date.now();
+              self.adminForm = { id: nextId, name: '', description: '' };
+            }
+          } else if (type === 'section') {
+            if (item) {
+              self.adminForm = { id: item.id, name: item.name, slug: item.slug, description: item.description || '' };
+            } else {
+              self.adminForm = { id: 'section_' + Date.now(), name: '', slug: '', description: '' };
+            }
+          }
+          this.adminModalVisible = true;
+        },
+        closeAdminModal: function(){
+          this.adminModalVisible = false;
+          this.adminForm = {};
+          this.adminFormPerms = {};
+          this.adminEditingId = null;
+        },
+        saveAdminModal: function(){
+          var data = this.loadAdminDataRaw();
+          var self = this;
+
+          if (self.adminModalType === 'user') {
+            var form = self.adminForm;
+            if (!form.username || form.username.length < 3) { showToast('用户名至少3个字符', 'warning'); return; }
+            if (self.adminModalMode === 'create' && (!form.password || form.password.length < 6)) { showToast('密码至少6个字符', 'warning'); return; }
+
+            if (self.adminModalMode === 'create') {
+              var exists = (data.users || []).find(function(u){ return u.username === form.username; });
+              if (exists) { showToast('用户名已存在', 'error'); return; }
+              var newUser = { id: 'user_' + Date.now(), username: form.username, nickname: form.nickname || form.username, password: form.password, role: form.role || 'user', enabled: form.enabled !== false };
+              data.users.push(newUser);
+              // Add group associations
+              (form.groupIds || []).forEach(function(gid){
+                data.userGroups.push({ userId: newUser.id, groupId: gid });
+              });
+            } else {
+              var user = (data.users || []).find(function(u){ return u.id === self.adminEditingId; });
+              if (user) {
+                user.nickname = form.nickname; user.role = form.role; user.enabled = form.enabled !== false;
+                // Remove old group associations
+                data.userGroups = (data.userGroups || []).filter(function(ug){ return ug.userId !== user.id; });
+                (form.groupIds || []).forEach(function(gid){
+                  data.userGroups.push({ userId: user.id, groupId: gid });
+                });
+              }
+            }
+          } else if (self.adminModalType === 'group') {
+            var form = self.adminForm;
+            if (!form.name) { showToast('请输入身份组名称', 'warning'); return; }
+
+            if (self.adminModalMode === 'create') {
+              data.groups.push({ id: form.id, name: form.name, description: form.description || '' });
+            } else {
+              var group = (data.groups || []).find(function(g){ return g.id === self.adminEditingId; });
+              if (group) { group.name = form.name; group.description = form.description || ''; }
+            }
+            // Save permissions
+            data.sectionPermissions = (data.sectionPermissions || []).filter(function(sp){ return sp.groupId !== form.id; });
+            var groupId = self.adminModalMode === 'create' ? form.id : self.adminEditingId;
+            Object.keys(self.adminFormPerms).forEach(function(key){
+              var parts = key.split('_');
+              var sid = parts.slice(0, -1).join('_');
+              var gid = parts[parts.length - 1];
+              if (gid !== groupId) return;
+              var level = self.adminFormPerms[key];
+              if (level && level !== 'none') data.sectionPermissions.push({ sectionId: sid, groupId: groupId, level: level });
+            });
+          } else if (self.adminModalType === 'section') {
+            var form = self.adminForm;
+            if (!form.name) { showToast('请输入版块名称', 'warning'); return; }
+            if (!form.slug) { showToast('请输入版块标识', 'warning'); return; }
+
+            if (self.adminModalMode === 'create') {
+              data.sections.push({ id: form.id, name: form.name, slug: form.slug, description: form.description || '' });
+            } else {
+              var section = (data.sections || []).find(function(s){ return s.id === self.adminEditingId; });
+              if (section) { section.name = form.name; section.slug = form.slug; section.description = form.description || ''; }
+            }
+          }
+
+          localStorage.setItem('1940netdisk_data', JSON.stringify(data));
+          this.closeAdminModal();
+          this.loadAdminData();
+          showToast('保存成功', 'success');
+        },
+        deleteAdminItem: function(type, id){
+          var self = this;
+          showConfirm('确认删除此' + (type === 'user' ? '用户' : type === 'group' ? '身份组' : '版块') + '吗？', '确认删除').then(function(){
+            var data = self.loadAdminDataRaw();
+            if (type === 'user') {
+              data.users = (data.users || []).filter(function(u){ return u.id !== id; });
+              data.userGroups = (data.userGroups || []).filter(function(ug){ return ug.userId !== id; });
+            } else if (type === 'group') {
+              data.groups = (data.groups || []).filter(function(g){ return g.id !== id; });
+              data.userGroups = (data.userGroups || []).filter(function(ug){ return ug.groupId !== id; });
+              data.sectionPermissions = (data.sectionPermissions || []).filter(function(sp){ return sp.groupId !== id; });
+            } else if (type === 'section') {
+              data.sections = (data.sections || []).filter(function(s){ return s.id !== id; });
+              data.sectionPermissions = (data.sectionPermissions || []).filter(function(sp){ return sp.sectionId !== id; });
+            }
+            localStorage.setItem('1940netdisk_data', JSON.stringify(data));
+            self.loadAdminData();
+            showToast('删除成功', 'success');
+          }).catch(function(){});
+        },
+        resetUserPassword: function(user){
+          var self = this;
+          showPrompt('为用户 "' + user.username + '" 设置新密码', '重置密码', { inputValue: '123456' }).then(function(result){
+            if (!result.value || result.value.length < 6) { showToast('密码至少6个字符', 'warning'); return; }
+            var data = self.loadAdminDataRaw();
+            var u = (data.users || []).find(function(u){ return u.id === user.id; });
+            if (u) {
+              u.password = result.value;
+              localStorage.setItem('1940netdisk_data', JSON.stringify(data));
+              showToast('密码已重置为: ' + result.value, 'success');
+            } else {
+              showToast('用户不存在', 'error');
+            }
+          }).catch(function(){});
+        },
+
+        // ====== Original Admin Methods ======
+        toggleDropdown: function(name){
+          if (this.openDropdown === name) { this.openDropdown = null; return; }
+          this.openDropdown = name;
+        },
+        normalizeFolderPath: function(value){
+          if (!value) return '';
+          var raw = String(value).replace(/\\/g, '/').trim();
+          var output = [];
+          raw.split('/').forEach(function(part){
+            var p = part.trim();
+            if (!p || p === '.') return;
+            if (p === '..') { output.pop(); return; }
+            output.push(p);
+          });
+          return output.join('/');
+        },
+        isUnconfiguredStatus: function(item){
+          var message = String((item||{}).message || '').trim().toLowerCase();
+          return message === '未配置' || message === 'not configured' || message.indexOf('not configured') !== -1;
+        },
+        formatDateTime: function(timestamp){
+          var value = Number(timestamp || 0);
+          if (!Number.isFinite(value) || value <= 0) return '-';
+          return new Date(value).toLocaleString('zh-CN', { hour12: false });
+        },
+        formatRelativeTime: function(timestamp){
+          var value = Number(timestamp || 0);
+          if (!Number.isFinite(value) || value <= 0) return '从未';
+          var diff = Date.now() - value;
+          var minute = 60 * 1000, hour = 60 * minute, day = 24 * hour;
+          if (diff < minute) return '刚刚';
+          if (diff < hour) return Math.floor(diff / minute) + ' 分钟前';
+          if (diff < day) return Math.floor(diff / hour) + ' 小时前';
+          if (diff < day * 30) return Math.floor(diff / day) + ' 天前';
+          return this.formatDateTime(value);
+        },
+        openApiTokenDialog: function(){ this.tokenDialogVisible = true; this.loadApiTokens(); },
+        openCreateTokenDialog: function(){
+          this.tokenForm = { name: '', scopes: ['upload','read'], expiryPreset: 'never', customExpiresAt: '' };
+          this.createTokenDialogVisible = true;
+        },
+        resolveTokenExpiresAt: function(){
+          var preset = String(this.tokenForm.expiryPreset || 'never');
+          if (preset === '7d') return Date.now() + 7*24*3600*1000;
+          if (preset === '30d') return Date.now() + 30*24*3600*1000;
+          if (preset === '90d') return Date.now() + 90*24*3600*1000;
+          if (preset === 'custom') {
+            var custom = Number(new Date(this.tokenForm.customExpiresAt).getTime());
+            return Number.isFinite(custom) && custom > Date.now() ? custom : null;
+          }
+          return null;
+        },
+        loadApiTokens: function(){
+          var self = this; self.tokenLoading = true;
+          fetch('./api/admin/tokens', { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(payload){
+            if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '加载失败');
+            self.apiTokens = Array.isArray(payload.tokens) ? payload.tokens : [];
+          }).catch(function(err){
+            showToast(err.message || '加载 API Token 失败', 'error');
+          }).finally(function(){ self.tokenLoading = false; });
+        },
+        createApiToken: function(){
+          var self = this; var name = String(self.tokenForm.name || '').trim();
+          var scopes = Array.isArray(self.tokenForm.scopes) ? self.tokenForm.scopes : [];
+          if (!name) { showToast('请输入 Token 名称', 'warning'); return; }
+          if (scopes.length === 0) { showToast('请至少选择一个权限', 'warning'); return; }
+          var expiresAt = self.resolveTokenExpiresAt();
+          if (String(self.tokenForm.expiryPreset) === 'custom' && !expiresAt) { showToast('请选择有效的未来过期时间', 'warning'); return; }
+          self.tokenCreateLoading = true;
+          fetch('./api/admin/tokens', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, scopes: scopes, expiresAt: expiresAt }) })
+            .then(function(r){ return r.json(); }).then(function(payload){
+              if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '创建失败');
+              self.createTokenDialogVisible = false;
+              self.createdTokenValue = String(payload.token || '');
+              self.createdTokenCopied = false;
+              self.createdTokenDialogVisible = true;
+              self.loadApiTokens();
+            }).catch(function(err){ showToast(err.message || '创建 Token 失败', 'error');
+            }).finally(function(){ self.tokenCreateLoading = false; });
+        },
+        copyCreatedTokenValue: function(){
+          var token = String(this.createdTokenValue || '');
+          if (!token) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(token).then(function(){ this.createdTokenCopied = true; }.bind(this)).catch(function(){ this.copyToClipboardFallback(token); this.createdTokenCopied = true; }.bind(this));
+          } else { this.copyToClipboardFallback(token); this.createdTokenCopied = true; }
+        },
+        toggleApiTokenEnabled: function(token){
+          var self = this; var tokenId = (token||{}).id; if (!tokenId) return;
+          var nextEnabled = Boolean(token.enabled);
+          self.$set(self.tokenMutatingMap, tokenId, true);
+          fetch('./api/admin/tokens/' + encodeURIComponent(tokenId), { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: nextEnabled }) })
+            .then(function(r){ return r.json(); }).then(function(payload){
+              if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '更新失败');
+              showToast(nextEnabled ? 'Token 已启用' : 'Token 已禁用', 'success');
+            }).catch(function(err){
+              token.enabled = !nextEnabled; showToast(err.message || '更新 Token 状态失败', 'error');
+            }).finally(function(){ self.$delete(self.tokenMutatingMap, tokenId); });
+        },
+        removeApiToken: function(token){
+          var self = this; var tokenId = (token||{}).id; if (!tokenId) return;
+          showConfirm('确认删除 Token「' + token.name + '」吗？', '删除确认').then(function(){
+            self.$set(self.tokenMutatingMap, tokenId, true);
+            fetch('./api/admin/tokens/' + encodeURIComponent(tokenId), { method: 'DELETE', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(payload){
+              if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '删除失败');
+              self.apiTokens = self.apiTokens.filter(function(item){ return item.id !== tokenId; });
+              showToast('Token 已删除', 'success');
+            }).catch(function(err){ showToast(err.message || '删除 Token 失败', 'error');
+            }).finally(function(){ self.$delete(self.tokenMutatingMap, tokenId); });
+          }).catch(function(){});
+        },
+        // Viewport/Mobile
+        updateViewportFlags: function(){
+          this.isMobileViewport = window.matchMedia('(max-width: 900px)').matches;
+          if (this.isMobileViewport) { this.batchToolbarPosition.left = null; this.batchToolbarPosition.top = null; this.batchDragState.dragging = false; }
+        },
+        // Folder cache
+        restoreFolderCache: function(){
+          try { var raw = localStorage.getItem('adminFolderListCache'); var parsed = raw ? JSON.parse(raw) : {}; this.folderListCache = parsed && typeof parsed === 'object' ? parsed : {}; this.pruneFolderCache(); } catch(e){ this.folderListCache = {}; }
+        },
+        persistFolderCache: function(){
+          try { localStorage.setItem('adminFolderListCache', JSON.stringify(this.folderListCache)); } catch(e){}
+        },
+        pruneFolderCache: function(){
+          var self = this; var now = Date.now();
+          var entries = Object.entries(self.folderListCache || {}).filter(function(entry){ return entry[1] && Number.isFinite(Number(entry[1].time)) && (now - Number(entry[1].time) <= self.folderCacheTTL); }).sort(function(a,b){ return Number(b[1].time||0) - Number(a[1].time||0); }).slice(0, self.folderCacheMaxEntries);
+          self.folderListCache = Object.fromEntries(entries);
+        },
+        getFolderCacheKey: function(){
+          return (this.storageFilter||'all').toLowerCase() + '::' + this.normalizeFolderPath(this.folderPath||'');
+        },
+        cloneRowsForCache: function(rows){
+          return (rows||[]).map(function(item){ return Object.assign({}, item, { selected: false, metadata: Object.assign({}, (item.metadata||{})) }); });
+        },
+        readFolderCache: function(cacheKey){
+          var entry = this.folderListCache[cacheKey];
+          if (!entry) return null;
+          if (!Number.isFinite(Number(entry.time)) || (Date.now() - Number(entry.time) > this.folderCacheTTL)) { delete this.folderListCache[cacheKey]; this.persistFolderCache(); return null; }
+          return entry;
+        },
+        applyFolderCacheEntry: function(entry){
+          if (!entry) return;
+          this.tableData = this.cloneRowsForCache(entry.rows || []);
+          this.nextCursor = entry.nextCursor || null;
+          this.totalCount = Number.isFinite(entry.totalCount) ? entry.totalCount : this.tableData.length;
+          this.updateStats(); this.calculatePageSize(); this.sortData(this.tableData); this.normalizeCurrentPage();
+        },
+        writeFolderCache: function(cacheKey){
+          if (!cacheKey) return;
+          this.folderListCache[cacheKey] = { time: Date.now(), rows: this.cloneRowsForCache(this.tableData), nextCursor: this.nextCursor, totalCount: this.totalCount };
+          this.pruneFolderCache(); this.persistFolderCache();
+        },
+        clearFolderCache: function(){ this.folderListCache = {}; try { localStorage.removeItem('adminFolderListCache'); } catch(e){} },
+        getStorageType: function(name){
+          if (!name) return 'telegram';
+          if (name.startsWith('r2:')) return 'r2'; if (name.startsWith('s3:')) return 's3';
+          if (name.startsWith('discord:')) return 'discord'; if (name.startsWith('hf:')) return 'huggingface';
+          if (name.startsWith('webdav:')) return 'webdav'; if (name.startsWith('github:')) return 'github';
+          return 'telegram';
+        },
+        getStorageLabel: function(name){
+          var map = { telegram: 'Telegram', r2: 'R2', s3: 'S3', discord: 'Discord', huggingface: 'HuggingFace', webdav: 'WebDAV', github: 'GitHub' };
+          return map[this.getStorageType(name)] || 'Telegram';
+        },
+        toggleSelectByName: function(name){
+          var target = this.tableData.find(function(f){ return f.name === name; });
+          if (target) target.selected = !target.selected;
+        },
+        getFileMoveId: function(file){ return String((file||{}).id || file.name || (file||{}).key || ((file||{}).metadata||{}).id || '').trim(); },
+        getFileMovePayload: function(file){
+          return { id: this.getFileMoveId(file), name: file.name || '', key: file.key || '', fileName: (file.metadata||{}).fileName || '', metadata: { id: (file.metadata||{}).id || '', fileId: (file.metadata||{}).fileId || '', fileName: (file.metadata||{}).fileName || '' } };
+        },
+        findFileByMoveId: function(id){
+          var self = this; var target = String(id||'').trim(); if (!target) return null;
+          return self.tableData.find(function(file){ return self.getFileMoveId(file) === target || String(file.name||'') === target || String(file.id||'') === target; }) || null;
+        },
+        isRowInMoveSet: function(row, idSet){
+          return idSet.has(this.getFileMoveId(row)) || idSet.has(String(row.name||'')) || idSet.has(String(row.id||''));
+        },
+        switchViewMode: function(mode){ this.viewMode = mode; },
+        cloneFoldersSnapshot: function(){ return Array.isArray(this.folders) ? this.folders.map(function(item){ return Object.assign({}, item); }) : []; },
+        sortFoldersLocal: function(){
+          var self = this;
+          self.folders = [].concat(self.folders||[]).sort(function(a,b){
+            var pathA = self.normalizeFolderPath(a.path||a.folderPath||'');
+            var pathB = self.normalizeFolderPath(b.path||b.folderPath||'');
+            var depthA = Number.isFinite(a.depth) ? a.depth : (pathA ? pathA.split('/').length : 0);
+            var depthB = Number.isFinite(b.depth) ? b.depth : (pathB ? pathB.split('/').length : 0);
+            if (depthA !== depthB) return depthA - depthB;
+            return pathA.localeCompare(pathB, 'zh-CN', { sensitivity: 'base' });
+          });
+        },
+        buildFolderNode: function(path, fileCount){
+          var normalized = this.normalizeFolderPath(path); if (!normalized) return null;
+          var segments = normalized.split('/');
+          return { path: normalized, name: segments[segments.length-1] || normalized, parentPath: segments.length > 1 ? segments.slice(0,-1).join('/') : '', depth: segments.length, fileCount: Number(fileCount||0) };
+        },
+        ensureFolderBranchLocal: function(path){
+          var self = this; var normalized = self.normalizeFolderPath(path); if (!normalized) return;
+          var parts = normalized.split('/'); var current = '';
+          parts.forEach(function(part){
+            current = current ? current + '/' + part : part;
+            var exists = (self.folders||[]).some(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === current; });
+            if (!exists) { var node = self.buildFolderNode(current, 0); if (node) self.folders.push(node); }
+          });
+          self.sortFoldersLocal();
+        },
+        renameFolderBranchLocal: function(sourcePath, targetPath){
+          var self = this; var source = self.normalizeFolderPath(sourcePath); var target = self.normalizeFolderPath(targetPath);
+          if (!source || !target || source === target) return;
+          self.folders = (self.folders||[]).map(function(folder){
+            var current = self.normalizeFolderPath(folder.path||folder.folderPath||'');
+            if (!current || (current !== source && current.indexOf(source+'/') !== 0)) return folder;
+            var suffix = current === source ? '' : current.slice(source.length + 1);
+            var nextPath = suffix ? target + '/' + suffix : target;
+            var nextNode = self.buildFolderNode(nextPath, Number(folder.fileCount||0));
+            return nextNode ? Object.assign({}, folder, nextNode) : folder;
+          });
+          self.sortFoldersLocal();
+        },
+        removeFolderBranchLocal: function(path){
+          var self = this; var target = self.normalizeFolderPath(path); if (!target) return;
+          self.folders = (self.folders||[]).filter(function(folder){
+            var current = self.normalizeFolderPath(folder.path||folder.folderPath||'');
+            return current !== target && current.indexOf(target+'/') !== 0;
+          });
+          self.sortFoldersLocal();
+        },
+        selectFolder: function(path){
+          var self = this; var normalized = self.normalizeFolderPath(path);
+          if (normalized === self.folderPath && self.tableData.length > 0) return;
+          self.folderPath = normalized; self.currentPage = 1; self.refreshFileList({ preferCache: true });
+        },
+        fetchFolders: function(){
+          var self = this; self.folderLoading = true;
+          var params = new URLSearchParams();
+          if (self.storageFilter && self.storageFilter !== 'all') params.set('storage', self.storageFilter);
+          var query = params.toString();
+          return fetch('./api/manage/folders' + (query ? '?' + query : ''), { method: 'GET', credentials: 'include' })
+            .then(function(r){ return r.json(); }).then(function(data){
+              self.folders = Array.isArray(data.folders) ? data.folders : []; return true;
+            }).catch(function(){ self.folders = []; showToast('目录列表加载失败', 'error'); return false;
+            }).finally(function(){ self.folderLoading = false; });
+        },
+        refreshFolderResources: function(showMessage){
+          showMessage = showMessage !== false;
+          var self = this;
+          self.clearFolderCache();
+          Promise.all([self.fetchFolders(), self.refreshFileList({ force: true })]).then(function(){
+            if (showMessage) showToast('目录与文件已刷新', 'success');
+          }).catch(function(err){
+            if (showMessage) showToast((err||{}).message || '刷新失败，请稍后重试', 'error');
+          });
+        },
+        createFolder: function(){
+          var self = this; if (self.folderMutating) return;
+          var seed = self.folderPath ? self.folderPath + '/新目录' : '新目录';
+          showPrompt('请输入目录路径（例如：项目A/一月）', '新建目录', { inputValue: seed, confirmButtonText: '创建', cancelButtonText: '取消' }).then(function(result){
+            var path = self.normalizeFolderPath(result.value);
+            if (!path) return;
+            var existed = (self.folders||[]).some(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === path; });
+            if (existed) { self.selectFolder(path); showToast('目录已存在，已切换到该目录', 'info'); return; }
+            var previousFolders = self.cloneFoldersSnapshot(); var previousFolderPath = self.folderPath;
+            self.folderMutating = true; self.folderMutatingAction = 'create';
+            self.ensureFolderBranchLocal(path); self.folderPath = path; self.currentPage = 1; self.tableData = []; self.nextCursor = null;
+            fetch('./api/manage/folders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: path }) }).then(function(r){ return r.json(); }).then(function(response){
+              if (!response.success) throw new Error(response.error || '目录创建失败');
+              showToast('目录创建成功', 'success'); self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]);
+            }).catch(function(err){
+              self.folders = previousFolders; self.folderPath = previousFolderPath; self.refreshFileList(); showToast(err.message || '目录创建失败', 'error');
+            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; });
+          }).catch(function(){});
+        },
+        renameCurrentFolder: function(){
+          var self = this; if (!self.folderPath || self.folderMutating) return;
+          var parts = self.folderPath.split('/'); var oldName = parts[parts.length-1] || ''; var prefix = parts.slice(0,-1).join('/');
+          showPrompt('请输入新的目录名称', '重命名目录', { inputValue: oldName, confirmButtonText: '保存', cancelButtonText: '取消' }).then(function(result){
+            var newName = String(result.value||'').trim(); var targetPath = self.normalizeFolderPath(prefix ? prefix + '/' + newName : newName);
+            if (!targetPath || targetPath === self.folderPath) return;
+            var sourcePath = self.folderPath; var previousFolders = self.cloneFoldersSnapshot();
+            self.folderMutating = true; self.folderMutatingAction = 'rename';
+            self.renameFolderBranchLocal(sourcePath, targetPath); self.folderPath = targetPath;
+            fetch('./api/manage/folders', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourcePath: sourcePath, targetPath: targetPath }) }).then(function(r){ return r.json(); }).then(function(res){
+              if (!res.success) throw new Error(res.error || '重命名失败');
+              showToast('目录重命名成功', 'success'); self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]);
+            }).catch(function(err){
+              self.folders = previousFolders; self.folderPath = sourcePath; self.refreshFileList(); showToast(err.message || '目录重命名失败', 'error');
+            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; });
+          }).catch(function(){});
+        },
+        deleteCurrentFolder: function(){
+          var self = this; if (!self.folderPath || self.folderMutating) return;
+          showConfirm('确认删除该目录标记并将目录内文件移回根目录？文件直链不会失效。', '删除目录').then(function(){
+            var target = self.folderPath; var parent = target.split('/').slice(0,-1).join('/');
+            var previousFolders = self.cloneFoldersSnapshot(); var previousFolderPath = self.folderPath;
+            self.folderMutating = true; self.folderMutatingAction = 'delete';
+            self.removeFolderBranchLocal(target); self.folderPath = self.normalizeFolderPath(parent); self.currentPage = 1; self.tableData = []; self.nextCursor = null;
+            fetch('./api/manage/folders?path=' + encodeURIComponent(target) + '&recursive=1', { method: 'DELETE', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(response){
+              if (!response.success) throw new Error(response.error || '删除目录失败');
+              self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]); showToast('目录删除成功', 'success');
+            }).catch(function(err){
+              self.folders = previousFolders; self.folderPath = previousFolderPath; self.refreshFileList(); showToast(err.message || '目录删除失败', 'error');
+            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; });
+          }).catch(function(){});
+        },
+        moveSelectedToFolder: function(){ this.openMoveDialog(this.selectedFiles); },
+        openMoveDialog: function(files){
+          var candidates = Array.isArray(files) ? files.filter(Boolean) : [];
+          if (candidates.length === 0) { showToast('请先选择文件', 'warning'); return; }
+          this.moveDialogFiles = candidates.slice();
+          this.moveDialogTargetPath = this.normalizeFolderPath(this.folderPath||'');
+          this.moveDialogFolderSearch = '';
+          this.moveDialogNewFolderPath = this.moveDialogTargetPath ? this.moveDialogTargetPath + '/新目录' : '新目录';
+          this.moveDialogVisible = true;
+        },
+        refreshMoveDialogFolders: function(showMsg){
+          var self = this; if (self.moveDialogFoldersLoading) return; self.moveDialogFoldersLoading = true;
+          self.fetchFolders().then(function(refreshed){
+            if (showMsg && refreshed) showToast('已获取最新后端目录', 'success');
+            if (showMsg && !refreshed) showToast('目录刷新失败，请稍后重试', 'error');
+          }).catch(function(err){ if (showMsg) showToast((err||{}).message || '目录刷新失败', 'error');
+          }).finally(function(){ self.moveDialogFoldersLoading = false; });
+        },
+        selectMoveDialogFolder: function(path){ this.moveDialogTargetPath = this.normalizeFolderPath(path); },
+        createFolderAndMoveSelected: function(){
+          var self = this; var path = self.normalizeFolderPath(self.moveDialogNewFolderPath);
+          if (!path) { showToast('请输入要新建的目录路径', 'warning'); return; }
+          self.moveDialogLoading = true; var previousFolders = self.cloneFoldersSnapshot(); var folderCreated = false;
+          self.ensureFolderBranchLocal(path);
+          fetch('./api/manage/folders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: path }) }).then(function(r){ return r.json(); }).then(function(response){
+            if (!response.success) throw new Error(response.error || '目录创建失败');
+            folderCreated = true; self.moveDialogTargetPath = path;
+            return self.moveFilesToFolder(self.moveDialogFiles, path);
+          }).then(function(moved){ if (moved) self.moveDialogVisible = false;
+          }).catch(function(err){
+            if (!folderCreated) { self.folders = previousFolders; self.sortFoldersLocal(); }
+            showToast(err.message || '新建并移动失败', 'error');
+          }).finally(function(){ self.moveDialogLoading = false; });
+        },
+        confirmMoveDialog: function(){
+          var self = this; self.moveDialogLoading = true;
+          self.moveFilesToFolder(self.moveDialogFiles, self.moveDialogTargetPath).then(function(moved){
+            if (moved) self.moveDialogVisible = false;
+          }).catch(function(err){ showToast(err.message || '移动文件失败', 'error');
+          }).finally(function(){ self.moveDialogLoading = false; });
+        },
+        moveFilesToFolder: function(files, targetFolderPathValue){
+          var self = this; var selected = Array.isArray(files) ? files.filter(Boolean) : [];
+          if (selected.length === 0) return Promise.reject(new Error('请先选择文件'));
+          var targetFolderPath = self.normalizeFolderPath(targetFolderPathValue||'');
+          var filesPayload = selected.map(function(item){ return self.getFileMovePayload(item); });
+          var ids = filesPayload.map(function(item){ return item.id; }).filter(Boolean);
+          var hasEffectiveMove = ids.some(function(id){
+            var file = self.findFileByMoveId(id); var current = self.normalizeFolderPath((file&&file.metadata) ? file.metadata.folderPath||'' : '');
+            return current !== targetFolderPath;
+          });
+          if (!hasEffectiveMove) { showToast('所选文件已在目标目录', 'info'); return Promise.resolve(false); }
+          var idSet = new Set(ids);
+          var previousRows = self.tableData.map(function(file){ return Object.assign({}, file, { metadata: Object.assign({}, (file.metadata||{})) }); });
+          var previousFolders = self.cloneFoldersSnapshot();
+          var normalizedCurrentFolder = self.normalizeFolderPath(self.folderPath);
+          var movedRows = self.tableData.filter(function(row){ return self.isRowInMoveSet(row, idSet); }).map(function(row){
+            return { name: self.getFileMoveId(row), sourceFolderPath: self.normalizeFolderPath((row.metadata||{}).folderPath||'') };
+          });
+          self.tableData = self.tableData.map(function(row){
+            if (!self.isRowInMoveSet(row, idSet)) return row;
+            return Object.assign({}, row, { metadata: Object.assign({}, (row.metadata||{}), { folderPath: targetFolderPath }), selected: false });
+          }).filter(function(row){ return self.normalizeFolderPath((row.metadata||{}).folderPath||'') === normalizedCurrentFolder; });
+          movedRows.forEach(function(moved){
+            var sourceNode = (self.folders||[]).find(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === moved.sourceFolderPath; });
+            if (sourceNode && moved.sourceFolderPath !== targetFolderPath) sourceNode.fileCount = Math.max(0, Number(sourceNode.fileCount||0) - 1);
+          });
+          if (targetFolderPath) {
+            self.ensureFolderBranchLocal(targetFolderPath);
+            var targetNode = (self.folders||[]).find(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === targetFolderPath; });
+            if (targetNode) {
+              var addCount = movedRows.filter(function(item){ return item.sourceFolderPath !== targetFolderPath; }).length;
+              targetNode.fileCount = Number(targetNode.fileCount||0) + addCount;
+            }
+          }
+          self.sortFoldersLocal(); self.updateStats();
+          return fetch('./api/manage/files/move-folder', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, files: filesPayload, targetFolderPath: targetFolderPath }) }).then(function(r){ return r.json(); }).then(function(result){
+            if (!result.success) throw new Error(result.error || '移动失败');
+            if (Number(result.moved||0) === 0) throw new Error('后端没有移动任何文件，请刷新列表后重试');
+            showToast('已移动 ' + (result.moved||0) + ' 个文件到 ' + (targetFolderPath||'根目录'), 'success');
+            self.clearFolderCache(); return self.fetchFolders().then(function(){ return true; });
+          }).catch(function(err){
+            self.tableData = previousRows; self.folders = previousFolders; self.updateStats(); throw err;
+          });
+        },
+        resetViewConditions: function(){
+          this.search = ''; this.filterOption = 'all'; this.storageFilter = 'all'; this.fileType = 'all'; this.folderPath = ''; this.currentPage = 1;
+          this.refreshFileList({ syncFolders: true }); showToast('已恢复默认筛选', 'success');
+        },
+        handleFileDragStart: function(item, event){
+          var self = this; var ids = self.resolveDraggedIds(item); if (!ids.length) return;
+          if (event && event.currentTarget && event.currentTarget.classList) event.currentTarget.classList.add('dragging-file-card');
+          self.dragState.active = true; self.dragState.fileIds = ids; self.dragState.targetPath = null;
+          document.body.classList.add('is-dragging-files');
+          if (event && event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('application/x-kvault-files', JSON.stringify(ids));
+            event.dataTransfer.setData('text/plain', ids.join(','));
+            var dragGhost = document.createElement('div');
+            dragGhost.textContent = ids.length > 1 ? '移动 ' + ids.length + ' 个文件' : ((item.metadata||{}).fileName || item.name || '移动文件');
+            dragGhost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;padding:8px 12px;border-radius:999px;background:rgba(19,29,48,.92);color:#fff;font-size:12px;pointer-events:none;z-index:9999;';
+            document.body.appendChild(dragGhost);
+            event.dataTransfer.setDragImage(dragGhost, 18, 16);
+            requestAnimationFrame(function(){ if(dragGhost.parentNode) dragGhost.parentNode.removeChild(dragGhost); });
+          }
+        },
+        handleFileDragEnd: function(){
+          if (this.dragState.leaveTimer) { clearTimeout(this.dragState.leaveTimer); this.dragState.leaveTimer = null; }
+          if (this.dragState.rafId) { cancelAnimationFrame(this.dragState.rafId); this.dragState.rafId = null; }
+          this.dragState.active = false; this.dragState.fileIds = []; this.dragState.targetPath = null;
+          document.body.classList.remove('is-dragging-files');
+          document.querySelectorAll('.dragging-file-card').forEach(function(node){ node.classList.remove('dragging-file-card'); });
+        },
+        handleFolderSidebarDragOver: function(event){ if (this.dragState.active && event && event.dataTransfer) event.dataTransfer.dropEffect = 'move'; },
+        handleFolderDragOver: function(path, event){
+          if (this.dragState.active && event && event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+          this.handleFolderDragEnter(path);
+        },
+        handleFolderDragEnter: function(path){
+          if (!this.dragState.active) return;
+          var normalizedPath = this.normalizeFolderPath(path);
+          if (this.dragState.leaveTimer) { clearTimeout(this.dragState.leaveTimer); this.dragState.leaveTimer = null; }
+          if (this.dragState.targetPath === normalizedPath) return;
+          if (this.dragState.rafId) { cancelAnimationFrame(this.dragState.rafId); this.dragState.rafId = null; }
+          var self = this;
+          self.dragState.rafId = requestAnimationFrame(function(){ self.dragState.targetPath = normalizedPath; self.dragState.rafId = null; });
+        },
+        handleFolderDragLeave: function(path, event){
+          if (!this.dragState.active) return;
+          var currentTarget = event ? event.currentTarget : null; var relatedTarget = event ? event.relatedTarget : null;
+          if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) return;
+          var normalizedPath = this.normalizeFolderPath(path);
+          if (this.dragState.leaveTimer) clearTimeout(this.dragState.leaveTimer);
+          var self = this;
+          this.dragState.leaveTimer = setTimeout(function(){
+            if (self.dragState.targetPath === normalizedPath) self.dragState.targetPath = null;
+            self.dragState.leaveTimer = null;
+          }, 60);
+        },
+        extractDragIds: function(event){
+          if (this.dragState.fileIds.length > 0) return this.dragState.fileIds;
+          var raw = event && event.dataTransfer ? event.dataTransfer.getData('application/x-kvault-files') : '';
+          if (!raw) {
+            var plain = event && event.dataTransfer ? event.dataTransfer.getData('text/plain') : '';
+            return plain.split(',').map(function(item){ return String(item||'').trim(); }).filter(Boolean);
+          }
+          try { var parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch(e){ return raw.split(',').map(function(item){ return String(item||'').trim(); }).filter(Boolean); }
+        },
+        handleFolderDrop: function(path, event){
+          var self = this; var targetFolderPath = self.normalizeFolderPath(path);
+          self.dragState.targetPath = targetFolderPath; var ids = self.extractDragIds(event);
+          if (!ids.length) { self.handleFileDragEnd(); return; }
+          var filesPayload = ids.map(function(id){ return self.findFileByMoveId(id); }).filter(Boolean).map(function(file){ return self.getFileMovePayload(file); });
+          var hasEffectiveMove = ids.some(function(id){
+            var file = self.findFileByMoveId(id); var current = self.normalizeFolderPath((file&&file.metadata) ? file.metadata.folderPath||'' : '');
+            return current !== targetFolderPath;
+          });
+          if (!hasEffectiveMove) { showToast('文件已在 ' + (targetFolderPath||'根目录'), 'info'); self.handleFileDragEnd(); return; }
+          var idSet = new Set(ids);
+          var previousRows = self.tableData.map(function(file){ return Object.assign({}, file, { metadata: Object.assign({}, (file.metadata||{})) }); });
+          var previousFolders = self.cloneFoldersSnapshot();
+          var normalizedCurrentFolder = self.normalizeFolderPath(self.folderPath);
+          var movedRows = self.tableData.filter(function(row){ return self.isRowInMoveSet(row, idSet); }).map(function(row){
+            return { name: self.getFileMoveId(row), sourceFolderPath: self.normalizeFolderPath((row.metadata||{}).folderPath||'') };
+          });
+          self.tableData = self.tableData.map(function(row){
+            if (!self.isRowInMoveSet(row, idSet)) return row;
+            return Object.assign({}, row, { metadata: Object.assign({}, (row.metadata||{}), { folderPath: targetFolderPath }), selected: false });
+          }).filter(function(row){ return self.normalizeFolderPath((row.metadata||{}).folderPath||'') === normalizedCurrentFolder; });
+          movedRows.forEach(function(moved){
+            var sourceNode = (self.folders||[]).find(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === moved.sourceFolderPath; });
+            if (sourceNode && moved.sourceFolderPath !== targetFolderPath) sourceNode.fileCount = Math.max(0, Number(sourceNode.fileCount||0) - 1);
+          });
+          if (targetFolderPath) {
+            self.ensureFolderBranchLocal(targetFolderPath);
+            var targetNode = (self.folders||[]).find(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === targetFolderPath; });
+            if (targetNode) {
+              var addCount = movedRows.filter(function(item){ return item.sourceFolderPath !== targetFolderPath; }).length;
+              targetNode.fileCount = Number(targetNode.fileCount||0) + addCount;
+            }
+          }
+          self.sortFoldersLocal(); self.updateStats();
+          showToast('正在移动 ' + ids.length + ' 个文件到 ' + (targetFolderPath||'根目录') + '...', 'info');
+          fetch('./api/manage/files/move-folder', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, files: filesPayload, targetFolderPath: targetFolderPath }) }).then(function(r){ return r.json(); }).then(function(result){
+            if (!result.success) throw new Error(result.error || '拖拽移动失败');
+            if (Number(result.moved||0) === 0) throw new Error('后端没有移动任何文件，请刷新列表后重试');
+            showToast('已移动 ' + (result.moved||0) + ' 个文件到 ' + (targetFolderPath||'根目录'), 'success');
+            self.clearFolderCache(); return self.fetchFolders();
+          }).catch(function(err){
+            self.tableData = previousRows; self.folders = previousFolders; self.updateStats(); showToast(err.message||'拖拽移动失败', 'error');
+          }).finally(function(){ self.handleFileDragEnd(); });
+        },
+        resolveDraggedIds: function(item){
+          if (!item || !item.name) return [];
+          if (item.selected) { var selected = this.selectedFiles.map(function(file){ return this.getFileMoveId(file); }.bind(this)).filter(Boolean); if (selected.length > 0) return selected; }
+          return [this.getFileMoveId(item)];
+        },
+        goHome: function(){ window.location.href = './'; },
+        refreshDashboard: function(){ location.reload(); },
+        clearSelection: function(){ this.tableData.forEach(function(file){ file.selected = false; }); },
+        startBatchDrag: function(event){
+          if (this.isMobileViewport || event.button !== 0) return;
+          var toolbar = this.$refs.batchToolbar; if (!toolbar) return;
+          var rect = toolbar.getBoundingClientRect();
+          this.batchDragState.dragging = true; this.batchDragState.offsetX = event.clientX - rect.left;
+          this.batchDragState.offsetY = event.clientY - rect.top;
+          this.batchToolbarPosition.left = rect.left; this.batchToolbarPosition.top = rect.top;
+          document.addEventListener('mousemove', this.onBatchDrag); document.addEventListener('mouseup', this.stopBatchDrag);
+        },
+        onBatchDrag: function(event){
+          if (!this.batchDragState.dragging) return;
+          var toolbar = this.$refs.batchToolbar; if (!toolbar) return;
+          var width = toolbar.offsetWidth, height = toolbar.offsetHeight, padding = 12;
+          var left = Math.max(padding, Math.min(event.clientX - this.batchDragState.offsetX, window.innerWidth - width - padding));
+          var top = Math.max(padding, Math.min(event.clientY - this.batchDragState.offsetY, window.innerHeight - height - padding));
+          this.batchToolbarPosition.left = left; this.batchToolbarPosition.top = top;
+        },
+        stopBatchDrag: function(){
+          if (this.isMobileViewport || !this.batchDragState.dragging) return;
+          this.batchDragState.dragging = false;
+          document.removeEventListener('mousemove', this.onBatchDrag); document.removeEventListener('mouseup', this.stopBatchDrag);
+          this.snapBatchToolbarToBottom();
+        },
+        snapBatchToolbarToBottom: function(){
+          if (this.isMobileViewport) { this.batchToolbarPosition.left = null; this.batchToolbarPosition.top = null; return; }
+          var toolbar = this.$refs.batchToolbar; if (!toolbar) return;
+          var padding = 12, bottomOffset = 24;
+          var width = toolbar.offsetWidth, height = toolbar.offsetHeight;
+          var left = this.batchToolbarPosition.left ?? (window.innerWidth - width) / 2;
+          left = Math.max(padding, Math.min(left, window.innerWidth - width - padding));
+          this.batchToolbarPosition.left = left; this.batchToolbarPosition.top = window.innerHeight - height - bottomOffset;
+        },
+        handleGlobalKeydown: function(event){
+          if (this.selectedFiles.length === 0) return;
+          var target = event.target; var isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+          if (isInput) return;
+          var key = event.key.toLowerCase();
+          if ((event.ctrlKey || event.metaKey) && key === 'c') { event.preventDefault(); this.handleBatchCopy(); return; }
+          if (key === 'd') { event.preventDefault(); this.handleBatchDownload(); return; }
+          if (key === 'm') { event.preventDefault(); this.moveSelectedToFolder(); return; }
+          if (key === 'delete' || key === 'backspace') { event.preventDefault(); this.handleBatchDelete(); return; }
+          if (key === 'escape') { event.preventDefault(); if (this.previewData) { this.closePreview(); } else { this.clearSelection(); } }
+        },
+        getActualFileType: function(fileName){
+          var ext = fileName.split('.').pop().toLowerCase();
+          if (this.fileConfig.image.exts.indexOf(ext) !== -1) return 'image';
+          if (this.fileConfig.video.exts.indexOf(ext) !== -1) return 'video';
+          if (this.fileConfig.audio.exts.indexOf(ext) !== -1) return 'audio';
+          return 'document';
+        },
+        getFileIcon: function(fileName){
+          var ext = fileName.split('.').pop().toLowerCase();
+          if (['jpg','jpeg','png','gif','webp','bmp','svg'].indexOf(ext) !== -1) return 'fas fa-file-image';
+          if (['mp4','webm','avi','mov','mkv'].indexOf(ext) !== -1) return 'fas fa-file-video';
+          if (['mp3','wav','flac','aac','ogg'].indexOf(ext) !== -1) return 'fas fa-file-audio';
+          if (['pdf','doc','docx','xls','xlsx'].indexOf(ext) !== -1) return 'fas fa-file-pdf';
+          if (['zip','rar','7z','tar','gz'].indexOf(ext) !== -1) return 'fas fa-file-archive';
+          if (['txt','md','json','xml','csv'].indexOf(ext) !== -1) return 'fas fa-file-code';
+          return 'fas fa-file';
+        },
+        getFileType: function(fileName){ return this.getActualFileType(fileName); },
+        openPreview: function(item){
+          this.revealPreview(item);
+          var fileName = (item.metadata&&item.metadata.fileName) || item.name;
+          var fileUrl = this.baseURL + '/file/' + item.name;
+          var fileType = this.getActualFileType(item.name);
+          if (fileType === 'image') {
+            this.previewData = { type: 'native-image', url: fileUrl, fileName: fileName, fileKey: item.name }; return;
+          }
+          var previewParams = new URLSearchParams({ url: fileUrl, title: fileName, autoplay: '0', embed: '1', size: String((item.metadata||{}).fileSize||0), type: fileType });
+          this.previewData = { type: 'iframe', iframeUrl: this.baseURL + '/preview.html?' + previewParams.toString(), url: fileUrl, fileName: fileName, fileKey: item.name };
+        },
+        closePreview: function(){
+          if (this.$refs.previewIframe) this.$refs.previewIframe.src = 'about:blank';
+          this.previewData = null;
+        },
+        copyPreviewLink: function(){
+          if (!this.previewData) return;
+          var link = this.previewData.url;
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(function(){ showToast('直链已复制', 'success'); }).catch(function(){ this.copyToClipboardFallback(link); showToast('直链已复制', 'success'); }.bind(this)); }
+          else { this.copyToClipboardFallback(link); showToast('直链已复制', 'success'); }
+        },
+        downloadPreviewFile: function(){
+          if (!this.previewData) return;
+          var a = document.createElement('a'); a.href = this.previewData.url; a.download = this.previewData.fileName; a.click();
+        },
+        revealPreview: function(item){
+          var name = item.name; var revealedKeys = this.revealedPreviewKeys || {};
+          revealedKeys[name] = true; this.revealedPreviewKeys = Object.assign({}, revealedKeys);
+          try { localStorage.setItem('revealedPreviewKeys', JSON.stringify(revealedKeys)); } catch(e){}
+        },
+        isPreviewGated: function(item, type){ return this.safeMode && (item.metadata||{}).Label === 'adult'; },
+        getPreviewGateTitle: function(item, type){ return 'NSFW 内容'; },
+        getPreviewGateSubtitle: function(item, type){ return '点击以查看'; },
+        handleLogout: function(){
+          var self = this;
+          fetch('./api/auth/logout', { method: 'POST', credentials: 'include' }).then(function(){
+            sessionStorage.clear(); localStorage.removeItem('storageMode');
+            fetch('./api/manage/list', { method: 'GET', headers: { 'Authorization': 'Basic ' + btoa('logout:logout') }, credentials: 'include' }).catch(function(){});
+            showToast('已退出登录', 'success');
+            setTimeout(function(){ window.location.replace('./login.html'); }, 500);
+          }).catch(function(){ showToast('退出失败，请重试', 'error'); });
+        },
+        handlePageChange: function(page){ this.currentPage = page; this.normalizeCurrentPage(); },
+        normalizeListItem: function(file){
+          return Object.assign({}, file, { selected: false, metadata: Object.assign({}, (file.metadata||{}), { liked: (file.metadata||{}).liked || false, fileName: (file.metadata||{}).fileName || file.name, fileSize: (file.metadata||{}).fileSize || 0 }) });
+        },
+        mergeListData: function(files){
+          var map = new Map(this.tableData.map(function(item){ return [item.name, item]; }));
+          files.forEach(function(item){ if (item && item.name) { var prev = map.get(item.name); map.set(item.name, prev ? Object.assign({}, prev, item, { selected: prev.selected || item.selected }) : item); } });
+          this.tableData = Array.from(map.values());
+        },
+        getListRequestLimit: function(forLoadMore){ return forLoadMore ? 96 : 72; },
+        buildListQueryParams: function(opts){
+          opts = opts || {};
+          var params = new URLSearchParams();
+          if (opts.cursor) params.set('cursor', String(opts.cursor));
+          params.set('limit', String(opts.limit || 72));
+          if (opts.includeStats !== false) params.set('includeStats', '1');
+          params.set('sort', 'sizeAsc'); params.set('folderPath', this.folderPath||'');
+          if (this.storageFilter && this.storageFilter !== 'all') params.set('storage', this.storageFilter);
+          return params;
+        },
+        sort: function(command){ this.sortOption = command; },
+        filter: function(command){ this.filterOption = command; },
+        setLoadMode: function(mode){ this.loadMode = mode; showToast('已切换为' + (mode==='normal'?'正常':mode==='dataSaver'?'省流':'无图') + '模式', 'success'); },
+        switchStorageFilter: function(command){
+          var self = this; self.storageFilter = command; self.currentPage = 1; self.refreshFileList({ syncFolders: true });
+        },
+        loadMore: function(opts){
+          opts = opts || {};
+          var self = this; if (self.isLoadingMore || !self.nextCursor) return;
+          self.isLoadingMore = true; var startCount = self.tableData.length;
+          var params = self.buildListQueryParams({ cursor: self.nextCursor, limit: self.getListRequestLimit(true), includeStats: true });
+          fetch('./api/manage/list?' + params.toString(), { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
+            var mapped = (result.keys||[]).map(function(file){ return self.normalizeListItem(file); });
+            self.mergeListData(mapped); self.nextCursor = result.list_complete ? null : result.cursor;
+            if (Number.isFinite((result.stats||{}).total)) self.totalCount = result.stats.total;
+            self.updateStats(); self.writeFolderCache(self.getFolderCacheKey()); self.normalizeCurrentPage();
+            var loaded = Math.max(0, self.tableData.length - startCount);
+            if (!opts.silent) showToast('已补充 ' + loaded + ' 条数据', 'success');
+          }).catch(function(){ if (!opts.silent) showToast('加载更多失败，请稍后重试', 'error');
+          }).finally(function(){ self.isLoadingMore = false; });
+        },
+        sortData: function(data){
+          var self = this;
+          if (self.sortOption === 'nameAsc') return data.sort(function(a,b){ return a.name.localeCompare(b.name); });
+          if (self.sortOption === 'sizeDesc') return data.sort(function(a,b){ return ((b.metadata||{}).fileSize||0) - ((a.metadata||{}).fileSize||0); });
+          return data.sort(function(a,b){ return ((b.metadata||{}).TimeStamp||0) - ((a.metadata||{}).TimeStamp||0); });
+        },
+        showFileDetail: function(item){
+          var metadata = item.metadata || {};
+          var timestamp = new Date(metadata.TimeStamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+          var storageType = this.getStorageType(item.name); var storageLabel = this.getStorageLabel(item.name);
+          var storageColor = storageType === 'r2' ? '#409eff' : storageType === 's3' ? '#e6a23c' : storageType === 'discord' ? '#7289da' : storageType === 'huggingface' ? '#ff9d00' : storageType === 'webdav' ? '#8f65ff' : storageType === 'github' ? '#24292f' : '#67c23a';
+          var fileSize = metadata.fileSize ? this.formatFileSize(metadata.fileSize) : '未知';
+          var folderPath = this.normalizeFolderPath(metadata.folderPath||'');
+          this.fileDetailHtml = '<div style="text-align:left;"><div><strong>ID：</strong>' + item.name + '</div><div><strong>文件名：</strong>' + (metadata.fileName||item.name) + '</div><div><strong>文件大小：</strong>' + fileSize + '</div><div><strong>存储位置：</strong><span style="color:' + storageColor + ';font-weight:bold;">' + storageLabel + '</span></div><div><strong>所在目录：</strong>' + (folderPath||'根目录') + '</div><div><strong>上传时间：</strong>' + timestamp + '</div><div><strong>状态：</strong>' + (metadata.ListType||'None') + '</div></div>';
+          this.fileDetailVisible = true;
+        },
+        formatFileSize: function(bytes){
+          if (bytes === 0) return '0 B';
+          var k = 1024; var sizes = ['B','KB','MB','GB']; var i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+        calculatePageSize: function(){
+          var w = Math.max(600, window.innerWidth || 800);
+          var cols = Math.max(1, Math.floor((w - 40) / 260));
+          var rows = Math.max(1, Math.floor((window.innerHeight - 120) / 280));
+          var estimated = rows * cols;
+          this.pageSize = this.isMobileViewport ? Math.max(10, Math.min(14, estimated)) : Math.max(20, Math.min(25, estimated));
+        },
+        updateWindowWidth: function(){ this.calculatePageSize(); },
+        normalizeCurrentPage: function(){
+          var totalPages = Math.max(1, Math.ceil((this.paginationTotal||0) / this.pageSize));
+          if (this.currentPage > totalPages) this.currentPage = totalPages;
+          if (this.currentPage < 1) this.currentPage = 1;
+        },
+        handleWindowResize: function(){
+          this.updateViewportFlags(); this.updateWindowWidth(); this.normalizeCurrentPage();
+          if (this.selectedFiles.length > 0 && !this.isMobileViewport) this.$nextTick(function(){ this.snapBatchToolbarToBottom(); }.bind(this));
+        },
+        updateStats: function(){
+          this.Number = this.tableData.length;
+          if (!Number.isFinite(this.totalCount) || this.totalCount < this.Number) this.totalCount = this.Number;
+          var fileCount = { image: 0, video: 0, audio: 0, document: 0 };
+          this.tableData.forEach(function(file){
+            var ext = file.name.split('.').pop().toLowerCase();
+            var type = Object.keys(this.fileConfig).find(function(t){ return this.fileConfig[t].exts.indexOf(ext) !== -1; }.bind(this)) || 'document';
+            fileCount[type]++;
+          }.bind(this));
+          ['image','video','audio','document'].forEach(function(type){ this.fileConfig[type].count = fileCount[type]||0; }.bind(this));
+        },
+        uploadFiles: function(event){
+          var self = this; var files = Array.from((event.target||{}).files||[]);
+          if (!files.length) return;
+          var config = self.uploadConfig; var valid = [], invalid = [];
+          files.forEach(function(file){ (file.size <= config.maxSize ? valid : invalid).push(file); });
+          if (invalid.length) showToast('文件超过' + (config.maxSize/1024/1024) + 'MB: ' + invalid.map(function(f){ return f.name; }).join(', '), 'error');
+          if (!valid.length) { event.target.value = ''; return; }
+          var storageTarget = self.systemStatus.r2.connected && self.systemStatus.r2.enabled ? 'R2 存储桶' : 'Telegram 频道';
+          var folderText = self.folderPath ? ' / ' + self.folderPath : ' / 根目录';
+          showConfirm('确定要上传这 ' + valid.length + ' 个文件到 ' + storageTarget + ' 的目录 ' + folderText + ' 吗？', '上传确认').then(function(){
+            var successCount = 0, failedList = [];
+            var upload = function(file){
+              return new Promise(function(resolve){
+                var formData = new FormData(); formData.append('file', file); formData.append('folderPath', self.folderPath||'');
+                fetch(self.baseURL + '/upload', { method: 'POST', body: formData, credentials: 'include' }).then(function(r){ return r.json(); }).then(function(data){
+                  if (!data || (Array.isArray(data) && data[0] && data[0].error)) throw new Error(Array.isArray(data) ? data[0].error : (data.error||'上传失败'));
+                  var src = Array.isArray(data) ? data[0].src : data.src;
+                  if (!src) throw new Error('未返回文件路径');
+                  fetch(self.baseURL + src, { credentials: 'include' }).then(function(preview){
+                    if (preview.ok) { self.tableData.unshift({ name: src.replace(/^\/file\//,''), selected: false, metadata: { TimeStamp: Date.now(), fileSize: file.size, fileName: file.name } }); successCount++; }
+                    resolve();
+                  }).catch(function(){ resolve(); });
+                }).catch(function(err){ failedList.push(file.name + ' (' + (err.message||'未知') + ')'); resolve(); });
+              });
+            };
+            var sequence = function(){
+              var i = 0;
+              var next = function(){
+                if (i >= valid.length) return Promise.resolve();
+                var batch = valid.slice(i, i + config.maxConcurrent); i += config.maxConcurrent;
+                return Promise.all(batch.map(upload)).then(next);
+              };
+              return next();
+            };
+            sequence().then(function(){
+              if (successCount) { showToast('成功上传 ' + successCount + ' 个文件到 ' + storageTarget, 'success'); }
+              if (failedList.length) showToast('上传失败: ' + failedList.join(', '), 'error');
+              self.clearFolderCache(); self.refreshFileList();
+            });
+          }).catch(function(){ showToast('已取消上传', 'info'); });
+          event.target.value = '';
+        },
+        refreshFileList: function(options){
+          options = options || {};
+          var self = this; var syncFolders = options.syncFolders || false, preferCache = options.preferCache||false, force = options.force||false, silent = options.silent||false;
+          var cacheKey = self.getFolderCacheKey();
+          if (preferCache && !force) {
+            var cached = self.readFolderCache(cacheKey);
+            if (cached) { self.applyFolderCacheEntry(cached); self.currentPage = 1; self.refreshFileList({ syncFolders: syncFolders, force: true, silent: true }); return; }
+          }
+          var requestSeq = ++self.listRequestSeq;
+          var params = self.buildListQueryParams({ limit: self.getListRequestLimit(false), includeStats: true });
+          fetch('./api/manage/list?' + params.toString(), { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
+            if (requestSeq !== self.listRequestSeq) return;
+            var mapped = (result.keys||[]).map(function(file){ return self.normalizeListItem(file); });
+            self.tableData = mapped; self.nextCursor = result.list_complete ? null : result.cursor;
+            self.totalCount = Number.isFinite((result.stats||{}).total) ? result.stats.total : mapped.length;
+            self.updateStats(); self.calculatePageSize(); self.sortData(self.tableData); self.normalizeCurrentPage(); self.writeFolderCache(cacheKey);
+            if (syncFolders) self.fetchFolders();
+          }).catch(function(){ if (requestSeq === self.listRequestSeq && !silent) showToast('刷新文件列表失败，请检查网络连接', 'error'); });
+        },
+        toggleSelect: function(index, name){
+          var fileIndex = this.tableData.findIndex(function(file){ return file.name === name; });
+          if (fileIndex !== -1) this.tableData[fileIndex].selected = !this.tableData[fileIndex].selected;
+        },
+        toggleLike: function(index, name){
+          var fileIndex = this.tableData.findIndex(function(file){ return file.name === name; });
+          if (fileIndex === -1) return;
+          this.tableData[fileIndex].metadata.liked = !(this.tableData[fileIndex].metadata.liked || false);
+          fetch('./api/manage/toggleLike/' + name, { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
+            if (!result.success) { this.tableData[fileIndex].metadata.liked = !this.tableData[fileIndex].metadata.liked; showToast('更新收藏状态失败', 'error'); }
+            else showToast(this.tableData[fileIndex].metadata.liked ? '收藏成功' : '取消收藏', 'success');
+          }.bind(this)).catch(function(){ this.tableData[fileIndex].metadata.liked = !this.tableData[fileIndex].metadata.liked; showToast('同步服务器失败', 'error'); }.bind(this));
+        },
+        handleDelete: function(index, key){
+          var self = this; var isR2 = key.startsWith('r2:'); var storageInfo = isR2 ? 'R2 存储和 KV 记录' : 'KV 记录';
+          showConfirm('此操作将永久删除该文件的 ' + storageInfo + ', 是否继续?', '提示').then(function(){
+            fetch('./api/manage/delete/' + encodeURIComponent(key), { method: 'GET', credentials: 'include' }).then(function(r){
+              if (!r.ok) throw new Error('删除失败'); return r.json();
+            }).then(function(result){
+              if (result.success) { var fi = self.tableData.findIndex(function(f){ return f.name === key; }); if (fi !== -1) self.tableData.splice(fi,1); self.updateStats(); self.clearFolderCache(); showToast('删除成功！', 'success'); }
+              else throw new Error(result.error||'删除失败');
+            }).catch(function(err){ showToast('删除失败: ' + err.message, 'error'); });
+          }).catch(function(){ showToast('已取消删除', 'info'); });
+        },
+        copyToClipboardFallback: function(text){
+          var textarea = document.createElement('textarea'); document.body.appendChild(textarea);
+          textarea.style.cssText = 'position:fixed;clip:rect(0 0 0 0);top:10px;'; textarea.value = text; textarea.select(); document.execCommand('copy'); document.body.removeChild(textarea);
+        },
+        handleCopy: function(index, key){
+          var link = this.baseURL + '/file/' + key;
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(function(){ showToast('复制文件链接成功~', 'success'); }).catch(function(){ this.copyToClipboardFallback(link); showToast('复制成功', 'success'); }.bind(this)); }
+          else { this.copyToClipboardFallback(link); showToast('复制成功', 'success'); }
+        },
+        handleQuickCopy: function(format, key){
+          var url = this.baseURL + '/file/' + key;
+          var file = this.tableData.find(function(f){ return f.name === key; });
+          var name = (file&&file.metadata&&file.metadata.fileName) || key;
+          var link = url;
+          switch(format){
+            case 'markdown': link = '![' + name + '](' + url + ')'; break;
+            case 'html': link = '<img src="' + url + '" alt="' + name + '">'; break;
+            case 'bbcode': link = '[img]' + url + '[/img]'; break;
+            default: link = url;
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(function(){ showToast(format.toUpperCase() + ' 格式链接已复制~', 'success'); }).catch(function(){ this.copyToClipboardFallback(link); showToast('复制成功', 'success'); }.bind(this)); }
+          else { this.copyToClipboardFallback(link); showToast('复制成功', 'success'); }
+        },
+        selectAllInPage: function(){
+          var selected = !this.paginatedTableData.every(function(file){ return file.selected; });
+          this.paginatedTableData.forEach(function(file){ file.selected = selected; });
+        },
+        selectAllLoaded: function(){
+          var allSelected = this.tableData.every(function(f){ return f.selected; });
+          this.tableData.forEach(function(file){ file.selected = !allSelected; });
+        },
+        handleBatchDelete: function(){
+          var self = this;
+          var r2Count = self.selectedFiles.filter(function(f){ return f.name.startsWith('r2:'); }).length;
+          var tgCount = self.selectedFiles.length - r2Count;
+          var msg = '此操作将永久删除这 ' + self.selectedFiles.length + ' 个文件';
+          if (r2Count > 0 && tgCount > 0) msg += ' (其中 ' + r2Count + ' 个 R2 文件将完全删除, ' + tgCount + ' 个 Telegram 文件仅删除 KV 记录)';
+          else if (r2Count > 0) msg += ' (将从 R2 存储和 KV 中完全删除)';
+          msg += ', 是否继续?';
+          showConfirm(msg, '提示').then(function(){
+            var promises = self.selectedFiles.map(function(file){
+              return fetch('./api/manage/delete/' + encodeURIComponent(file.name), { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){ return { name: file.name, success: result.success }; }).catch(function(){ return { name: file.name, success: false }; });
+            });
+            Promise.all(promises).then(function(results){
+              var successCount = 0, failedCount = 0;
+              results.forEach(function(result){
+                if (result.success) { var fi = self.tableData.findIndex(function(f){ return f.name === result.name; }); if (fi !== -1) { self.tableData.splice(fi, 1); successCount++; } }
+                else failedCount++;
+              });
+              self.selectedFiles = []; self.updateStats();
+              if (successCount > 0 && failedCount === 0) showToast('成功删除 ' + successCount + ' 个文件!', 'success');
+              else if (successCount > 0 && failedCount > 0) showToast('删除完成: ' + successCount + ' 成功, ' + failedCount + ' 失败', 'warning');
+              else showToast('删除失败', 'error');
+            });
+          }).catch(function(){});
+        },
+        handleBatchCopy: function(){
+          var links = this.selectedFiles.map(function(file){ return document.location.origin + '/file/' + file.name; }).join('\n');
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(links).then(function(){ showToast('批量复制链接成功~', 'success'); }); }
+          else { this.copyToClipboardFallback(links); showToast('批量复制成功', 'success'); }
+        },
+        handleBatchCopyMarkdown: function(){
+          var links = this.selectedFiles.map(function(file){ var url = document.location.origin + '/file/' + file.name; return '![' + ((file.metadata&&file.metadata.fileName)||file.name) + '](' + url + ')'; }).join('\n');
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(links).then(function(){ showToast('Markdown格式链接已复制~', 'success'); }); }
+          else { this.copyToClipboardFallback(links); showToast('Markdown复制成功', 'success'); }
+        },
+        handleBatchCopyHtml: function(){
+          var links = this.selectedFiles.map(function(file){ var url = document.location.origin + '/file/' + file.name; return '<img src="' + url + '" alt="' + ((file.metadata&&file.metadata.fileName)||file.name) + '">'; }).join('\n');
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(links).then(function(){ showToast('HTML格式链接已复制~', 'success'); }); }
+          else { this.copyToClipboardFallback(links); showToast('HTML复制成功', 'success'); }
+        },
+        handleBatchDownload: function(){
+          showToast('正在下载 ' + this.selectedFiles.length + ' 个文件', 'info');
+          this.selectedFiles.forEach(function(file, index){
+            setTimeout(function(){ var a = document.createElement('a'); a.href = '/file/' + file.name; a.download = (file.metadata&&file.metadata.fileName)||file.name; a.click(); }, index * 800);
+          });
+          this.selectedFiles = [];
+        },
+        handleBatchBlock: function(type){
+          var self = this; var typeToName = { Block: '黑名单', White: '白名单' };
+          showConfirm('确定要将这 ' + self.selectedFiles.length + ' 个文件加入' + typeToName[type] + '吗?', '提示').then(function(){
+            var promises = self.selectedFiles.map(function(file){ return fetch('./api/manage/' + type.toLowerCase() + '/' + file.name, { method: 'GET', credentials: 'include' }); });
+            Promise.all(promises).then(function(responses){
+              responses.forEach(function(response, index){
+                if (response.ok) { var fi = self.tableData.findIndex(function(item){ return item.name === self.selectedFiles[index].name; }); if (fi !== -1) self.tableData[fi].metadata.ListType = type; }
+              });
+              showToast('批量加入' + typeToName[type] + '成功', 'success'); self.selectedFiles = [];
+            }).catch(function(){ showToast('操作失败，请检查网络连接', 'error'); });
+          }).catch(function(){});
+        },
+        handleWebsites: function(command){ window.open(command, '_blank'); },
+        handleToolkit: function(command){
+          switch(command){
+            case 'selectAllInPage': this.selectAllInPage(); break;
+            case 'checkBrokenFiles': this.checkBrokenFiles(); break;
+            case 'editWebsites': this.editWebsites(); break;
+            case 'openUploader': this.openUploader(); break;
+            case 'exportLinks': this.exportAllLinks(); break;
+            case 'manageApiTokens': this.openApiTokenDialog(); break;
+            case 'checkStatus': this.checkConnectionStatus(); break;
+          }
+        },
+        checkBrokenFiles: function(){
+          var self = this; showToast('正在检测失效文件...', 'info');
+          var brokenCount = 0; var promises = self.tableData.map(function(item){
+            return new Promise(function(resolve){
+              var controller = new AbortController(); var timeout = setTimeout(function(){ controller.abort(); }, 5000);
+              fetch(self.baseURL + '/file/' + item.name, { method: 'HEAD', signal: controller.signal }).then(function(r){
+                clearTimeout(timeout); if (!r.ok) brokenCount++; resolve();
+              }).catch(function(){ clearTimeout(timeout); brokenCount++; resolve(); });
+            });
+          });
+          Promise.all(promises).then(function(){ showToast('检测完成，共 ' + brokenCount + ' 个失效文件', brokenCount > 0 ? 'warning' : 'success'); });
+        },
+        editWebsites: function(){
+          var self = this;
+          var current = self.quickWebsites.map(function(s){ return s.name + '|' + s.url + '|' + s.icon; }).join('\n');
+          showPrompt('编辑快捷链接（每行一个：名称|网址|图标类名）', '编辑快捷方式', { inputValue: current, confirmButtonText: '保存', cancelButtonText: '取消' }).then(function(result){
+            var lines = (result.value||'').split('\n').filter(Boolean);
+            var newSites = lines.map(function(line){
+              var parts = line.split('|'); return { name: parts[0]||'', url: parts[1]||'', icon: parts[2]||'fas fa-link' };
+            }).filter(function(s){ return s.name && s.url; });
+            if (newSites.length > 0) { self.quickWebsites = newSites; try { localStorage.setItem('quickWebsites', JSON.stringify(newSites)); } catch(e){} showToast('快捷方式已更新', 'success'); }
+            else showToast('至少需要一个有效链接', 'warning');
+          }).catch(function(){});
+        },
+        openUploader: function(){ window.open('./', '_blank'); },
+        exportAllLinks: function(){
+          var links = this.tableData.map(function(file){ return document.location.origin + '/file/' + file.name; }).join('\n');
+          var blob = new Blob([links], { type: 'text/plain' }); var url = URL.createObjectURL(blob);
+          var a = document.createElement('a'); a.href = url; a.download = 'image-links-' + new Date().toISOString().slice(0,10) + '.txt'; a.click();
+          URL.revokeObjectURL(url); showToast('已导出 ' + this.tableData.length + ' 个链接', 'success');
+        },
+        switchFileType: function(type, showMsg){
+          showMsg = showMsg !== false;
+          this.fileType = type; this.currentPage = 1; localStorage.setItem('fileType', type);
+          if (showMsg) showToast('已切换为' + this.fileConfig[type].name + '模式, 共' + (this.fileConfig[type].count||0) + '个文件', 'success');
+        },
+        checkConnectionStatus: function(){
+          var self = this;
+          fetch('./api/status', { credentials: 'include' }).then(function(r){ return r.json(); }).then(function(status){
+            self.systemStatus = Object.assign({}, self.systemStatus, status || {});
+            var statusHtml = '<div style="line-height:2;"><p><i class="fas fa-robot" style="width:20px;"></i> <b>Telegram:</b> <span style="color:' + (status.telegram.connected?'#67c23a':'#f56c6c') + ';">' + (status.telegram.connected?'✓':'✗') + ' ' + status.telegram.message + '</span></p><p><i class="fas fa-database" style="width:20px;"></i> <b>KV 存储:</b> <span style="color:' + (status.kv.connected?'#67c23a':'#f56c6c') + ';">' + (status.kv.connected?'✓':'✗') + ' ' + status.kv.message + '</span></p><p><i class="fas fa-cloud" style="width:20px;"></i> <b>R2 存储:</b> <span style="color:' + (status.r2.connected?'#67c23a':(self.isUnconfiguredStatus(status.r2)?'#909399':'#f56c6c')) + ';">' + (status.r2.connected?'✓':(self.isUnconfiguredStatus(status.r2)?'○':'✗')) + ' ' + status.r2.message + '</span></p><p><i class="fas fa-database" style="width:20px;color:#e6a23c;"></i> <b>S3 存储:</b> <span style="color:' + ((status.s3||{}).connected?'#67c23a':(self.isUnconfiguredStatus(status.s3)?'#909399':'#f56c6c')) + ';">' + ((status.s3||{}).connected?'✓':(self.isUnconfiguredStatus(status.s3)?'○':'✗')) + ' ' + ((status.s3||{}).message||'未知') + '</span></p><p><i class="fab fa-discord" style="width:20px;color:#7289da;"></i> <b>Discord:</b> <span style="color:' + ((status.discord||{}).connected?'#67c23a':(self.isUnconfiguredStatus(status.discord)?'#909399':'#f56c6c')) + ';">' + ((status.discord||{}).connected?'✓':(self.isUnconfiguredStatus(status.discord)?'○':'✗')) + ' ' + ((status.discord||{}).message||'未知') + '</span></p><p><i class="fas fa-robot" style="width:20px;color:#ff9d00;"></i> <b>HuggingFace:</b> <span style="color:' + ((status.huggingface||{}).connected?'#67c23a':(self.isUnconfiguredStatus(status.huggingface)?'#909399':'#f56c6c')) + ';">' + ((status.huggingface||{}).connected?'✓':(self.isUnconfiguredStatus(status.huggingface)?'○':'✗')) + ' ' + ((status.huggingface||{}).message||'未知') + '</span></p><p><i class="fab fa-github" style="width:20px;color:#24292f;"></i> <b>GitHub:</b> <span style="color:' + ((status.github||{}).connected?'#67c23a':(self.isUnconfiguredStatus(status.github)?'#909399':'#f56c6c')) + ';">' + ((status.github||{}).connected?'✓':(self.isUnconfiguredStatus(status.github)?'○':'✗')) + ' ' + ((status.github||{}).message||'未知') + '</span></p><p><i class="fas fa-lock" style="width:20px;"></i> <b>身份验证:</b> <span style="color:' + ((status.auth||{}).enabled?'#67c23a':'#909399') + ';">' + ((status.auth||{}).enabled?'✓':'○') + ' ' + ((status.auth||{}).message||'') + '</span></p></div>';
+            showAlert(statusHtml, '系统连接状态').catch(function(){});
+          }).catch(function(err){ showToast('检查状态失败: ' + (err.message||''), 'error'); });
+        },
+        showUiDesignSettingsPanel: function(){
+          if (window.UIDesignManager && window.UIDesignManager.showPanel) window.UIDesignManager.showPanel();
+          else showToast('UI 设计面板不可用', 'warning');
+        },
+      },
+      mounted: function(){
+        var self = this;
+        // Restore preferences
+        try {
+          var savedSort = localStorage.getItem('sortOption');
+          if (savedSort) self.sortOption = savedSort;
+          var savedFilter = localStorage.getItem('filterOption');
+          if (savedFilter) self.filterOption = savedFilter;
+          var savedViewMode = localStorage.getItem('adminViewMode');
+          if (savedViewMode) self.viewMode = savedViewMode;
+          var savedFolderPath = localStorage.getItem('adminFolderPath');
+          if (savedFolderPath) self.folderPath = savedFolderPath;
+          var savedWebsites = localStorage.getItem('quickWebsites');
+          if (savedWebsites) { var parsed = JSON.parse(savedWebsites); if (Array.isArray(parsed) && parsed.length) self.quickWebsites = parsed; }
+        } catch(e){}
+
+        // Restore revealed keys
+        try { var revealed = localStorage.getItem('revealedPreviewKeys'); if (revealed) self.revealedPreviewKeys = JSON.parse(revealed) || {}; } catch(e){}
+
+        // Restore folder cache
+        self.restoreFolderCache();
+
+        // Initial data load
+        self.updateViewportFlags();
+        self.calculatePageSize();
+        self.refreshFileList({ preferCache: true, syncFolders: true });
+
+        // Event listeners
+        window.addEventListener('resize', function(){ self.handleWindowResize(); });
+        window.addEventListener('keydown', function(e){ self.handleGlobalKeydown(e); });
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', function(e){
+          if (self.openDropdown && !e.target.closest('.admin-dropdown')) self.openDropdown = null;
+        });
+
+        // Load admin data
+        self.loadAdminData();
+      },
+      beforeDestroy: function(){
+        window.removeEventListener('resize', this.handleWindowResize);
+        window.removeEventListener('keydown', this.handleGlobalKeydown);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>图片管理 — 1940Netdisk</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/mobile-refactor.css">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+<style>
+/* ── admin-imgtc steel glass skin ── */
+body { background:var(--bg-primary); color:var(--text-primary); font-family:var(--font-body); }
+
+/* Header */
+.page { display:flex; flex-direction:column; min-height:100vh; }
+.admin-header {
+  position:sticky; top:0; z-index:999;
+  display:flex; align-items:center; gap:var(--space-sm);
+  padding:var(--space-sm) var(--space-md);
+  background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+  border-bottom:2px solid var(--olive);
+  flex-wrap:wrap;
+}
+.admin-header .title { font-family:var(--font-display); font-size:1.1rem; cursor:pointer; color:var(--text-primary); letter-spacing:0.05em; text-transform:uppercase; }
+.admin-header .title:hover { color:var(--gold); }
+
+/* Search */
+.search-wrap { margin-left:auto; margin-right:var(--space-sm); }
+.search-wrap .input-glass { width:clamp(160px,20vw,260px); height:32px; font-size:.82rem; }
+
+/* Stats */
+.stats-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 12px; border-radius:20px;
+  background:var(--glass-bg); border:1px solid var(--glass-border);
+  font-size:.78rem; color:var(--text-secondary); cursor:pointer;
+}
+.stats-badge i { color:var(--steel); }
+.stats-badge small { color:var(--text-muted); margin-left:6px; padding-left:6px; border-left:1px solid var(--glass-border); }
+
+/* Actions row */
+.admin-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.action-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:3px;
+  border:1px solid var(--steel); background:transparent;
+  color:var(--color-text-secondary); cursor:pointer; transition:all .2s;
+}
+.action-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.05); }
+.action-btn i { font-size:1rem; }
+
+/* Dropdown wrapper */
+.dd-wrap { position:relative; display:inline-flex; }
+.dd-menu {
+  position:absolute; top:calc(100% + 4px); right:0; z-index:1000;
+  min-width:180px; max-height:320px; overflow-y:auto;
+  padding:4px 0; border-radius:var(--radius-sm);
+  background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-border); box-shadow:var(--shadow-lg);
+  display:none;
+}
+.dd-menu.show { display:block; }
+.dd-item {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 14px; font-size:.8rem; color:var(--text-primary);
+  cursor:pointer; transition:background .15s;
+}
+.dd-item:hover { background:var(--bg-secondary); }
+.dd-item.disabled { color:var(--text-muted); pointer-events:none; opacity:.5; }
+.dd-item i { width:18px; text-align:center; }
+.dd-divider { height:1px; background:var(--glass-border); margin:4px 0; }
+
+/* Main content */
+.main-wrap { flex:1; padding:var(--space-md); }
+.content-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:var(--space-md);
+}
+
+/* File Card */
+.file-card {
+  position:relative; overflow:hidden;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4);
+  border-radius:3px; transition:all .2s;
+}
+.file-card:hover { transform:translateY(-3px); box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+.file-card.selected { border-color:var(--gold); box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 40%,transparent); }
+.file-card .card-check {
+  position:absolute; top:8px; right:8px; z-index:10;
+  width:20px;height:20px;accent-color:var(--gold);cursor:pointer;
+}
+.file-card .collect-btn {
+  position:absolute; top:6px; left:8px; z-index:10;
+  background:none; border:none; cursor:pointer; font-size:1.2rem; padding:2px;
+  transition:transform .2s;
+}
+.file-card .collect-btn:hover { transform:scale(1.2); }
+.file-card .collect-btn .liked { color:var(--gold); }
+.file-card .collect-btn .not-liked { color:var(--text-muted); }
+
+/* Image preview */
+.file-card .preview { width:100%; aspect-ratio:4/3; overflow:hidden; background:var(--bg-secondary); position:relative; }
+.file-card .preview img { width:100%;height:100%;object-fit:cover;transition:opacity .2s; }
+.file-card .preview img:hover { opacity:.85; }
+
+/* Overlay on image cards */
+.file-card .img-overlay {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  background:rgba(0,0,0,.55); opacity:0; transition:opacity .2s; pointer-events:none;
+}
+.file-card:hover .img-overlay { opacity:1; pointer-events:auto; }
+.file-card .img-overlay .btn { padding:4px 12px; font-size:.75rem; }
+
+/* Card footer */
+.file-card .card-footer {
+  padding:6px 10px; font-size:.75rem; color:var(--text-secondary);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  border-top:1px solid var(--glass-border);
+  cursor:pointer;
+}
+
+/* Video/Audio/File card content */
+.vid-card,.aud-card,.doc-card {
+  background:linear-gradient(145deg,var(--steel),var(--olive));
+  border:1px solid rgba(90,107,74,0.4); border-radius:3px;
+  overflow:hidden; position:relative; min-height:200px;
+}
+.vid-card video { width:100%;height:auto;max-height:180px;object-fit:cover; display:block; }
+.vid-card .vid-title,.aud-card .aud-title,.doc-card .doc-title {
+  padding:8px 12px; color:#fff; font-size:.82rem; font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis; cursor:pointer;
+}
+.vid-card .vid-controls,.aud-card .aud-controls,.doc-card .doc-controls {
+  display:flex; justify-content:center; gap:8px; padding:8px 12px; flex-wrap:wrap;
+}
+.ctrl-btn {
+  width:34px;height:34px;border-radius:50%;
+  background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.2);
+  color:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  transition:all .2s;
+}
+.ctrl-btn:hover { background:rgba(255,255,255,.3); }
+.ctrl-btn .liked { color:var(--gold); }
+
+/* Audio card */
+.aud-card .aud-hdr { display:flex; align-items:center; gap:10px; padding:10px 12px 4px; }
+.aud-card .aud-hdr .aud-avatar { width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);padding:6px;display:flex;align-items:center;justify-content:center; }
+.aud-card .aud-hdr .aud-avatar img { width:100%;height:100%;object-fit:contain; }
+.aud-card .aud-hdr .aud-info { flex:1;min-width:0; }
+.aud-card .aud-hdr .aud-info .aud-title { font-size:.85rem; color:#fff; font-weight:500; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; cursor:pointer; }
+.aud-card .aud-hdr .aud-info .aud-sub { font-size:.72rem; color:rgba(255,255,255,.6); }
+.aud-card audio { width:100%; padding:0 12px; box-sizing:border-box; }
+
+/* Detail popover */
+.detail-pop {
+  display:none; position:fixed; z-index:2000;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  max-width:420px; width:90vw;
+  background:var(--color-bg-alt); backdrop-filter:var(--glass-blur);
+  border:2px solid var(--olive); border-radius:3px;
+  padding:var(--space-md); box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+.detail-pop.show { display:block; }
+.detail-pop .pop-overlay {
+  position:fixed;inset:0;z-index:-1;
+  background:rgba(0,0,0,.4);
+}
+.detail-pop .pop-close {
+  float:right;background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:1.1rem;
+}
+.detail-pop .pop-body { font-size:.82rem; line-height:1.6; color:var(--text-primary); }
+.detail-pop .pop-body strong { color:var(--text-secondary); }
+
+/* Pagination */
+.pagination-wrap { display:flex;justify-content:center;margin:var(--space-md) 0; }
+.page-btn {
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:34px;height:34px; padding:0 8px; margin:0 2px;
+  border-radius:var(--radius-sm); border:1px solid var(--glass-border);
+  background:var(--glass-bg); color:var(--text-primary);
+  font-size:.8rem; cursor:pointer; transition:all .15s;
+}
+.page-btn:hover { background:var(--steel); color:#fff; border-color:var(--steel); }
+.page-btn.active { background:var(--gold); color:#1a1a1a; border-color:var(--gold); font-weight:600; }
+.page-btn:disabled { opacity:.4;cursor:default; }
+
+/* Load more */
+.load-more-wrap { text-align:center;margin:var(--space-md) 0; }
+.load-more-end {
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 16px; border-radius:20px;
+  background:var(--glass-bg); border:1px solid var(--glass-border);
+  font-size:.8rem; color:var(--text-secondary);
+}
+
+/* Footer */
+.admin-footer {
+  display:flex;justify-content:center;align-items:center;gap:var(--space-md);
+  padding:var(--space-md); font-size:.8rem; color:var(--text-muted);
+  border-top:1px solid var(--glass-border);
+}
+.admin-footer a { color:var(--steel); text-decoration:none; }
+.admin-footer a:hover { color:var(--gold); }
+
+/* Batch toolbar */
+.batch-bar {
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1000;
+  display:flex;align-items:center;gap:var(--space-sm);
+  padding:var(--space-sm) var(--space-md);
+  background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-border); border-radius:999px;
+  box-shadow:var(--shadow-xl);
+}
+.batch-bar .batch-count { font-size:.8rem; font-weight:600; color:var(--gold); white-space:nowrap; }
+.batch-bar .batch-actions { display:flex; align-items:center; gap:6px; }
+
+/* Modal / Toast */
+.modal-overlay {
+  position:fixed;inset:0;z-index:5000;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
+}
+.modal-overlay .modal-dialog {
+  max-width:500px; width:90vw; max-height:80vh; overflow-y:auto;
+  background:var(--color-bg-alt);
+  border:2px solid var(--olive); border-radius:3px;
+  padding:var(--space-lg); box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+.modal-overlay .modal-dialog h3 { font-family:var(--font-display); color:var(--khaki); margin-bottom:var(--space-md); font-size:1.4rem; letter-spacing:0.05em; border-bottom:2px solid var(--olive); padding-bottom:0.5rem; }
+.modal-overlay .modal-dialog .form-group { margin-bottom:var(--space-sm); }
+.modal-overlay .modal-dialog .form-group label { display:block; font-size:.8rem; color:var(--text-secondary); margin-bottom:4px; }
+.modal-overlay .modal-dialog .form-group .input-glass { width:100%; }
+.modal-overlay .modal-dialog .modal-actions { display:flex;justify-content:flex-end;gap:var(--space-xs);margin-top:var(--space-md); }
+
+/* Toast container */
+.toast-ctn {
+  position:fixed;top:var(--space-md);right:var(--space-md);z-index:9999;
+  display:flex;flex-direction:column;gap:var(--space-xs);
+}
+.toast {
+  display:flex;align-items:center;gap:var(--space-sm);
+  padding:var(--space-sm) var(--space-md);
+  border-radius:2px;
+  background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+  border:1px solid var(--steel);
+  color:var(--text-primary); font-size:.82rem;
+  animation:toastIn .25s ease; max-width:360px;
+}
+.toast-success { border-left:3px solid var(--color-success); }
+.toast-error { border-left:3px solid var(--color-error); }
+.toast-warning { border-left:3px solid var(--color-warning); }
+.toast-info { border-left:3px solid var(--steel); }
+
+@keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+
+/* Responsive */
+@media(max-width:768px) {
+  .admin-header { padding:var(--space-xs) var(--space-sm); }
+  .search-wrap .input-glass { width:120px; }
+  .stats-badge small { display:none; }
+  .content-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:var(--space-sm); }
+  .batch-bar { max-width:95vw; flex-wrap:wrap; justify-content:center; padding:8px 12px; }
+}
+@media(max-width:480px) {
+  .content-grid { grid-template-columns:1fr 1fr; gap:8px; }
+  .admin-header .title { font-size:.95rem; }
+  .search-wrap { display:none; }
+  .action-btn { width:30px;height:30px; }
+  .action-btn i { font-size:.85rem; }
+}
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+  <div class="page">
+    <header class="admin-header">
+      <span class="title" @click="refreshDashboard"><i class="fas fa-tachometer-alt" style="margin-right:6px;color:var(--steel);"></i>Dashboard</span>
+      <div class="search-wrap">
+        <input class="input-glass" v-model="search" placeholder="输入关键字搜索" style="width:clamp(140px,18vw,240px);">
+      </div>
+      <span class="stats-badge" role="status" aria-live="polite">
+        <i class="fas fa-chart-line stats-icon"></i>
+        <span>总记录: {{ totalCount || Number }}</span>
+        <small>已加载 {{ Number }}</small>
+      </span>
+      <div class="admin-actions">
+        <!-- File type dropdown -->
+        <div class="dd-wrap">
+          <button type="button" class="action-btn" @click="toggleDD('fileType')" :title="'文件类型: '+fileType"><i :class="fileTypeIcon"></i></button>
+          <div class="dd-menu" :class="{ show: openDD === 'fileType' }">
+            <div class="dd-item" :class="{ selected: fileType === 'image' }" @click="switchFileType('image')"><i class="fas fa-image"></i> 图片</div>
+            <div class="dd-item" :class="{ selected: fileType === 'video' }" @click="switchFileType('video')"><i class="fas fa-video"></i> 视频</div>
+            <div class="dd-item" :class="{ selected: fileType === 'audio' }" @click="switchFileType('audio')"><i class="fas fa-music"></i> 音频</div>
+            <div class="dd-item" :class="{ selected: fileType === 'document' }" @click="switchFileType('document')"><i class="fas fa-folder-open"></i> 文件</div>
+          </div>
+        </div>
+        <!-- Sort -->
+        <div class="dd-wrap">
+          <button type="button" class="action-btn" @click="toggleDD('sort')" title="排序"><i :class="sortIcon"></i></button>
+          <div class="dd-menu" :class="{ show: openDD === 'sort' }">
+            <div class="dd-item" :class="{ selected: sortOption === 'dateDesc' }" @click="sort('dateDesc')"><i class="fas fa-sort-amount-down"></i> 按时间倒序</div>
+            <div class="dd-item" :class="{ selected: sortOption === 'nameAsc' }" @click="sort('nameAsc')"><i class="fas fa-sort-alpha-up"></i> 按名称升序</div>
+            <div class="dd-item" :class="{ selected: sortOption === 'sizeDesc' }" @click="sort('sizeDesc')"><i class="fas fa-sort-amount-down"></i> 按大小倒序</div>
+          </div>
+        </div>
+        <!-- Filter -->
+        <div class="dd-wrap">
+          <button type="button" class="action-btn" @click="toggleDD('filter')" title="筛选"><i :class="filterIcon"></i></button>
+          <div class="dd-menu" :class="{ show: openDD === 'filter' }">
+            <div class="dd-item" @click="filter('all')"><i class="fas fa-filter"></i> 全部</div>
+            <div class="dd-item" @click="filter('favorites')"><i class="fas fa-bookmark"></i> 收藏</div>
+            <div class="dd-item" @click="filter('blocked')"><i class="fas fa-lock"></i> 黑名单</div>
+            <div class="dd-item" @click="filter('unblocked')"><i class="fas fa-unlock"></i> 白名单</div>
+            <div class="dd-item" @click="filter('adult')"><i class="fas fa-user-secret"></i> NSFW</div>
+          </div>
+        </div>
+        <!-- Batch -->
+        <div class="dd-wrap">
+          <button type="button" class="action-btn" @click="toggleDD('batch')" title="批量操作"><i class="fas fa-tasks"></i></button>
+          <div class="dd-menu" :class="{ show: openDD === 'batch' }">
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('copy')"><i class="fas fa-link"></i> 批量复制</div>
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('copyMarkdown')"><i class="fab fa-markdown"></i> 复制Markdown</div>
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('copyHtml')"><i class="fas fa-code"></i> 复制HTML</div>
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('delete')"><i class="fas fa-trash-alt"></i> 批量删除</div>
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('download')"><i class="fas fa-download"></i> 批量下载</div>
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('block')"><i class="fas fa-lock"></i> 加入黑名单</div>
+            <div class="dd-item" :class="{ disabled: selectedFiles.length === 0 }" @click="handleBatchOperation('unblock')"><i class="fas fa-unlock"></i> 加入白名单</div>
+          </div>
+        </div>
+        <!-- Quick websites -->
+        <div class="dd-wrap">
+          <button type="button" class="action-btn" @click="toggleDD('web')" title="快捷方式"><i class="fas fa-link"></i></button>
+          <div class="dd-menu" :class="{ show: openDD === 'web' }">
+            <div class="dd-item" v-for="site in quickWebsites" :key="site.name" @click="handleWebsite(site.url)">
+              <i :class="site.icon"></i> {{ site.name }}
+            </div>
+          </div>
+        </div>
+        <!-- Toolkit -->
+        <div class="dd-wrap">
+          <button type="button" class="action-btn" @click="toggleDD('toolkit')" title="工具箱"><i class="fas fa-toolbox"></i></button>
+          <div class="dd-menu" :class="{ show: openDD === 'toolkit' }">
+            <div class="dd-item" @click="handleToolkit('selectAllInPage')"><i class="fas fa-check-square"></i> 全选当前页</div>
+            <div class="dd-item" @click="handleToolkit('checkBrokenFiles')"><i class="fas fa-wrench"></i> 检测失效文件</div>
+            <div class="dd-item" @click="handleToolkit('editWebsites')"><i class="fas fa-edit"></i> 编辑快捷方式</div>
+            <div class="dd-item" @click="handleToolkit('openUploader')"><i class="fas fa-cloud-upload-alt"></i> 打开上传中心</div>
+            <div class="dd-item" @click="handleToolkit('exportLinks')"><i class="fas fa-file-export"></i> 导出全部链接</div>
+          </div>
+        </div>
+        <button type="button" class="action-btn" @click="handleLogout" title="退出登录"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </header>
+
+    <main class="main-wrap">
+      <div class="content-grid">
+        <template v-for="(item, index) in paginatedTableData" :key="index">
+          <!-- Image -->
+          <template v-if="fileType === 'image'">
+            <div class="file-card" :class="{ selected: item.selected }">
+              <button type="button" class="collect-btn" @click.stop="toggleLike(index, item.name)">
+                <i :class="item.metadata.liked ? 'fa-solid fa-bookmark liked' : 'fa-regular fa-bookmark not-liked'"></i>
+              </button>
+              <input type="checkbox" class="card-check" v-model="item.selected">
+              <div class="preview">
+                <img :src="'/file/' + item.name" :alt="item.name" loading="lazy" @click.stop="showDetail(item)">
+                <div class="img-overlay">
+                  <div class="dd-wrap">
+                    <button class="btn btn-ghost btn-sm" @click.stop @click.prevent="toggleDD('copy'+index)">复制 <i class="fas fa-chevron-down"></i></button>
+                    <div class="dd-menu" :class="{ show: openDD === 'copy'+index }" style="min-width:120px;">
+                      <div class="dd-item" @click="handleQuickCopy('url', item.name)">直链 URL</div>
+                      <div class="dd-item" @click="handleQuickCopy('markdown', item.name)">Markdown</div>
+                      <div class="dd-item" @click="handleQuickCopy('html', item.name)">HTML</div>
+                      <div class="dd-item" @click="handleQuickCopy('bbcode', item.name)">BBCode</div>
+                    </div>
+                  </div>
+                  <button class="btn btn-ghost btn-sm" @click.stop="handleEditName(item)">编辑</button>
+                  <button class="btn btn-danger btn-sm" @click.stop="handleDelete(index, item.name)">删除</button>
+                </div>
+              </div>
+              <div class="card-footer" @click="showDetail(item)">{{ item.metadata.fileName || item.name }}</div>
+            </div>
+          </template>
+          <!-- Video -->
+          <template v-else-if="fileType === 'video'">
+            <div class="vid-card" :class="{ selected: item.selected }">
+              <video :src="'/file/' + item.name" controls preload="metadata"></video>
+              <div class="vid-title" @click="showDetail(item)">{{ item.metadata.fileName || item.name }}</div>
+              <div class="vid-controls">
+                <button class="ctrl-btn like-btn" @click.stop="toggleLike(index, item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
+                <button class="ctrl-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
+                <button class="ctrl-btn" @click.stop="toggleSelect(index, item.name)"><i :class="item.selected ? 'fas fa-square-check' : 'far fa-square'"></i></button>
+                <button class="ctrl-btn" @click.stop="handleCopy(index, item.name)"><i class="fas fa-link"></i></button>
+                <button class="ctrl-btn" @click.stop="handleDelete(index, item.name)"><i class="fas fa-trash-alt"></i></button>
+              </div>
+            </div>
+          </template>
+          <!-- Audio -->
+          <template v-else-if="fileType === 'audio'">
+            <div class="aud-card" :class="{ selected: item.selected }">
+              <div class="aud-hdr">
+                <div class="aud-avatar"><img src="./music.svg" alt="Music"></div>
+                <div class="aud-info">
+                  <div class="aud-title" @click="showDetail(item)">{{ item.metadata.fileName || item.name }}</div>
+                  <div class="aud-sub">{{ getFileType(item.name) }}</div>
+                </div>
+              </div>
+              <audio :src="'/file/' + item.name" controls preload="metadata">当前浏览器不支持音频播放</audio>
+              <div class="aud-controls">
+                <button class="ctrl-btn like-btn" @click.stop="toggleLike(index, item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
+                <button class="ctrl-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
+                <button class="ctrl-btn" @click.stop="toggleSelect(index, item.name)"><i :class="item.selected ? 'fas fa-square-check' : 'far fa-square'"></i></button>
+                <button class="ctrl-btn" @click.stop="handleCopy(index, item.name)"><i class="fas fa-copy"></i></button>
+                <button class="ctrl-btn" @click.stop="handleDelete(index, item.name)"><i class="fas fa-trash-alt"></i></button>
+              </div>
+            </div>
+          </template>
+          <!-- Document -->
+          <template v-else>
+            <div class="doc-card" :class="{ selected: item.selected }">
+              <div class="aud-hdr" style="padding:14px 12px 4px;">
+                <div class="aud-avatar"><i :class="getFileIcon(item.name)" style="font-size:24px;"></i></div>
+                <div class="aud-info">
+                  <div class="aud-title" @click="showDetail(item)">{{ item.metadata.fileName || item.name }}</div>
+                  <div class="aud-sub">{{ getFileType(item.name) }}</div>
+                </div>
+              </div>
+              <div class="doc-controls">
+                <button class="ctrl-btn like-btn" @click.stop="toggleLike(index, item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
+                <button class="ctrl-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
+                <button class="ctrl-btn" @click.stop="toggleSelect(index, item.name)"><i :class="item.selected ? 'fas fa-square-check' : 'far fa-square'"></i></button>
+                <button class="ctrl-btn" @click.stop="handleCopy(index, item.name)"><i class="fas fa-copy"></i></button>
+                <button class="ctrl-btn" @click.stop="handleDelete(index, item.name)"><i class="fas fa-trash-alt"></i></button>
+              </div>
+            </div>
+          </template>
+        </template>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-wrap" v-if="filteredTableData.length > pageSize">
+        <button class="page-btn" :disabled="currentPage <= 1" @click="currentPage = Math.max(1, currentPage - 1)"><i class="fas fa-chevron-left"></i></button>
+        <template v-for="p in displayPages">
+          <button class="page-btn" :class="{ active: p === currentPage }" @click="currentPage = p" v-if="p !== '...'">{{ p }}</button>
+          <span v-else style="padding:0 4px;color:var(--text-muted);">…</span>
+        </template>
+        <button class="page-btn" :disabled="currentPage >= totalPages" @click="currentPage = Math.min(totalPages, currentPage + 1)"><i class="fas fa-chevron-right"></i></button>
+      </div>
+
+      <!-- Load more -->
+      <div class="load-more-wrap">
+        <button class="btn btn-ghost" v-if="nextCursor" :disabled="isLoadingMore" @click="loadMore">
+          <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoadingMore }"></i>
+          {{ isLoadingMore ? '加载中...' : ('加载更多 (' + Number + '/' + (totalCount || Number) + ')') }}
+        </button>
+        <div v-else-if="(totalCount || Number) > 0 && Number >= (totalCount || Number)" class="load-more-end">
+          <i class="fas fa-check-circle"></i> 全部加载完成，共 {{ totalCount || Number }} 条
+        </div>
+      </div>
+    </main>
+
+    <footer class="admin-footer">
+      <span>Powered By 1940Netdisk</span>
+      <a href="https://github.com/K-Vault" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github"></i> 1940Netdisk</a>
+    </footer>
+  </div>
+
+  <!-- Detail popover -->
+  <div class="detail-pop" :class="{ show: detailVisible }" v-if="detailVisible">
+    <div class="pop-overlay" @click="detailVisible = false"></div>
+    <button class="pop-close" @click="detailVisible = false"><i class="fas fa-times"></i></button>
+    <h3 style="font-family:var(--font-display);color:var(--gold);margin-bottom:var(--space-sm);">文件详情</h3>
+    <div class="pop-body" v-html="detailHtml"></div>
+  </div>
+
+  <!-- Batch toolbar -->
+  <div class="batch-bar" v-if="selectedFiles.length > 0">
+    <span class="batch-count">已选 {{ selectedFiles.length }}</span>
+    <div class="batch-actions">
+      <button class="btn btn-sm" @click="handleBatchOperation('copy')"><i class="fas fa-link"></i> 复制</button>
+      <button class="btn btn-sm" @click="handleBatchOperation('delete')"><i class="fas fa-trash-alt"></i> 删除</button>
+      <button class="btn btn-sm" @click="handleBatchOperation('download')"><i class="fas fa-download"></i> 下载</button>
+      <button class="btn btn-sm btn-ghost" @click="clearSelection"><i class="fas fa-times"></i> 取消</button>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-ctn" v-if="toasts.length">
+    <div class="toast" :class="'toast-' + t.type" v-for="(t, i) in toasts" :key="i">
+      <i :class="t.icon"></i> <span>{{ t.message }}</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+<script>
+/* Toast helpers — replaces Element UI this.$message / this.$confirm / this.$prompt */
+function showToast(message, type) {
+  type = type || 'info';
+  var iconMap = { success:'fas fa-check-circle', error:'fas fa-exclamation-circle', warning:'fas fa-exclamation-triangle', info:'fas fa-info-circle' };
+  var el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML = '<i class="'+(iconMap[type]||iconMap.info)+'"></i><span>' + message + '</span>';
+  el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--radius-sm);background:var(--glass-bg);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);color:var(--text-primary);font-size:.82rem;animation:toastIn .25s ease;max-width:360px;border-left:3px solid '+(
+    type==='success'?'var(--color-success)':type==='error'?'var(--color-error)':type==='warning'?'var(--color-warning)':'var(--steel)'
+  )+';';
+  var ctn = document.querySelector('.toast-ctn') || (function(){
+    var d = document.createElement('div'); d.className = 'toast-ctn';
+    d.style.cssText = 'position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;';
+    document.body.appendChild(d); return d;
+  })();
+  ctn.appendChild(el);
+  window.setTimeout(function(){ el.style.opacity='0'; el.style.transition='opacity .3s'; window.setTimeout(function(){ el.remove(); },350); }, 2500);
+}
+
+function showConfirm(message, title, opts) {
+  opts = opts || {};
+  return new Promise(function(resolve, reject) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);';
+    overlay.innerHTML = '<div class="modal-dialog" style="max-width:420px;width:90vw;background:var(--glass-bg);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:var(--space-lg);box-shadow:var(--shadow-xl);">'
+      + '<h3 style="font-family:var(--font-display);color:var(--gold);margin-bottom:var(--space-sm);font-size:1.1rem;">'+(title||'提示')+'</h3>'
+      + '<p style="color:var(--text-primary);font-size:.88rem;margin-bottom:var(--space-md);">'+message+'</p>'
+      + '<div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">'
+      + '<button class="btn btn-ghost" id="confirmCancel">取消</button>'
+      + '<button class="btn btn-primary" id="confirmOk">确定</button>'
+      + '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#confirmOk').onclick = function(){ overlay.remove(); resolve(); };
+    overlay.querySelector('#confirmCancel').onclick = function(){ overlay.remove(); reject(); };
+    overlay.onclick = function(e){ if(e.target === overlay){ overlay.remove(); reject(); } };
+  });
+}
+
+function showPrompt(title, message, opts) {
+  opts = opts || {};
+  return new Promise(function(resolve, reject) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);';
+    var initialValue = opts.inputValue || '';
+    overlay.innerHTML = '<div class="modal-dialog" style="max-width:460px;width:90vw;background:var(--glass-bg);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:var(--space-lg);box-shadow:var(--shadow-xl);">'
+      + '<h3 style="font-family:var(--font-display);color:var(--gold);margin-bottom:var(--space-sm);font-size:1.1rem;">'+(title||'输入')+'</h3>'
+      + '<div style="color:var(--text-secondary);font-size:.8rem;margin-bottom:var(--space-sm);">'+message+'</div>'
+      + '<input class="input-glass" id="promptInput" value="'+initialValue.replace(/"/g,'"')+'" style="width:100%;margin-bottom:var(--space-md);">'
+      + '<div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">'
+      + '<button class="btn btn-ghost" id="promptCancel">取消</button>'
+      + '<button class="btn btn-primary" id="promptOk">确定</button>'
+      + '</div></div>';
+    document.body.appendChild(overlay);
+    var input = overlay.querySelector('#promptInput');
+    overlay.querySelector('#promptOk').onclick = function(){
+      var val = input.value;
+      if (opts.inputValidator) {
+        var valid = opts.inputValidator(val);
+        if (valid !== true) { showToast(valid||'输入无效', 'warning'); return; }
+      }
+      overlay.remove();
+      resolve({ value: val });
+    };
+    overlay.querySelector('#promptCancel').onclick = function(){ overlay.remove(); reject(); };
+    overlay.onclick = function(e){ if(e.target === overlay){ overlay.remove(); reject(); } };
+    input.focus();
+    input.select();
+  });
+}
+
+/* ── Vue App ── */
+new Vue({
+  el: '#app',
+  data: {
+    openDD: null,
+    baseURL: document.location.origin,
+    Number: 0,
+    totalCount: 0,
+    fileConfig: {
+      image: { name:'图片', exts:['jpg','jpeg','png','gif','webp','bmp','tiff','ico','svg','heic','heif','avif'], icon:'fas fa-image', count:0 },
+      video: { name:'视频', exts:['mp4','webm','ogg','avi','mov','wmv','flv','mkv','m4v','3gp','ts'], icon:'fas fa-video', count:0 },
+      audio: { name:'音频', exts:['mp3','wav','ogg','flac','aac','m4a','wma','ape','opus'], icon:'fas fa-music', count:0 },
+      document: { name:'文件', exts:['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','md','zip','rar','7z','tar','gz','exe','apk','dmg','iso','msi','deb','rpm','json','xml','csv','sql','html','css','js','py','java','go','rs','cpp','c','h'], icon:'fas fa-folder-open', count:0 }
+    },
+    uploadConfig: { maxSize: 20 * 1024 * 1024, maxConcurrent: 3 },
+    tableData: [],
+    nextCursor: null,
+    isLoadingMore: false,
+    search: '',
+    currentPage: 1,
+    pageSize: 15,
+    selectedFiles: [],
+    sortOption: 'dateDesc',
+    filterOption: 'all',
+    fileType: 'image',
+    quickWebsites: [
+      { name:'上传中心', url:'./', icon:'fas fa-cloud-upload-alt' },
+      { name:'图片浏览', url:'./gallery.html', icon:'fas fa-images' },
+      { name:'Movavi', url:'https://www.movavi.com/zh/movavi-video-converter.html', icon:'fas fa-file-video' },
+      { name:'FreeConvert', url:'https://www.freeconvert.com/zh/video-compressor', icon:'fas fa-file' },
+      { name:'YouCompress', url:'https://www.youcompress.com/zh-cn/', icon:'fas fa-file-zipper' },
+      { name:'Cloudinary', url:'https://console.cloudinary.com/', icon:'fas fa-cloud' }
+    ],
+    detailVisible: false,
+    detailHtml: '',
+    toasts: []
+  },
+  computed: {
+    filteredTableData: function() {
+      var self = this;
+      return this.tableData.filter(function(data) {
+        var searchLower = self.search.toLowerCase();
+        var matchesSearch = !searchLower || [
+          (data.metadata.fileName || '').toLowerCase(),
+          data.name ? data.name.toLowerCase() : ''
+        ].some(function(f) { return f.indexOf(searchLower) >= 0; });
+        var filterMap = { all:true, favorites:data.metadata.liked, blocked:data.metadata.ListType === 'Block', unblocked:data.metadata.ListType === 'White', adult:(data.metadata.Label||'').toLowerCase() === 'adult' };
+        var matchesFilter = filterMap[self.filterOption] !== undefined ? filterMap[self.filterOption] : true;
+        var ext = (data.name || '').split('.').pop().toLowerCase();
+        var matchesType = false;
+        if (self.fileType === 'document') {
+          matchesType = !Object.keys(self.fileConfig).some(function(t) { return t !== 'document' && self.fileConfig[t].exts.indexOf(ext) >= 0; });
+        } else {
+          matchesType = self.fileConfig[self.fileType].exts.indexOf(ext) >= 0;
+        }
+        return matchesSearch && matchesFilter && matchesType;
+      });
+    },
+    paginatedTableData: function() {
+      var sorted = this.sortData(this.filteredTableData);
+      var start = (this.currentPage - 1) * this.pageSize;
+      return sorted.slice(start, start + this.pageSize);
+    },
+    totalPages: function() {
+      return Math.ceil(this.filteredTableData.length / this.pageSize) || 1;
+    },
+    displayPages: function() {
+      var total = this.totalPages;
+      var cur = this.currentPage;
+      var pages = [];
+      if (total <= 7) { for (var i=1;i<=total;i++) pages.push(i); return pages; }
+      pages.push(1);
+      if (cur > 3) pages.push('...');
+      for (var p=Math.max(2,cur-1); p<=Math.min(total-1,cur+1); p++) pages.push(p);
+      if (cur < total-2) pages.push('...');
+      pages.push(total);
+      return pages;
+    },
+    sortIcon: function() { return 'fas fa-sort-'+(this.sortOption === 'dateDesc' ? 'amount-down' : 'alpha-up'); },
+    filterIcon: function() {
+      return this.filterOption === 'all' ? 'fas fa-filter' :
+        this.filterOption === 'favorites' ? 'fas fa-bookmark' :
+        this.filterOption === 'blocked' ? 'fas fa-lock' :
+        this.filterOption === 'unblocked' ? 'fas fa-unlock' :
+        this.filterOption === 'adult' ? 'fas fa-user-secret' : '';
+    },
+    fileTypeIcon: function() {
+      return this.fileType === 'image' ? 'fas fa-image' :
+        this.fileType === 'video' ? 'fas fa-video' :
+        this.fileType === 'audio' ? 'fas fa-music' :
+        this.fileType === 'document' ? 'fas fa-folder-open' : '';
+    }
+  },
+  watch: {
+    tableData: { handler: function(newData) { this.selectedFiles = newData.filter(function(f){ return f.selected; }); }, deep: true },
+    sortOption: function(val) { localStorage.setItem('sortOption', val); },
+    filterOption: function(val) { localStorage.setItem('filterOption', val); },
+    search: function() { this.currentPage = 1; },
+    fileType: function() { this.currentPage = 1; }
+  },
+  methods: {
+    toggleDD: function(name) { this.openDD = this.openDD === name ? null : name; var self=this; window.setTimeout(function(){ document.addEventListener('click', self.closeDDHandler = function(e){ self.openDD = null; document.removeEventListener('click', self.closeDDHandler); }); }, 10); },
+    refreshDashboard: function() { location.reload(); },
+    handleLogout: async function() {
+      try { await fetch('./api/auth/logout', { method:'POST', credentials:'include' }); } catch(e) {}
+      window.location.href = './login.html';
+    },
+    handlePageChange: function(page) { this.currentPage = page; },
+    normalizeListItem: function(file) {
+      return { ...file, selected: false, metadata: { ...file.metadata, liked: file.metadata ? file.metadata.liked : false, fileName: file.metadata ? file.metadata.fileName : file.name, fileSize: file.metadata ? file.metadata.fileSize : 0 } };
+    },
+    mergeListData: function(files) {
+      var map = new Map(this.tableData.map(function(item) { return [item.name, item]; }));
+      files.forEach(function(item) { if (!item || !item.name) return; var prev=map.get(item.name); map.set(item.name, prev ? { ...prev, ...item, selected: prev.selected || item.selected } : item); });
+      this.tableData = Array.from(map.values());
+    },
+    sort: function(command) { this.sortOption = command; this.openDD = null; },
+    filter: function(command) { this.filterOption = command; this.openDD = null; },
+    loadMore: async function() {
+      if (this.isLoadingMore || !this.nextCursor) return;
+      this.isLoadingMore = true;
+      try {
+        var result = await fetch('./api/manage/list?cursor='+encodeURIComponent(this.nextCursor), { method:'GET', credentials:'include' }).then(function(r){ return r.json(); });
+        var mapped = (result.keys || []).map(function(file){ return this.normalizeListItem(file); }.bind(this));
+        this.mergeListData(mapped);
+        this.nextCursor = result.list_complete ? null : result.cursor;
+        if (Number.isFinite(result && result.stats && result.stats.total)) this.totalCount = result.stats.total;
+        this.updateStats();
+      } catch(e) { showToast('加载更多失败，请稍后重试', 'error'); }
+      this.isLoadingMore = false;
+    },
+    sortData: function(data) {
+      if (this.sortOption === 'nameAsc') return data.sort(function(a,b){ return a.name.localeCompare(b.name); });
+      if (this.sortOption === 'sizeDesc') return data.sort(function(a,b){ return (b.metadata.fileSize||0) - (a.metadata.fileSize||0); });
+      return data.sort(function(a,b){ return (b.metadata.TimeStamp||0) - (a.metadata.TimeStamp||0); });
+    },
+    showDetail: function(item) {
+      var meta = item.metadata;
+      var ts = meta.TimeStamp ? new Date(meta.TimeStamp).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}) : '未知';
+      this.detailHtml = '<div style="text-align:left;"><div><strong>ID：</strong>'+item.name+'</div><div><strong>文件名：</strong>'+(meta.fileName||item.name)+'</div><div><strong>上传时间：</strong>'+ts+'</div><div><strong>元数据：</strong>'+JSON.stringify(meta)+'</div></div>';
+      this.detailVisible = true;
+    },
+    calculatePageSize: function() {
+      var config = { minSize:15, cardWidth:220, ratio:3/4, gap:16, defaultWidth:800, defaultHeaderHeight:56 };
+      var content = document.querySelector('.content-grid');
+      var header = document.querySelector('.admin-header');
+      var width = content ? content.clientWidth : config.defaultWidth;
+      var height = window.innerHeight - (header ? header.offsetHeight : config.defaultHeaderHeight);
+      var cols = Math.floor(width / (config.cardWidth + config.gap)) || 1;
+      var cardHeight = ((width / cols) - config.gap) * config.ratio;
+      var rows = Math.floor(height / (cardHeight + config.gap)) || 1;
+      this.pageSize = Math.max(rows * cols, config.minSize);
+    },
+    updateWindowWidth: function() { this.calculatePageSize(); },
+    updateStats: function() {
+      this.Number = this.tableData.length;
+      if (!Number.isFinite(this.totalCount) || this.totalCount < this.Number) this.totalCount = this.Number;
+      var counts = { image:0, video:0, audio:0, document:0 };
+      this.tableData.forEach(function(file){
+        var ext = file.name.split('.').pop().toLowerCase();
+        var type = 'document';
+        for (var t in this.fileConfig) {
+          if (t !== 'document' && this.fileConfig[t].exts.indexOf(ext) >= 0) { type = t; break; }
+        }
+        counts[type]++;
+      }.bind(this));
+      for (var t in counts) this.fileConfig[t].count = counts[t];
+    },
+    toggleSelect: function(index, name) {
+      var fi = this.tableData.findIndex(function(f){ return f.name === name; });
+      if (fi >= 0) this.tableData[fi].selected = !this.tableData[fi].selected;
+    },
+    clearSelection: function() {
+      this.tableData.forEach(function(f){ f.selected = false; });
+    },
+    toggleLike: function(index, name) {
+      var fi = this.tableData.findIndex(function(f){ return f.name === name; });
+      if (fi < 0) return;
+      this.tableData[fi].metadata.liked = !(this.tableData[fi].metadata.liked === true);
+      fetch('./api/manage/toggleLike/'+encodeURIComponent(name), { method:'GET', credentials:'include' })
+        .then(function(r){ return r.json(); })
+        .then(function(result){
+          if (!result.success) {
+            this.tableData[fi].metadata.liked = !this.tableData[fi].metadata.liked;
+            showToast('更新收藏状态失败', 'error');
+          } else {
+            showToast(this.tableData[fi].metadata.liked ? '收藏成功' : '取消收藏', 'success');
+          }
+        }.bind(this))
+        .catch(function(){ this.tableData[fi].metadata.liked = !this.tableData[fi].metadata.liked; showToast('同步服务器失败', 'error'); }.bind(this));
+    },
+    handleDelete: function(index, key) {
+      showConfirm('此操作将永久删除该文件, 是否继续?', '提示').then(function(){
+        fetch('./api/manage/delete/'+encodeURIComponent(key), { method:'GET', credentials:'include' })
+          .then(function(response){
+            if (response.ok) {
+              var fi = this.tableData.findIndex(function(f){ return f.name === key; });
+              if (fi >= 0) this.tableData.splice(fi, 1);
+              this.updateStats();
+              showToast('删除成功！', 'success');
+            } else { showToast('删除失败', 'error'); }
+          }.bind(this))
+          .catch(function(){ showToast('删除失败，请检查网络连接', 'error'); });
+      }.bind(this)).catch(function(){});
+    },
+    copyToClipboardFallback: function(text) {
+      var ta = document.createElement('textarea');
+      document.body.appendChild(ta);
+      ta.style.position = 'fixed'; ta.style.clip = 'rect(0 0 0 0)'; ta.style.top = '10px';
+      ta.value = text; ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    },
+    handleCopy: function(index, key) {
+      var link = this.baseURL + '/file/' + key;
+      var self = this;
+      (navigator.clipboard ? navigator.clipboard.writeText(link).then(function(){ showToast('复制文件链接成功~', 'success'); }) : (function(){ self.copyToClipboardFallback(link); showToast('复制文件链接成功~', 'success'); })())
+        .catch(function(){ showToast('自动复制失败', 'error'); });
+    },
+    handleQuickCopy: function(format, key) {
+      var url = this.baseURL + '/file/' + key;
+      var file = this.tableData.find(function(f){ return f.name === key; });
+      var name = file ? (file.metadata.fileName || key) : key;
+      var link = url;
+      if (format === 'markdown') link = '!['+name+']('+url+')';
+      else if (format === 'html') link = '<img src="'+url+'" alt="'+name+'">';
+      else if (format === 'bbcode') link = '[img]'+url+'[/img]';
+      var self = this;
+      (navigator.clipboard ? navigator.clipboard.writeText(link).then(function(){ showToast(format.toUpperCase()+' 格式链接已复制~', 'success'); }) : (function(){ self.copyToClipboardFallback(link); showToast(format.toUpperCase()+' 格式链接已复制~', 'success'); })())
+        .catch(function(){ showToast('复制失败', 'error'); });
+      this.openDD = null;
+    },
+    // Batch operations
+    selectAllInPage: function() {
+      var select = !this.paginatedTableData.every(function(f){ return f.selected; });
+      this.paginatedTableData.forEach(function(f){ f.selected = select; });
+    },
+    handleBatchOperation: function(command) {
+      if (this.selectedFiles.length === 0) { showToast('请先选择文件', 'warning'); return; }
+      var self = this;
+      if (command === 'delete') {
+        showConfirm('此操作将永久删除这 '+this.selectedFiles.length+' 个文件, 是否继续?', '提示').then(function(){
+          Promise.all(self.selectedFiles.map(function(file){ return fetch('./api/manage/delete/'+encodeURIComponent(file.name), { method:'GET', credentials:'include' }); }))
+            .then(function(results){
+              results.forEach(function(response, idx){
+                if (response.ok) {
+                  var fi = self.tableData.findIndex(function(f){ return f.name === self.selectedFiles[idx].name; });
+                  if (fi >= 0) self.tableData.splice(fi, 1);
+                }
+              });
+              self.selectedFiles = [];
+              self.updateStats();
+              showToast('批量删除成功!', 'success');
+            }).catch(function(){ showToast('批量删除失败', 'error'); });
+        }).catch(function(){});
+      } else if (command === 'copy') {
+        var links = this.selectedFiles.map(function(f){ return document.location.origin+'/file/'+f.name; }).join('\n');
+        (navigator.clipboard ? navigator.clipboard.writeText(links).then(function(){ showToast('批量复制链接成功~', 'success'); }) : (function(){ self.copyToClipboardFallback(links); showToast('批量复制链接成功~', 'success'); })());
+      } else if (command === 'copyMarkdown') {
+        var mdLinks = this.selectedFiles.map(function(f){ var u=document.location.origin+'/file/'+f.name; var n=f.metadata.fileName||f.name; return '!['+n+']('+u+')'; }).join('\n');
+        (navigator.clipboard ? navigator.clipboard.writeText(mdLinks).then(function(){ showToast('Markdown格式链接已复制~', 'success'); }) : (function(){ self.copyToClipboardFallback(mdLinks); showToast('Markdown格式链接已复制~', 'success'); })());
+      } else if (command === 'copyHtml') {
+        var htmlLinks = this.selectedFiles.map(function(f){ var u=document.location.origin+'/file/'+f.name; var n=f.metadata.fileName||f.name; return '<img src="'+u+'" alt="'+n+'">'; }).join('\n');
+        (navigator.clipboard ? navigator.clipboard.writeText(htmlLinks).then(function(){ showToast('HTML格式链接已复制~', 'success'); }) : (function(){ self.copyToClipboardFallback(htmlLinks); showToast('HTML格式链接已复制~', 'success'); })());
+      } else if (command === 'download') {
+        showToast('正在下载 '+this.selectedFiles.length+' 个文件', 'info');
+        this.selectedFiles.forEach(function(file, idx){
+          window.setTimeout(function(){
+            var a = document.createElement('a');
+            a.href = '/file/'+file.name; a.download = file.metadata.fileName || file.name;
+            a.click();
+          }, idx * 800);
+        });
+        this.selectedFiles = [];
+      } else if (command === 'block' || command === 'unblock') {
+        var type = command === 'block' ? 'Block' : 'White';
+        var nameMap = { Block:'黑名单', White:'白名单' };
+        showConfirm('确定要将这 '+this.selectedFiles.length+' 个文件加入'+nameMap[type]+'吗?', '提示').then(function(){
+          Promise.all(self.selectedFiles.map(function(file){ return fetch('./api/manage/'+type.toLowerCase()+'/'+encodeURIComponent(file.name), { method:'GET', credentials:'include' }); }))
+            .then(function(responses){
+              responses.forEach(function(response, idx){
+                if (response.ok) {
+                  var fi = self.tableData.findIndex(function(f){ return f.name === self.selectedFiles[idx].name; });
+                  if (fi >= 0) self.tableData[fi].metadata.ListType = type;
+                }
+              });
+              showToast('批量加入'+nameMap[type]+'成功', 'success');
+              self.selectedFiles = [];
+            }).catch(function(){ showToast('操作失败', 'error'); });
+        }).catch(function(){});
+      }
+    },
+    handleToolkit: function(command) {
+      if (command === 'selectAllInPage') this.selectAllInPage();
+      else if (command === 'checkBrokenFiles') this.checkBrokenFiles();
+      else if (command === 'editWebsites') this.editWebsites();
+      else if (command === 'openUploader') window.open('./', '_blank');
+      else if (command === 'exportLinks') this.exportAllLinks();
+    },
+    exportAllLinks: function() {
+      var links = this.tableData.map(function(f){ return document.location.origin+'/file/'+f.name; });
+      var blob = new Blob([links.join('\n')], { type:'text/plain' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'image-links-'+(new Date().toISOString().slice(0,10))+'.txt';
+      a.click(); URL.revokeObjectURL(url);
+      showToast('已导出 '+links.length+' 个链接', 'success');
+    },
+    switchFileType: function(type) {
+      this.fileType = type;
+      this.currentPage = 1;
+      localStorage.setItem('fileType', type);
+      showToast('已切换为'+this.fileConfig[type].name+'模式, 共'+this.fileConfig[type].count+'个文件', 'success');
+      this.openDD = null;
+    },
+    checkBrokenFiles: function() {
+      showToast('正在检测失效文件...', 'info');
+      var brokenCount = 0;
+      var self = this;
+      Promise.all(this.tableData.map(function(item){
+        return fetch(self.baseURL+'/file/'+item.name, { method:'HEAD', cache:'no-cache' })
+          .then(function(response){
+            if (!response.ok) { brokenCount++; item.selected = true; }
+          }).catch(function(){ brokenCount++; item.selected = true; });
+      })).then(function(){
+        if (brokenCount > 0) showToast('检测到 '+brokenCount+' 个失效文件，已自动选中', 'warning');
+        else showToast('未检测到失效文件', 'success');
+      });
+    },
+    handleWebsite: function(url) { window.open(url, '_blank'); },
+    editWebsites: function() {
+      var text = this.quickWebsites.map(function(s){ return s.name+'|'+s.url+'|'+s.icon; }).join('\n');
+      showPrompt('编辑快捷方式', '每行一个网站，格式：名称|网址|图标类名', { inputValue: text,
+        inputValidator: function(value){
+          var lines = value.split('\n');
+          if (lines.length > 10) return '不能超过10行';
+          for (var i=0;i<lines.length;i++) {
+            var l = lines[i].trim(); if (!l) continue;
+            var parts = l.split('|');
+            if (!parts[0] || !parts[1]) return '名称和网址不能为空：'+l;
+            if (!/^https?:\/\/.+/.test(parts[1]) && !/^\.\/.*/.test(parts[1])) return '网址格式错误：'+l;
+          }
+          return true;
+        }
+      }).then(function(result){
+        var news = result.value.split('\n').filter(function(l){ return l.trim(); }).map(function(l){
+          var p = l.split('|'); return { name: p[0], url: p[1], icon: p[2] || 'fas fa-link' };
+        });
+        self.quickWebsites = news;
+        localStorage.setItem('quickWebsites', JSON.stringify(news));
+        showToast('保存成功', 'success');
+      }).catch(function(){});
+    },
+    getFileIcon: function(filename) {
+      var ext = filename.split('.').pop().toLowerCase();
+      var iconMap = {
+        'pdf':'fas fa-file-pdf', 'doc,docx':'fas fa-file-word', 'xls,xlsx,csv':'fas fa-file-excel',
+        'ppt,pptx':'fas fa-file-powerpoint', 'txt,md,log':'fas fa-file-lines',
+        'zip,rar,7z,tar,gz':'fas fa-file-zipper', 'html,htm,css,js,ts,jsx,tsx,vue,php,py,java,c,cpp,h,hpp,cs,go,rs,rb,pl,sh,sql':'fas fa-file-code',
+        'json,xml,yaml,yml,toml':'fas fa-file-code', 'mp4,avi,mov,wmv,flv,mkv,webm':'fas fa-file-video',
+        'mp3,wav,ogg,flac,aac,m4a,wma':'fas fa-file-audio', 'jpg,jpeg,png,gif,bmp,webp,svg,ico':'fas fa-file-image',
+        'psd,ai,eps,cdr':'fas fa-file-image', 'exe,msi,app,dmg,deb,rpm':'fas fa-file-arrow-down'
+      };
+      for (var key in iconMap) { if (key.split(',').indexOf(ext) >= 0) return iconMap[key]; }
+      return 'fas fa-file';
+    },
+    getFileType: function(filename) { return (filename.split('.').pop() || '').toUpperCase(); },
+    handleEditName: function(item) {
+      showPrompt('修改文件名', '', { inputValue: item.metadata.fileName || item.name,
+        inputValidator: function(value){
+          if (!value) return '文件名不能为空';
+          if (value.length > 64) return '文件名不能超过64个字符';
+          return true;
+        }
+      }).then(function(result){
+        fetch('./api/manage/editName/'+encodeURIComponent(item.name)+'?newName='+encodeURIComponent(result.value), { method:'GET', credentials:'include' })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            if (data.success) { item.metadata.fileName = result.value; showToast('文件名修改成功', 'success'); }
+            else showToast('文件名修改失败', 'error');
+          }).catch(function(){ showToast('修改文件名时出错', 'error'); });
+      }).catch(function(){});
+    }
+  },
+  async mounted() {
+    // Auth check
+    try {
+      var authRes = await fetch('./api/auth/check', { method:'GET', credentials:'include' });
+      var authData = await authRes.json();
+      if (authData.authRequired && !authData.authenticated) {
+        window.location.href = './login.html?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+    } catch(e) { showToast('认证检查失败', 'error'); return; }
+
+    window.addEventListener('resize', this.calculatePageSize);
+    this.updateWindowWidth();
+
+    try {
+      var result = await fetch('./api/manage/list?limit=100&includeStats=1', { method:'GET', credentials:'include' }).then(function(r){ return r.json(); });
+      var mapped = (result.keys || []).map(function(file){ return this.normalizeListItem(file); }.bind(this));
+      this.tableData = mapped;
+      this.nextCursor = result.list_complete ? null : result.cursor;
+      this.totalCount = Number.isFinite(result && result.stats && result.stats.total) ? result.stats.total : mapped.length;
+      this.updateStats();
+      this.sortOption = localStorage.getItem('sortOption') || this.sortOption;
+      this.sortData(this.tableData);
+      this.fileType = localStorage.getItem('fileType') || this.fileType;
+    } catch(e) { showToast('同步数据时出错', 'error'); }
+
+    if (localStorage.getItem('quickWebsites')) {
+      try { this.quickWebsites = JSON.parse(localStorage.getItem('quickWebsites')); } catch(e) {}
+    }
+  },
+  beforeDestroy: function() { window.removeEventListener('resize', this.calculatePageSize); }
+});
+</script>
+</body>
+</html>

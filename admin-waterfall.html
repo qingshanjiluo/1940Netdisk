@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>瀑布流 | 1940Netdisk</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/theme.js?v=20260305"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+  <style>
+    /* ===== Steel Glass Waterfall ===== */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg-body);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+    }
+
+    .page {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: var(--space-md);
+    }
+
+    /* ---- Sticky Header ---- */
+    .wf-header {
+      position: sticky;
+      top: var(--space-sm);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 3px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-bottom: 2px solid var(--olive);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      margin-bottom: var(--space-md);
+    }
+
+    .wf-header-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 400;
+      letter-spacing: 0.05em;
+      color: var(--khaki);
+      margin: 0;
+      text-transform: uppercase;
+    }
+
+    .wf-header-title i {
+      color: var(--gold);
+    }
+
+    .wf-header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .wf-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1.5px solid var(--khaki);
+      border-radius: 3px;
+      padding: 8px 14px;
+      min-height: 36px;
+      background: var(--olive);
+      color: var(--khaki-light);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .wf-link:hover {
+      border-color: var(--gold);
+      background: var(--olive-light);
+      color: var(--gold-light);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+
+    /* ---- Masonry Grid ---- */
+    .masonry {
+      column-count: 5;
+      column-gap: 14px;
+      margin: 0;
+    }
+
+    .masonry-item {
+      break-inside: avoid;
+      display: inline-block;
+      width: 100%;
+      margin: 0 0 14px;
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid rgba(90,107,74,0.4);
+      background: rgba(255,255,255,0.03);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      cursor: zoom-in;
+      transition: box-shadow var(--transition-fast);
+    }
+
+    .masonry-item:hover {
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+
+    .masonry-item img {
+      display: block;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      background: var(--surface-raised);
+    }
+
+    .masonry-caption {
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ---- Load More ---- */
+    .load-wrap {
+      display: flex;
+      justify-content: center;
+      padding: var(--space-md) 0 var(--space-sm);
+    }
+
+    .wf-load-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1.5px solid var(--khaki);
+      border-radius: 3px;
+      padding: 10px 20px;
+      min-height: 40px;
+      min-width: 148px;
+      background: var(--olive);
+      color: var(--khaki-light);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.85rem;
+    }
+
+    .wf-load-btn:hover {
+      background: var(--olive-light);
+      border-color: var(--gold);
+      color: var(--gold-light);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+
+    .wf-load-btn[disabled] {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    /* ---- Empty State ---- */
+    .empty-state {
+      display: none;
+      text-align: center;
+      padding: 52px 20px;
+      border: 1px dashed rgba(90,107,74,0.4);
+      border-radius: 3px;
+      background: rgba(255,255,255,0.03);
+      color: var(--color-text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 1.8rem;
+      margin-bottom: var(--space-xs);
+      color: var(--steel);
+    }
+
+    /* ---- Lightbox ---- */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-md);
+      background: rgba(2, 6, 23, 0.84);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .lightbox.open {
+      display: flex;
+    }
+
+    .lightbox-content {
+      width: min(96vw, 1280px);
+      max-height: 90vh;
+      border-radius: 3px;
+      overflow: hidden;
+      background: #050911;
+      border: 2px solid var(--olive);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+
+    .lightbox-content img {
+      display: block;
+      width: 100%;
+      max-height: 90vh;
+      object-fit: contain;
+    }
+
+    .lightbox-meta {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 10px 14px;
+      color: #dbe9ff;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0.05));
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: var(--font-body);
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: var(--space-xs);
+      right: var(--space-xs);
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: background var(--transition-fast);
+    }
+
+    .lightbox-close:hover {
+      background: rgba(0, 0, 0, 0.72);
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 1200px) {
+      .masonry { column-count: 4; }
+    }
+
+    @media (max-width: 900px) {
+      .masonry {
+        column-count: 3;
+        column-gap: 10px;
+      }
+      .masonry-item { margin-bottom: 10px; }
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: var(--space-sm); }
+
+      .wf-header {
+        top: 8px;
+        border-radius: var(--radius-md);
+        padding: var(--space-xs) var(--space-sm);
+        flex-wrap: wrap;
+      }
+
+      .wf-header-title {
+        font-size: 1rem;
+        width: 100%;
+      }
+
+      .wf-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .wf-header-actions::-webkit-scrollbar { display: none; }
+
+      .wf-link {
+        flex: 0 0 auto;
+        font-size: 0.78rem;
+      }
+
+      .masonry { column-count: 2; }
+
+      .lightbox { padding: 8px; }
+      .lightbox-content { border-radius: var(--radius-md); }
+    }
+
+    @media (max-width: 420px) {
+      .masonry { column-count: 1; }
+      .wf-load-btn { width: 100%; }
+    }
+  </style>
+  <link rel="stylesheet" href="/mobile-refactor.css">
+</head>
+<body>
+  <main class="page">
+    <header class="wf-header">
+      <h1 class="wf-header-title">
+        <i class="fas fa-water"></i>
+        <span>瀑布流</span>
+      </h1>
+      <div class="wf-header-actions">
+        <a class="wf-link" href="./"><i class="fas fa-home"></i><span>首页</span></a>
+        <a class="wf-link" href="./admin.html"><i class="fas fa-th-large"></i><span>管理后台</span></a>
+        <button type="button" class="nav-btn" data-theme-toggle aria-label="切换主题">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <section id="gallery" class="masonry" aria-live="polite"></section>
+    <section id="emptyState" class="empty-state">
+      <i class="fas fa-image"></i>
+      <div>暂无图片</div>
+    </section>
+
+    <div class="load-wrap">
+      <button id="loadMoreBtn" class="wf-load-btn" type="button">
+        <i class="fas fa-cloud-download-alt"></i>
+        <span>加载更多</span>
+      </button>
+    </div>
+  </main>
+
+  <aside id="lightbox" class="lightbox" aria-hidden="true">
+    <div class="lightbox-content">
+      <button id="lightboxCloseBtn" class="lightbox-close" type="button" aria-label="关闭预览">
+        <i class="fas fa-times"></i>
+      </button>
+      <img id="lightboxImage" alt="预览图片">
+      <div id="lightboxMeta" class="lightbox-meta"></div>
+    </div>
+  </aside>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var state = {
+        cursor: null,
+        loading: false,
+        loadedCount: 0
+      };
+
+      var galleryEl = document.getElementById("gallery");
+      var loadMoreBtn = document.getElementById("loadMoreBtn");
+      var emptyStateEl = document.getElementById("emptyState");
+      var lightboxEl = document.getElementById("lightbox");
+      var lightboxImgEl = document.getElementById("lightboxImage");
+      var lightboxMetaEl = document.getElementById("lightboxMeta");
+      var lightboxCloseBtn = document.getElementById("lightboxCloseBtn");
+      var imageExts = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico", "avif"];
+
+      function escapeHtml(text) {
+        var amp = "\x26" + "amp\x3B";
+        var lt  = "\x26" + "lt\x3B";
+        var gt  = "\x26" + "gt\x3B";
+        var quot = "\x26" + "quot\x3B";
+        var apos = "\x26" + "#39\x3B";
+        return String(text || "")
+          .replace(/\x26/g, amp)
+          .replace(/</g, lt)
+          .replace(/>/g, gt)
+          .replace(/\x22/g, quot)
+          .replace(/\x27/g, apos);
+      }
+
+      function getDisplayName(file) {
+        return (file && file.metadata && file.metadata.fileName) || file.name || "未命名";
+      }
+
+      function isImage(file) {
+        if (!file || !file.name) return false;
+        var ext = file.name.split(".").pop().toLowerCase();
+        return imageExts.indexOf(ext) !== -1;
+      }
+
+      function updateEmptyState() {
+        emptyStateEl.style.display = state.loadedCount > 0 ? "none" : "block";
+      }
+
+      function setLoading(loading) {
+        state.loading = loading;
+        loadMoreBtn.disabled = loading;
+        loadMoreBtn.innerHTML = loading
+          ? '<i class="fas fa-spinner fa-spin"></i><span>加载中</span>'
+          : '<i class="fas fa-cloud-download-alt"></i><span>加载更多</span>';
+      }
+
+      function hideLoadButtonIfDone() {
+        if (!state.cursor) {
+          loadMoreBtn.style.display = "none";
+        }
+      }
+
+      function openLightbox(url, title) {
+        lightboxImgEl.src = url;
+        lightboxImgEl.alt = title || "预览图片";
+        lightboxMetaEl.textContent = title || "";
+        lightboxEl.classList.add("open");
+        lightboxEl.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeLightbox() {
+        lightboxEl.classList.remove("open");
+        lightboxEl.setAttribute("aria-hidden", "true");
+        lightboxImgEl.src = "";
+        document.body.style.overflow = "";
+      }
+
+      function buildItem(file) {
+        var item = document.createElement("article");
+        item.className = "masonry-item";
+
+        var fileUrl = "/file/" + encodeURIComponent(file.name);
+        var displayName = getDisplayName(file);
+
+        item.innerHTML =
+          '<img src="' + fileUrl + '" alt="' + escapeHtml(displayName) + '" loading="lazy" decoding="async">' +
+          '<div class="masonry-caption" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + "</div>";
+
+        item.addEventListener("click", function () {
+          openLightbox(fileUrl, displayName);
+        });
+
+        return item;
+      }
+
+      async function loadMore() {
+        if (state.loading) return;
+        setLoading(true);
+
+        try {
+          var endpoint = state.cursor
+            ? "./api/manage/list?cursor=" + encodeURIComponent(state.cursor)
+            : "./api/manage/list?limit=100";
+
+          var response = await fetch(endpoint, { credentials: "include" });
+          if (!response.ok) {
+            throw new Error("List request failed with status " + response.status);
+          }
+
+          var data = await response.json();
+          state.cursor = data.list_complete ? null : data.cursor;
+          hideLoadButtonIfDone();
+
+          var files = (data.keys || []).filter(isImage);
+          if (!files.length && state.loadedCount === 0 && !state.cursor) {
+            updateEmptyState();
+            return;
+          }
+
+          var fragment = document.createDocumentFragment();
+          for (var i = 0; i < files.length; i++) {
+            fragment.appendChild(buildItem(files[i]));
+          }
+
+          galleryEl.appendChild(fragment);
+          state.loadedCount += files.length;
+          updateEmptyState();
+        } catch (err) {
+          console.error("加载文件失败:", err);
+          alert("加载文件失败，请检查网络后重试。");
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function ensureAuth() {
+        try {
+          var response = await fetch("./api/auth/check", { credentials: "include" });
+          var data = await response.json();
+          if (data.authRequired && !data.authenticated) {
+            var redirect = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = "./login.html?redirect=" + redirect;
+            return false;
+          }
+          return true;
+        } catch (err) {
+          console.error("身份验证失败:", err);
+          return true;
+        }
+      }
+
+      loadMoreBtn.addEventListener("click", loadMore);
+      lightboxCloseBtn.addEventListener("click", closeLightbox);
+
+      lightboxEl.addEventListener("click", function (event) {
+        if (event.target === lightboxEl) {
+          closeLightbox();
+        }
+      });
+
+      window.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeLightbox();
+        }
+      });
+
+      (async function init() {
+        var ok = await ensureAuth();
+        if (!ok) return;
+        await loadMore();
+      })();
+    })();
+  </script>
+</body>
+</html>

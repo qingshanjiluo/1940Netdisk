@@ -1,0 +1,1949 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="format-detection" content="telephone=no,email=no">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>文件预览 — 1940Netdisk</title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="mobile-refactor.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+<style>
+  /* ========================================
+     1940Netdisk — Preview Page Steel Glass Skin
+     All business logic preserved in <script>
+     ======================================== */
+
+  /* ── Embed mode (used when page is iframed) ── */
+  body.embed-mode .topbar,
+  body.embed-mode .file-panel { display: none !important; }
+  body.embed-mode .viewer-wrap { padding: 0; }
+
+  /* ── Shell ── */
+  .shell { display:flex; flex-direction:column; min-height:100vh; }
+
+  /* ── Topbar ── */
+  .topbar {
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between; gap:var(--space-md);
+    padding:var(--space-sm) var(--space-md);
+    background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+    border-bottom:2px solid var(--olive);
+    flex-wrap:wrap;
+  }
+  .topbar .title-group { display:flex; align-items:center; gap:var(--space-sm); min-width:0; }
+  .topbar .title-group h1 {
+    font-family:var(--font-display); font-size:1rem; font-weight:400;
+    color:var(--khaki); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    letter-spacing:0.05em; text-transform:uppercase;
+  }
+  .topbar .actions { display:flex; align-items:center; gap:var(--space-xs); }
+  .nav-btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    padding:6px 14px; border:1.5px solid var(--khaki);
+    border-radius:3px;
+    background:var(--olive);
+    color:var(--khaki-light); font-size:.82rem; font-family:var(--font-display);
+    cursor:pointer; transition:all .2s; white-space:nowrap;
+    letter-spacing:0.06em; text-transform:uppercase;
+  }
+  .nav-btn:hover { background:var(--olive-light); color:var(--gold-light); border-color:var(--gold); box-shadow:0 0 15px rgba(212,175,55,0.3); }
+  .nav-btn:active { transform:scale(.96); }
+
+  /* ── File Panel ── */
+  .file-panel {
+    display:flex; align-items:center; justify-content:space-between; gap:var(--space-md);
+    padding:var(--space-sm) var(--space-md);
+    background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(90,107,74,0.3); flex-wrap:wrap;
+  }
+  .file-panel .file-meta { display:flex; align-items:center; gap:var(--space-sm); min-width:0; flex-wrap:wrap; }
+  .file-panel .file-meta .file-name {
+    font-family:var(--font-mono); font-size:.85rem; color:var(--text-primary);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:360px;
+  }
+  .file-panel .file-meta .file-badge {
+    display:inline-block; padding:2px 8px; border-radius:3px;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4);
+    font-family:var(--font-display); font-size:.72rem; color:var(--text-secondary); letter-spacing:.5px;
+  }
+  .badge-glass {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:2px 10px; border-radius:3px;
+    background:rgba(255,255,255,0.03); backdrop-filter:var(--glass-blur);
+    border:1px solid rgba(90,107,74,0.4);
+    font-size:.75rem; color:var(--text-secondary);
+  }
+
+  /* ── Viewer ── */
+  .viewer-wrap { flex:1; display:flex; padding:var(--space-md); background:var(--bg-primary); }
+  .viewer {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:400px; position:relative;
+    border-radius:3px; border:1px solid rgba(90,107,74,0.4);
+    background:rgba(255,255,255,0.03); overflow:hidden;
+    box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  /* ── Status / Loading ── */
+  .viewer .status {
+    display:flex; flex-direction:column; align-items:center; gap:var(--space-sm);
+    padding:var(--space-xl); text-align:center; color:var(--text-secondary);
+  }
+  .viewer .status.error { color:var(--color-error); }
+  .viewer .status strong { font-size:1.05rem; color:var(--text-primary); }
+  .viewer .status span { font-size:.85rem; max-width:400px; }
+
+  /* ── Inline images, video, audio ── */
+  .viewer img { max-width:100%; max-height:85vh; object-fit:contain; background:#111827; border-radius:var(--radius-sm); }
+  .viewer video { max-width:100%; max-height:85vh; border-radius:var(--radius-sm); background:#000; }
+  .viewer iframe { width:100%; height:100%; min-height:500px; border:none; border-radius:var(--radius-sm); }
+
+  /* ── Audio Console ── */
+  .audio-console { display:flex; flex-direction:column; align-items:center; gap:var(--space-md); padding:var(--space-lg); width:100%; max-width:560px; }
+  .audio-console canvas { width:100%; height:80px; border-radius:var(--radius-sm); background:var(--bg-secondary); }
+  .audio-console audio { width:100%; }
+  .audio-console .audio-meta { display:flex; gap:var(--space-md); font-size:.8rem; color:var(--text-secondary); }
+
+  /* ── Enhanced Viewer ── */
+  .enhanced-viewer-wrap { width:100%; height:100%; min-height:500px; }
+
+  /* ── Markdown ── */
+  .markdown-body {
+    width:100%; max-width:820px; margin:0 auto; padding:var(--space-lg);
+    color:var(--text-primary); font-size:.92rem; line-height:1.7;
+  }
+  .markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4 { font-family:var(--font-display); color:var(--gold); margin:1.2em 0 .5em; }
+  .markdown-body h1 { font-size:1.6rem; border-bottom:1px solid var(--glass-border); padding-bottom:.3em; }
+  .markdown-body h2 { font-size:1.3rem; }
+  .markdown-body h3 { font-size:1.1rem; }
+  .markdown-body p { margin:.6em 0; }
+  .markdown-body code {
+    font-family:var(--font-mono); font-size:.82em; padding:2px 6px;
+    background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:3px;
+  }
+  .markdown-body pre {
+    background:var(--bg-secondary); border:1px solid var(--glass-border);
+    border-radius:var(--radius-sm); padding:var(--space-md); overflow-x:auto;
+  }
+  .markdown-body pre code { background:none; border:none; padding:0; }
+  .markdown-body blockquote {
+    border-left:3px solid var(--steel); padding-left:var(--space-md);
+    margin:var(--space-md) 0; color:var(--text-secondary);
+  }
+  .markdown-body ul,.markdown-body ol { padding-left:1.5em; }
+  .markdown-body li { margin:.3em 0; }
+  .markdown-body table { border-collapse:collapse; width:100%; margin:var(--space-md) 0; }
+  .markdown-body th,.markdown-body td { border:1px solid var(--glass-border); padding:6px 10px; text-align:left; }
+  .markdown-body th { background:var(--glass-bg); font-family:var(--font-display); }
+
+  /* ── JSON viewer ── */
+  .json-viewer {
+    width:100%; max-width:820px; margin:0 auto; padding:var(--space-md);
+    font-family:var(--font-mono); font-size:.8rem; line-height:1.5;
+    color:var(--text-primary); overflow-x:auto;
+  }
+
+  /* ── Plain text ── */
+  .text-viewer {
+    width:100%; max-width:820px; margin:0 auto; padding:var(--space-md);
+    font-family:var(--font-mono); font-size:.82rem; line-height:1.5;
+    color:var(--text-primary); white-space:pre-wrap; overflow-x:auto;
+  }
+
+  /* ── Table preview ── */
+  .table-scroll { overflow-x:auto; width:100%; max-width:820px; margin:0 auto; }
+  .table-preview { border-collapse:collapse; width:100%; font-size:.8rem; }
+  .table-preview th,.table-preview td { border:1px solid var(--glass-border); padding:4px 8px; text-align:left; white-space:nowrap; }
+  .table-preview th { background:var(--glass-bg); font-family:var(--font-display); color:var(--text-secondary); position:sticky; top:0; }
+
+  /* ── Summary view ── */
+  .summary-view,.data-view,.archive-view,.font-view,.email-view,.doc-view { width:100%; max-width:820px; margin:0 auto; }
+  .summary-page,.data-page,.archive-page,.font-page,.email-page,.doc-page { padding:var(--space-md); }
+  .summary-page h2,.data-page h2,.archive-page h2,.font-page h2,.email-page h2 { font-family:var(--font-display); color:var(--gold); font-size:1.3rem; margin-bottom:var(--space-sm); }
+  .summary-page p,.data-page p,.archive-page p,.font-page p,.email-page p { color:var(--text-secondary); font-size:.85rem; margin-bottom:var(--space-md); }
+  .summary-icon {
+    display:flex; align-items:center; justify-content:center;
+    width:64px; height:64px; border-radius:var(--radius-md);
+    background:var(--glass-bg); border:2px solid var(--glass-border);
+    font-family:var(--font-display); font-size:1.1rem; color:var(--steel); margin-bottom:var(--space-md);
+  }
+  .summary-stack,.data-summary { display:flex; flex-wrap:wrap; gap:var(--space-xs); margin-bottom:var(--space-md); }
+  .summary-chip,.data-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 12px; border-radius:20px;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    font-size:.78rem; color:var(--text-secondary);
+  }
+  .summary-chip strong,.data-chip strong { color:var(--text-primary); }
+
+  /* ── Archive list ── */
+  .archive-list { display:flex; flex-direction:column; gap:2px; max-height:480px; overflow-y:auto; margin-bottom:var(--space-md); border:1px solid var(--glass-border); border-radius:var(--radius-sm); }
+  .archive-row { display:flex; align-items:center; gap:var(--space-sm); padding:4px 10px; background:var(--bg-secondary); font-size:.8rem; }
+  .archive-row strong { font-family:var(--font-mono); font-size:.72rem; color:var(--steel); min-width:48px; }
+  .archive-name { flex:1; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .archive-row .btn { padding:2px 10px; font-size:.72rem; }
+  .archive-entry-preview { border:1px solid var(--glass-border); border-radius:var(--radius-sm); padding:var(--space-md); background:var(--bg-secondary); margin-bottom:var(--space-md); }
+  .archive-entry-preview header { font-weight:600; font-size:.85rem; margin-bottom:var(--space-sm); color:var(--text-primary); }
+  .archive-entry-preview pre { font-family:var(--font-mono); font-size:.78rem; max-height:300px; overflow:auto; }
+
+  /* ── Email view ── */
+  .email-header { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:.85rem; margin-bottom:var(--space-md); }
+  .email-header strong { color:var(--text-secondary); font-weight:500; }
+  .email-header span { color:var(--text-primary); }
+  .email-body { background:var(--bg-secondary); border:1px solid var(--glass-border); border-radius:var(--radius-sm); padding:var(--space-md); margin-bottom:var(--space-md); white-space:pre-wrap; font-size:.85rem; color:var(--text-primary); }
+  .email-attachments { border-top:1px solid var(--glass-border); padding-top:var(--space-sm); }
+  .email-attachments h3 { font-family:var(--font-display); font-size:.9rem; color:var(--gold); margin-bottom:var(--space-sm); }
+  .email-attachment { display:flex; align-items:center; gap:var(--space-sm); font-size:.8rem; padding:2px 0; }
+  .email-attachment span { color:var(--text-primary); }
+  .email-attachment small { color:var(--text-secondary); }
+
+  /* ── Font sample ── */
+  .font-sample { background:var(--bg-secondary); border:1px solid var(--glass-border); border-radius:var(--radius-sm); padding:var(--space-lg); text-align:center; }
+  .font-large { font-size:2.4rem; margin:0 0 var(--space-sm); }
+  .font-body { font-size:1rem; margin:0; color:var(--text-secondary); }
+
+  /* ── Office / DOC page ── */
+  .doc-page { max-width:820px; margin:0 auto; padding:var(--space-md); }
+  .doc-page h2 { font-family:var(--font-display); color:var(--gold); font-size:1.1rem; margin:1em 0 .5em; }
+  .doc-page h1 { font-family:var(--font-display); font-size:1.4rem; color:var(--text-primary); }
+  .doc-page p { font-size:.88rem; line-height:1.6; margin:.4em 0; color:var(--text-primary); }
+  .doc-page table { border-collapse:collapse; width:100%; margin:var(--space-sm) 0; font-size:.8rem; }
+  .doc-page th,.doc-page td { border:1px solid var(--glass-border); padding:4px 8px; }
+  .doc-page th { background:var(--glass-bg); font-family:var(--font-display); }
+  .sheet-section,.slide-section { margin-bottom:var(--space-lg); }
+
+  /* ── Enhanced viewer loading ── */
+  .enhanced-loading {
+    display:flex; flex-direction:column; align-items:center; gap:var(--space-md);
+    padding:var(--space-xl); text-align:center; color:var(--text-secondary);
+  }
+  .enhanced-loading .spinner { width:36px;height:36px;border:3px solid var(--glass-border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite; }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Toast ── */
+  .preview-toast {
+    position:fixed; bottom:var(--space-lg); left:50%; transform:translateX(-50%);
+    z-index:9999;
+    display:flex; align-items:center; gap:var(--space-sm);
+    padding:var(--space-sm) var(--space-md);
+    border-radius:2px;
+    background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+    border:1px solid var(--steel);
+    color:var(--text-primary); font-size:.82rem;
+    animation:toastIn .25s ease;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+  /* ── Responsive ── */
+  @media(max-width:720px) {
+    .shell { padding:0; }
+    .topbar { padding:var(--space-xs) var(--space-sm); }
+    .topbar .title-group h1 { font-size:.88rem; }
+    .file-panel { padding:var(--space-xs) var(--space-sm); flex-direction:column; align-items:stretch; }
+    .file-panel .file-meta .file-name { max-width:200px; }
+    .viewer-wrap { padding:var(--space-sm); }
+    .markdown-body,.json-viewer,.text-viewer { padding:var(--space-sm); }
+  }
+  @media(max-width:480px) {
+    .topbar .title-group h1 { max-width:140px; }
+    .file-panel .file-meta .file-name { max-width:140px; }
+    .nav-btn { padding:4px 10px; font-size:.75rem; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="title-group">
+      <button type="button" class="nav-btn" onclick="history.back()" aria-label="返回"><i class="fas fa-arrow-left"></i> 返回</button>
+      <h1 id="previewTitle">文件预览</h1>
+    </div>
+    <div class="actions">
+      <button type="button" class="nav-btn" id="copyLinkBtn" onclick="KVPreview.copyDirectLink()"><i class="fas fa-link"></i> 复制直链</button>
+      <button type="button" class="nav-btn" id="downloadBtn" onclick="KVPreview.downloadFile()"><i class="fas fa-download"></i> 下载</button>
+      <button type="button" class="nav-btn" data-theme-toggle aria-label="切换主题"><i class="fas fa-moon"></i></button>
+    </div>
+  </header>
+  <section class="file-panel" id="filePanel">
+    <div class="file-meta">
+      <span class="file-name" id="fileNameEl">—</span>
+      <span class="file-badge" id="fileExtBadge">—</span>
+      <span class="badge-glass" id="fileSizeBadge"><i class="fas fa-database"></i> <span id="fileSizeEl">—</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;">
+      <span class="badge-glass" id="fileModifiedBadge" style="display:none;"><i class="far fa-calendar-alt"></i> <span id="fileModifiedEl"></span></span>
+    </div>
+  </section>
+  <main class="viewer-wrap">
+    <div class="viewer" id="viewer">
+      <div class="status" id="initialStatus">
+        <strong>正在加载预览</strong>
+        <span>请稍候…</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="theme.js" defer></script>
+<script>
+/* ================================================
+   1940Netdisk — File Preview Engine
+   Steel glass UI, zero framework dependency
+   ALL business logic preserved from original
+   ================================================ */
+(function() {
+  'use strict';
+
+  /* ── DOM refs ── */
+  const els = {
+    viewer: document.getElementById('viewer'),
+    title: document.getElementById('previewTitle'),
+    fileName: document.getElementById('fileNameEl'),
+    fileExt: document.getElementById('fileExtBadge'),
+    fileSize: document.getElementById('fileSizeEl'),
+    fileModified: document.getElementById('fileModifiedEl'),
+    modifiedBadge: document.getElementById('fileModifiedBadge'),
+    copyBtn: document.getElementById('copyLinkBtn'),
+    downloadBtn: document.getElementById('downloadBtn')
+  };
+
+  /* ── State ── */
+  const state = {
+    fileUrl: '',
+    fileName: '',
+    fileSize: 0,
+    extension: '',
+    rawExt: '',
+    mime: '',
+    lastModified: ''
+  };
+
+  /* ── Constants ── */
+  // Extended file type sets — preserve ALL original classification
+  var IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','ico','svg','avif','heic','heif','tiff','tif','jp2','j2k','jpf','jpx','jpm','mj2','psd','xcf','cr2','nef','arw','dng','raf','rw2','orf','srw','sr2','pef','iiq']);
+  var VIDEO_EXTS = new Set(['mp4','webm','mkv','avi','mov','wmv','flv','m4v','mpg','mpeg','3gp','ogv','ts','mts','m2ts','vob','divx','xvid','rm','rmvb','asf','f4v','h264','h265','hevc']);
+  var AUDIO_EXTS = new Set(['mp3','wav','ogg','flac','aac','wma','m4a','opus','ape','ac3','dts','mid','midi','ra','aiff','au','amr','voc','pcm','webma','weba']);
+  var PDF_EXTS = new Set(['pdf']);
+  var MARKDOWN_EXTS = new Set(['md','markdown','mdown','mkdn','mdwn','mdx','rmd']);
+  var JSON_EXTS = new Set(['json','jsonc','json5','jsonl','hjson']);
+  var TABLE_EXTS = new Set(['csv','tsv','psv']);
+  var ARCHIVE_EXTS = new Set(['zip','jar','tar','gz','gzip','tgz','bz2','bz','tbz','tbz2','xz','txz','zst','7z','rar','z','lz','lzma','lz4','lzh','ar','a','cpio','iso','dmg','hfs','squashfs','cab','wim','swf']);
+  var LOCAL_ARCHIVE_EXTS = new Set(['zip','jar','tar','gz','gzip','tgz']);
+  var FONT_EXTS = new Set(['ttf','otf','woff','woff2','eot','ttc','otc','dfont','sfd']);
+  var EMAIL_EXTS = new Set(['eml','msg','mbox']);
+  var DRAWING_EXTS = new Set(['drawio','dio','excalidraw','mermaid','mmd','plantuml','puml']);
+  var GEO_EXTS = new Set(['geojson','kml','gpx','shp']);
+  var MODEL_EXTS = new Set(['glb','gltf','obj','stl','ply','fbx','dae','3ds','3mf','usd','usdz','kmz','step','stp','iges','igs','ifc']);
+  var CAD_EXTS = new Set(['dwg','dxf','dwf','dwfx','xps']);
+  var EBOOK_EXTS = new Set(['epub','umd']);
+  var MINDMAP_EXTS = new Set(['xmind']);
+  var TYPESET_EXTS = new Set(['typ','typst']);
+  var EDA_EXTS = new Set(['olb','dra','gds','oas','oasis']);
+  var DATA_ASSET_EXTS = new Set(['sqlite','sqlite3','db','parquet','avro','wasm','webarchive']);
+  var SUMMARY_EXTS = new Set(['ofd','psd','ai','eps']);
+  var TEXT_EXTS = new Set(['txt','text','log','ini','cfg','conf','yaml','yml','toml','env','properties','props','bat','cmd','sh','bash','zsh','fish','ps1','psm1','psd1','pssc','reg','inf','nfo','asc','diz','rtf','xml','xsl','xsd','xslt','wsdl','svg','xhtml','html','htm','shtml','jsp','asp','aspx','php','phtml','css','scss','sass','less','styl','js','mjs','cjs','ts','jsx','tsx','vue','svelte','coffee','litcoffee','ls','dart','go','rs','rb','py','java','kt','kts','scala','clj','cljs','edn','ex','exs','elm','hs','lhs','erl','hrl','ml','mli','fs','fsx','fsi','nim','cr','vala','vapi','pl','pm','t','pod','awk','sed','lua','jl','r','rmd','sql','cypher','graphql','gql','proto','gradle','makefile','dockerfile','cmake','meson','ninja','just','pkl','zig','svelte','astro','tex','sty','cls','bib','bst','ltx','ctx','mkii','mkiv','mkvi','dtx','ins','cfg','cbl','cob','cpy','pas','pp','lpr','dpr','inc','d','ddl','dml','prc','fnc','trg','vw','m','q','k','h','c','cpp','cxx','cc','hpp','hxx','hh','hpp','ixx','txx','tpp','inl','ipp','mm','m','swift','m','metal','cu','cuh','cl','clh','OpenCL','ispc','def','exp','lib','dll','so','a','dylib','map','symbols','debug','pdb','idb','pyd','pyx','pxd','pxi','i','mi','ii','sig','sml','fun','erl','beam','re3','rel','app','app.src','as','asc','swf','fla','xfl','ps','eps','prn','spl','hpl','pcl','gcode','nc','cnc','tap','fanuc','heidenhain','dxf','iges','igs','step','stp','stl','amf','3mf','obj','mtl','ply','off','wrl','wrz','x3d','x3dv','x3db','vrml','vrml97','blend','mb','ma','c4d','lwo','lw','lws','lwob','lwa','max','3ds','ase','dwg','dwf','dwfx','dgn','rfa','rvt','rte','rft','ifc','ifcxml','ifczip','skp','kmz','kmzcmp','bin','dat','rom','iso','img','dsk','nrg','mdf','mds','ccd','sub','cue','b5i','b6t','bwt','bws','cdi','pdi','gi','gcx','ptf','sd0','sd1','dmg','part','sav','sram','state','save','mcworld','mclevel','mcfunction','datapack','resourcepack','behaviorpack','mcaddon','mctemplate','mcpack','mca','nbt','schematic','litematic','vox','voxels','qb','qbt','vxl','kv6','kvx','kv7','vsl','cub','3dr','vxc','ngrid','nglyph','glyph','bricks','bricklink','ldr','mpd','dat','io','stl','zip','rar','7z','gz','bz2','xz','tar','zst','lz4','lz','cab','arj','zoo','lha','lzh','arc','ace','apk','ipa','msi','deb','rpm','pkg','appimage','flatpak','snap','nupkg','vsix','crx','xpi','jar','war','ear','sar','nar','kar','mar','par','har','tar.gz','tar.bz2','tar.xz','tar.zst','tbz2','txz','tgz','tlz','tlz4','tzo','tbr','tbz','tgz','tzst','zst','br','brotli','lz4','zlib','deflate','gzip','pack','pack.gz','uc2','uc','uncompressed','raw','dat','iso','img','dmg','vhd','vhdx','vmdk','vdi','qed','qcow','qcow2','ova','ovf','hdd','hds','hdi','sparsebundle','sparseimage']);
+  var OFFICE_KIND_BY_EXT = { docx:'docx',xlsx:'xlsx',pptx:'pptx',docm:'docx',xlsm:'xlsx',pptm:'pptx',dotx:'docx',xltx:'xlsx',potx:'pptx',dotm:'docx',xltm:'xlsx',potm:'pptx' };
+  var OFFICE_COMPAT_EXTS = new Set(['doc','dot','rtf','odt','xls','xlsb','xlt','xltm','ods','fods','numbers','ppt','odp']);
+  var OPEN_XML_EXTS = new Set(Object.keys(OFFICE_KIND_BY_EXT));
+  var ENHANCED_VIEWER_EXTS = new Set(['docx','xlsx','pptx','docm','xlsm','pptm','dotx','xltx','potx','dotm','xltm','potm','drawio','dio','excalidraw','mermaid','mmd','plantuml','puml','xmind','geojson','kml','gpx','epub','wav','wave','mp3','flac','opus','aac','m4a','webma','weba','doc','dot','rtf','odt','xls','xlsb','xlt','xltm','ods','fods','numbers','ppt','odp','psd','ai','eps','dwg','dxf','dwf','dwfx','xps','sqlite','sqlite3','db','parquet','avro','glb','gltf','obj','stl','ply','fbx','dae','3ds','3mf','usd','usdz','kmz','step','stp','iges','igs','ifc','ofd','eml','msg','mbox','olb','dra','gds','oas','oasis','typ','typst','json','json5','csv','tsv','psv','html','htm','xhtml','svg','md','markdown','pdf']);
+
+  /* ── Boot ── */
+  function init() {
+    var params = new URLSearchParams(location.search);
+    var url = params.get('url') || params.get('file') || '';
+    var name = params.get('name') || url.split('/').pop() || 'unknown';
+    var size = Number(params.get('size')) || 0;
+    var mime = params.get('mime') || '';
+    var modified = params.get('modified') || '';
+    var embed = params.has('embed');
+
+    state.fileUrl = url;
+    state.fileName = name;
+    state.fileSize = size;
+    state.mime = mime;
+    state.lastModified = modified;
+    state.extension = getExtension(name);
+    state.rawExt = state.extension;
+
+    // Set UI
+    document.title = name + ' — 1940Netdisk 预览';
+    els.title.textContent = name;
+    els.fileName.textContent = name;
+    els.fileExt.textContent = (state.extension || '?').toUpperCase();
+    els.fileSize.textContent = size > 0 ? formatSize(size) : '未知大小';
+    if (modified) {
+      els.modifiedBadge.style.display = 'inline-flex';
+      els.fileModified.textContent = modified;
+    }
+
+    if (embed) document.body.classList.add('embed-mode');
+
+    if (!url) {
+      showStatus('缺少文件 URL', '请在查询参数中提供 url 或 file 参数。', 'error');
+      return;
+    }
+
+    // Check if enhanced viewer should handle it
+    if (ENHANCED_VIEWER_EXTS.has(state.extension)) {
+      tryEnhancedViewer();
+      return;
+    }
+
+    // Route to appropriate renderer
+    routePreview();
+  }
+
+  function getExtension(name) {
+    var idx = (name || '').lastIndexOf('.');
+    if (idx < 0) return '';
+    var ext = name.slice(idx + 1).toLowerCase();
+    // Handle .tar.gz etc
+    var prev = name.slice(0, idx).toLowerCase();
+    if (ext === 'gz' && prev.endsWith('.tar')) return 'tgz';
+    if (ext === 'bz2' && prev.endsWith('.tar')) return 'tbz2';
+    if (ext === 'xz' && prev.endsWith('.tar')) return 'txz';
+    if (ext === 'zst' && prev.endsWith('.tar')) return 'tzst';
+    return ext;
+  }
+
+  function formatSize(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    var units = ['B','KB','MB','GB','TB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(1024));
+    i = Math.min(i, units.length - 1);
+    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+  }
+
+  /* ── Route to renderer ── */
+  function routePreview() {
+    var ext = state.extension;
+    if (IMAGE_EXTS.has(ext)) { renderImage(); return; }
+    if (VIDEO_EXTS.has(ext)) { renderVideo(); return; }
+    if (AUDIO_EXTS.has(ext)) { renderAudio(); return; }
+    if (PDF_EXTS.has(ext)) { renderPdf(); return; }
+    if (MARKDOWN_EXTS.has(ext)) { renderMarkdown(); return; }
+    if (JSON_EXTS.has(ext)) { renderJson(); return; }
+    if (TABLE_EXTS.has(ext)) { renderTableData(); return; }
+    if (ARCHIVE_EXTS.has(ext)) { renderArchive(); return; }
+    if (FONT_EXTS.has(ext)) { renderFont(); return; }
+    if (EMAIL_EXTS.has(ext)) { renderEmail(); return; }
+    if (OPEN_XML_EXTS.has(ext)) {
+      renderOpenXml(OFFICE_KIND_BY_EXT[ext]);
+      return;
+    }
+    if (TEXT_EXTS.has(ext) || isLikelyText(ext, state.mime)) { renderText(); return; }
+    if (OFFICE_COMPAT_EXTS.has(ext) || SUMMARY_EXTS.has(ext)) {
+      renderCapabilitySummary(getCapabilityInfo(ext));
+      return;
+    }
+    renderCapabilitySummary(getCapabilityInfo(ext));
+  }
+
+  function isLikelyText(ext, mime) {
+    return mime && (mime.startsWith('text/') || mime === 'application/json' || mime.includes('javascript') || mime.includes('ecmascript') || mime.includes('xml') || mime === 'application/wasm');
+  }
+
+  /* ── Enhanced Viewer ── */
+  function tryEnhancedViewer() {
+    var src = 'https://cdn.jsdelivr.net/npm/flyfish-file-viewer@latest/dist/viewer.umd.min.js';
+    var loaded = document.querySelector('script[src*="flyfish-file-viewer"]');
+    if (loaded) {
+      mountEnhancedViewer();
+      return;
+    }
+    var script = document.createElement('script');
+    script.src = src;
+    script.crossOrigin = 'anonymous';
+    script.onload = mountEnhancedViewer;
+    script.onerror = function() {
+      console.warn('Enhanced viewer unavailable, falling back to native rendering.');
+      routePreview();
+    };
+    document.head.appendChild(script);
+    showStatus('正在加载增强预览引擎', '按需加载文件预览能力…');
+  }
+
+  function mountEnhancedViewer() {
+    var container = document.getElementById('enhancedViewerContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'enhancedViewerContainer';
+      container.className = 'enhanced-viewer-wrap';
+    }
+    clearViewer();
+    els.viewer.appendChild(container);
+
+    if (window.FlyfishFileViewer && FlyfishFileViewer.mount) {
+      try {
+        FlyfishFileViewer.mount(container, {
+          url: state.fileUrl,
+          fileName: state.fileName,
+          size: state.fileSize
+        });
+      } catch (e) {
+        console.warn('Enhanced viewer mount failed:', e);
+        container.innerHTML = '<div class="enhanced-loading"><div class="spinner"></div><strong>增强预览载入中…</strong><span>如果长时间无响应，请尝试<a href="'+state.fileUrl+'" download style="color:var(--gold)">下载文件</a></span></div>';
+      }
+    } else {
+      container.innerHTML = '<div class="enhanced-loading"><div class="spinner"></div><strong>增强预览启动中…</strong></div>';
+    }
+  }
+
+  /* ── Deferred gate for large files ── */
+  var _previewGates = {};
+
+  function createGate(fileSpec) {
+    var gate = document.createElement('div');
+    gate.className = 'status';
+    gate.innerHTML = '<strong>大文件预览门控</strong><span>此文件较大（'+formatSize(fileSpec.size)+'），点击下方按钮继续。</span>';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'nav-btn';
+    btn.textContent = '继续预览';
+    btn.style.marginTop = '12px';
+    btn.addEventListener('click', function() { fileSpec.onReveal(); });
+    gate.appendChild(btn);
+    return gate;
+  }
+
+  function isPreviewGated(size, fallbackThreshold) {
+    fallbackThreshold = fallbackThreshold || 20 * 1024 * 1024;
+    return size > fallbackThreshold;
+  }
+
+  /* ── Image ── */
+  function renderImage() {
+    if (isPreviewGated(state.fileSize)) {
+      var gate = createGate({ size: state.fileSize, onReveal: function() { _renderImage(); } });
+      clearViewer();
+      els.viewer.appendChild(gate);
+      return;
+    }
+    _renderImage();
+  }
+
+  function _renderImage() {
+    var img = document.createElement('img');
+    img.alt = state.fileName;
+    img.src = state.fileUrl;
+    img.loading = 'lazy';
+    img.onerror = function() { showStatus('图片加载失败', '无法从服务器获取此图片。', 'error'); };
+    clearViewer();
+    els.viewer.appendChild(img);
+  }
+
+  /* ── Video ── */
+  function renderVideo() {
+    if (isPreviewGated(state.fileSize)) {
+      createGate({ size: state.fileSize, onReveal: function() { _renderVideo(); } });
+      return;
+    }
+    _renderVideo();
+  }
+
+  function _renderVideo() {
+    var video = document.createElement('video');
+    video.controls = true;
+    video.preload = 'metadata';
+    video.src = state.fileUrl;
+    video.style.maxWidth = '100%';
+    video.style.maxHeight = '85vh';
+    clearViewer();
+    els.viewer.appendChild(video);
+  }
+
+  /* ── Audio ── */
+  function renderAudio() {
+    var container = document.createElement('div');
+    container.className = 'audio-console';
+
+    var canvas = document.createElement('canvas');
+    canvas.width = 560;
+    canvas.height = 80;
+    container.appendChild(canvas);
+
+    var audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'metadata';
+    audio.src = state.fileUrl;
+    audio.style.width = '100%';
+    container.appendChild(audio);
+
+    var meta = document.createElement('div');
+    meta.className = 'audio-meta';
+    meta.innerHTML = '<span>'+state.fileName+'</span><span>'+formatSize(state.fileSize)+'</span>';
+    container.appendChild(meta);
+
+    clearViewer();
+    els.viewer.appendChild(container);
+
+    // Waveform visualization
+    var ctx = canvas.getContext('2d');
+    var analyser = null;
+    var audioCtx = null;
+    var source = null;
+    var rafId = null;
+
+    function drawWaveform() {
+      if (!analyser) return;
+      var data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteTimeDomainData(data);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#D4AF37';
+      ctx.beginPath();
+      var slice = canvas.width / data.length;
+      var x = 0;
+      for (var i = 0; i < data.length; i++) {
+        var v = data[i] / 128.0;
+        var y = v * canvas.height / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += slice;
+      }
+      ctx.stroke();
+      rafId = requestAnimationFrame(drawWaveform);
+    }
+
+    audio.addEventListener('play', function() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          source = audioCtx.createMediaElementSource(audio);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        drawWaveform();
+      } catch(e) {
+        console.warn('Audio visualization unavailable:', e);
+      }
+    });
+
+    audio.addEventListener('pause', function() {
+      if (rafId) cancelAnimationFrame(rafId);
+    });
+
+    audio.addEventListener('ended', function() {
+      if (rafId) cancelAnimationFrame(rafId);
+    });
+  }
+
+  /* ── PDF ── */
+  function renderPdf() {
+    var iframe = document.createElement('iframe');
+    iframe.src = state.fileUrl;
+    iframe.title = state.fileName;
+    iframe.allow = 'fullscreen';
+    clearViewer();
+    els.viewer.appendChild(iframe);
+  }
+
+  /* ── Text ── */
+  async function renderText() {
+    try {
+      var text = await fetchText('文本文件');
+      showTextView(text);
+    } catch(e) {
+      showStatus('文本加载失败', e.message, 'error');
+    }
+  }
+
+  async function fetchText(label) {
+    var response = await fetch(state.fileUrl, { credentials: 'include' });
+    if (!response.ok) throw new Error(label + ' 读取失败：HTTP ' + response.status);
+    return await response.text();
+  }
+
+  function showTextView(text) {
+    var pre = document.createElement('pre');
+    pre.className = 'text-viewer';
+    pre.textContent = text;
+    clearViewer();
+    els.viewer.appendChild(pre);
+  }
+
+  /* ── Markdown ── */
+  async function renderMarkdown() {
+    try {
+      var text = await fetchText('Markdown 文件');
+      var container = document.createElement('div');
+      container.className = 'markdown-body';
+      appendMarkdown(container, text);
+      clearViewer();
+      els.viewer.appendChild(container);
+    } catch(e) {
+      showStatus('Markdown 加载失败', e.message, 'error');
+    }
+  }
+
+  function appendMarkdown(container, text) {
+    var lines = (text || '').split('\n');
+    var i = 0;
+    var listStack = [];
+
+    function closeList() {
+      while (listStack.length) container.appendChild(listStack.pop());
+    }
+
+    function addInline(line) {
+      return line
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    }
+
+    while (i < lines.length) {
+      var line = lines[i];
+      var trimmed = line.trim();
+
+      // Code block
+      if (trimmed.startsWith('```')) {
+        closeList();
+        var lang = trimmed.slice(3).trim();
+        var codeLines = [];
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith('```')) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        var pre = document.createElement('pre');
+        var code = document.createElement('code');
+        code.textContent = codeLines.join('\n');
+        pre.appendChild(code);
+        container.appendChild(pre);
+        i++;
+        continue;
+      }
+
+      // Headings
+      if (/^#{1,4}\s/.test(trimmed)) {
+        closeList();
+        var level = trimmed.match(/^#+/)[0].length;
+        var h = document.createElement('h' + Math.min(level, 4));
+        h.innerHTML = addInline(trimmed.replace(/^#+\s*/, ''));
+        container.appendChild(h);
+        i++;
+        continue;
+      }
+
+      // Blockquote
+      if (trimmed.startsWith('> ')) {
+        closeList();
+        var bq = document.createElement('blockquote');
+        var quoteLines = [];
+        while (i < lines.length && lines[i].trim().startsWith('> ')) {
+          quoteLines.push(lines[i].trim().slice(2));
+          i++;
+        }
+        bq.innerHTML = addInline(quoteLines.join('<br>'));
+        container.appendChild(bq);
+        continue;
+      }
+
+      // Unordered list
+      if (/^[-*+]\s/.test(trimmed)) {
+        if (!listStack.length || listStack[listStack.length - 1].tagName !== 'UL') {
+          closeList();
+          var ul = document.createElement('ul');
+          listStack.push(ul);
+        }
+        var li = document.createElement('li');
+        li.innerHTML = addInline(trimmed.replace(/^[-*+]\s*/, ''));
+        listStack[listStack.length - 1].appendChild(li);
+        i++;
+        continue;
+      }
+
+      // Ordered list
+      if (/^\d+\.\s/.test(trimmed)) {
+        if (!listStack.length || listStack[listStack.length - 1].tagName !== 'OL') {
+          closeList();
+          var ol = document.createElement('ol');
+          listStack.push(ol);
+        }
+        var oli = document.createElement('li');
+        oli.innerHTML = addInline(trimmed.replace(/^\d+\.\s*/, ''));
+        listStack[listStack.length - 1].appendChild(oli);
+        i++;
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^---+\s*$/.test(trimmed) || /^___+\s*$/.test(trimmed)) {
+        closeList();
+        container.appendChild(document.createElement('hr'));
+        i++;
+        continue;
+      }
+
+      // Paragraph
+      closeList();
+      if (trimmed) {
+        var p = document.createElement('p');
+        p.innerHTML = addInline(trimmed);
+        container.appendChild(p);
+      } else {
+        container.appendChild(document.createElement('br'));
+      }
+      i++;
+    }
+    closeList();
+  }
+
+  /* ── JSON ── */
+  async function renderJson() {
+    try {
+      var text = await fetchText('JSON 文件');
+      var parsed = JSON.parse(stripJsonComments(text));
+      var formatted = JSON.stringify(parsed, null, 2);
+      var pre = document.createElement('pre');
+      pre.className = 'json-viewer';
+      pre.textContent = formatted;
+      clearViewer();
+      els.viewer.appendChild(pre);
+    } catch(e) {
+      showStatus('JSON 解析失败', e.message, 'error');
+    }
+  }
+
+  function stripJsonComments(text) {
+    return String(text || '')
+      .replace(/\\"|"(?:\\"|[^"])*"/g, function(m) { return m; })
+      .replace(/\/\/.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+  }
+
+  /* ── Table Data (CSV/TSV) ── */
+  async function renderTableData() {
+    try {
+      var text = await fetchText('表格数据');
+      var delimiter = state.extension === 'tsv' ? '\t' : ',';
+      var rows = parseDelimited(text, delimiter);
+
+      if (!rows.length || rows.every(function(r) { return r.every(function(c) { return !c.trim(); }); })) {
+        showStatus('表格为空', '没有读取到可展示的行。');
+        return;
+      }
+
+      var maxCols = Math.min(40, Math.max.apply(null, rows.map(function(row) { return row.length; })));
+      var previewRows = rows.slice(0, 260);
+      var wrapper = createPagedView('data-view', 'data-page');
+      var page = wrapper.firstElementChild;
+      appendPageHeading(page, state.extension.toUpperCase() + ' 表格预览', '只渲染前 260 行和前 40 列，避免大文件阻塞浏览器。');
+      page.appendChild(createDataSummary([
+        ['总行数', String(rows.length)],
+        ['预览行', String(previewRows.length)],
+        ['列数', String(maxCols)],
+        ['大小', state.fileSize > 0 ? formatSize(state.fileSize) : '未知']
+      ]));
+
+      var scroll = document.createElement('div');
+      scroll.className = 'table-scroll';
+      var table = document.createElement('table');
+      table.className = 'table-preview';
+
+      var thead = document.createElement('thead');
+      var headerRow = document.createElement('tr');
+      var header = previewRows[0] || [];
+      for (var col = 0; col < maxCols; col++) {
+        var th = document.createElement('th');
+        th.textContent = header[col] || ('列 ' + (col + 1));
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      var tbody = document.createElement('tbody');
+      for (var r = 0; r < previewRows.length - 1; r++) {
+        var tr = document.createElement('tr');
+        var row = previewRows[r + 1] || [];
+        for (var c = 0; c < maxCols; c++) {
+          var td = document.createElement('td');
+          td.textContent = row[c] || '';
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      scroll.appendChild(table);
+      page.appendChild(scroll);
+
+      clearViewer();
+      els.viewer.appendChild(wrapper);
+    } catch(e) {
+      showStatus('表格加载失败', e.message, 'error');
+    }
+  }
+
+  function parseDelimited(text, delimiter) {
+    var rows = [];
+    var row = [];
+    var cell = '';
+    var quoted = false;
+    var input = String(text || '');
+
+    for (var i = 0; i < input.length; i++) {
+      var char = input[i];
+      var next = input[i + 1];
+
+      if (char === '"' && quoted && next === '"') {
+        cell += '"';
+        i++;
+        continue;
+      }
+      if (char === '"') {
+        quoted = !quoted;
+        continue;
+      }
+      if (!quoted && char === delimiter) {
+        row.push(cell);
+        cell = '';
+        continue;
+      }
+      if (!quoted && (char === '\n' || char === '\r')) {
+        if (char === '\r' && next === '\n') i++;
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = '';
+        continue;
+      }
+      cell += char;
+    }
+    row.push(cell);
+    rows.push(row);
+    return rows;
+  }
+
+  /* ── Archive ── */
+  async function renderArchive() {
+    var ext = state.extension;
+    if (!LOCAL_ARCHIVE_EXTS.has(ext)) {
+      renderCapabilitySummary({
+        title: '压缩包已识别',
+        detail: '此压缩格式已进入增强预览候选。增强引擎不可用时，1940Netdisk 不会在本地回退模式整包下载解析，避免大文件阻塞浏览器。',
+        category: '归档容器',
+        notes: [['策略', 'ZIP/JAR/TAR/TAR.GZ 可本地读取目录。'], ['建议', 'RAR、7Z、XZ、ZST 等格式使用增强预览或下载到本地工具打开。']]
+      });
+      return;
+    }
+    showStatus('正在读取压缩包目录', '仅在需要时解析目录，避免一次性展开大文件。');
+    var response = await fetch(state.fileUrl, { credentials: 'include' });
+    if (!response.ok) throw new Error('压缩包读取失败：HTTP ' + response.status);
+    var buffer = await response.arrayBuffer();
+
+    if (ext === 'zip' || ext === 'jar') {
+      var zip = await loadZip(buffer);
+      renderArchivePage('ZIP 压缩包目录', zip.entries(), zip);
+      return;
+    }
+
+    if (ext === 'tar') {
+      var tar = createTarSource(buffer);
+      renderArchivePage('TAR 归档目录', tar.entries(), tar);
+      return;
+    }
+
+    if ((ext === 'tgz' || ext === 'gz' || ext === 'gzip') && 'DecompressionStream' in window) {
+      try {
+        var stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+        var inflated = await new Response(stream).arrayBuffer();
+        if (ext === 'tgz' || /\.tar\.gz$/i.test(state.fileName)) {
+          var tarGz = createTarSource(inflated);
+          renderArchivePage('TAR.GZ 归档目录', tarGz.entries(), tarGz);
+          return;
+        }
+      } catch(err) {
+        console.warn('gzip preview skipped:', err);
+      }
+    }
+
+    renderCapabilitySummary({
+      title: '压缩包已识别',
+      detail: '当前轻量预览已支持 ZIP/JAR 目录读取和 TAR/TAR.GZ 目录读取。RAR、7Z、BZ2、XZ 需要更重的 WASM 解压器，建议下载或后续接入专用渲染器。',
+      category: '归档容器'
+    });
+  }
+
+  function renderArchivePage(title, entries, source) {
+    var visibleEntries = entries.filter(function(e) { return !e.name.endsWith('/'); }).slice(0, 500);
+    var wrapper = createPagedView('archive-view', 'archive-page');
+    var page = wrapper.firstElementChild;
+    appendPageHeading(page, title, '共识别 ' + entries.length + ' 个条目，当前展示前 ' + visibleEntries.length + ' 个文件。');
+    page.appendChild(createDataSummary([
+      ['格式', state.extension.toUpperCase()],
+      ['文件数', String(entries.filter(function(e) { return !e.isDirectory; }).length)],
+      ['目录数', String(entries.filter(function(e) { return e.isDirectory; }).length)],
+      ['大小', state.fileSize > 0 ? formatSize(state.fileSize) : '未知']
+    ]));
+
+    var list = document.createElement('div');
+    list.className = 'archive-list';
+    var previewBox = document.createElement('div');
+    previewBox.className = 'archive-entry-preview';
+    previewBox.hidden = true;
+
+    for (var i = 0; i < visibleEntries.length; i++) {
+      var entry = visibleEntries[i];
+      var row = document.createElement('div');
+      row.className = 'archive-row';
+      var badge = document.createElement('strong');
+      badge.textContent = entry.isDirectory ? '目录' : (getExtension(entry.name) || '文件').slice(0, 4).toUpperCase();
+
+      var nameEl = document.createElement('div');
+      nameEl.className = 'archive-name';
+      nameEl.textContent = entry.name;
+
+      row.append(badge, nameEl);
+      if (canPreviewArchiveEntry(entry)) {
+        (function(ent) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'nav-btn';
+          button.textContent = '预览';
+          button.style.padding = '2px 10px';
+          button.style.fontSize = '.72rem';
+          button.addEventListener('click', function() { previewArchiveEntry(source, ent, previewBox); });
+          row.appendChild(button);
+        })(entry);
+      }
+      list.appendChild(row);
+    }
+
+    page.append(list, previewBox);
+    clearViewer();
+    els.viewer.appendChild(wrapper);
+  }
+
+  function canPreviewArchiveEntry(entry) {
+    if (entry.isDirectory) return false;
+    var ext = getExtension(entry.name);
+    var size = Number(entry.uncompressedSize || 0);
+    if (size > 2 * 1024 * 1024) return false;
+    return IMAGE_EXTS.has(ext) || TEXT_EXTS.has(ext) || MARKDOWN_EXTS.has(ext) || JSON_EXTS.has(ext) || TABLE_EXTS.has(ext);
+  }
+
+  async function previewArchiveEntry(source, entry, previewBox) {
+    previewBox.hidden = false;
+    previewBox.replaceChildren();
+    var header = document.createElement('header');
+    header.textContent = entry.name;
+    previewBox.appendChild(header);
+
+    try {
+      var data = await source.bytes(entry.name);
+      if (!data) throw new Error('没有读取到内部文件内容。');
+      var ext = getExtension(entry.name);
+      if (IMAGE_EXTS.has(ext)) {
+        var img = document.createElement('img');
+        img.alt = entry.name;
+        img.src = URL.createObjectURL(new Blob([data], { type: mimeForExtension(ext) }));
+        img.style.maxWidth = '100%';
+        img.style.display = 'block';
+        img.style.background = '#111827';
+        previewBox.appendChild(img);
+        return;
+      }
+      var text = new TextDecoder('utf-8').decode(data);
+      var pre = document.createElement('pre');
+      pre.textContent = JSON_EXTS.has(ext) ? tryFormatJson(text) : text;
+      pre.style.fontFamily = 'var(--font-mono)';
+      pre.style.fontSize = '.78rem';
+      pre.style.maxHeight = '300px';
+      pre.style.overflow = 'auto';
+      previewBox.appendChild(pre);
+    } catch(error) {
+      var errPre = document.createElement('pre');
+      errPre.textContent = error.message || '内部文件预览失败。';
+      errPre.style.fontFamily = 'var(--font-mono)';
+      previewBox.appendChild(errPre);
+    }
+  }
+
+  function tryFormatJson(text) {
+    try { return JSON.stringify(JSON.parse(stripJsonComments(text)), null, 2); }
+    catch(e) { return text; }
+  }
+
+  function mimeForExtension(ext) {
+    var map = {
+      jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',
+      webp:'image/webp',svg:'image/svg+xml',bmp:'image/bmp',ico:'image/x-icon',avif:'image/avif'
+    };
+    return map[ext] || 'application/octet-stream';
+  }
+
+  function createTarSource(arrayBuffer) {
+    var bytes = new Uint8Array(arrayBuffer);
+    var entries = [];
+    var offset = 0;
+
+    while (offset + 512 <= bytes.length) {
+      var header = bytes.slice(offset, offset + 512);
+      if (header.every(function(b) { return b === 0; })) break;
+
+      var name = readTarString(header, 0, 100);
+      var prefix = readTarString(header, 345, 155);
+      var fullName = [prefix, name].filter(Boolean).join('/');
+      var size = parseInt(readTarString(header, 124, 12).trim() || '0', 8) || 0;
+      var typeFlag = String.fromCharCode(header[156] || 0);
+      var dataStart = offset + 512;
+      var isDirectory = typeFlag === '5' || fullName.endsWith('/');
+
+      if (fullName) {
+        entries.push({
+          name: fullName,
+          uncompressedSize: size,
+          compressedSize: size,
+          method: 'tar',
+          dataStart: dataStart,
+          isDirectory: isDirectory
+        });
+      }
+      offset = dataStart + Math.ceil(size / 512) * 512;
+    }
+
+    return {
+      entries: function() { return entries; },
+      bytes: async function(name) {
+        var entry = entries.find(function(e) { return e.name === name; });
+        if (!entry) return null;
+        return bytes.slice(entry.dataStart, entry.dataStart + entry.uncompressedSize);
+      }
+    };
+  }
+
+  function readTarString(bytes, start, length) {
+    return new TextDecoder('utf-8').decode(bytes.slice(start, start + length)).replace(/\0.*$/g, '');
+  }
+
+  /* ── Font ── */
+  async function renderFont() {
+    showStatus('正在加载字体样张', '字体只会临时注册到当前预览页。');
+    if (!('FontFace' in window)) {
+      showStatus('当前浏览器不支持 FontFace 预览', '可以下载字体后用本地字体管理器查看。', 'error');
+      return;
+    }
+
+    var response = await fetch(state.fileUrl, { credentials: 'include' });
+    if (!response.ok) throw new Error('字体读取失败：HTTP ' + response.status);
+    var blob = await response.blob();
+    var objectUrl = URL.createObjectURL(blob);
+    var family = 'KVaultPreviewFont' + Date.now();
+
+    try {
+      var face = new FontFace(family, 'url(' + objectUrl + ')');
+      await face.load();
+      document.fonts.add(face);
+    } catch(error) {
+      URL.revokeObjectURL(objectUrl);
+      showStatus('字体加载失败', error.message || '浏览器无法解析该字体文件。', 'error');
+      return;
+    }
+
+    var wrapper = createPagedView('font-view', 'font-page');
+    var page = wrapper.firstElementChild;
+    appendPageHeading(page, '字体样张', '使用浏览器字体接口在本页临时加载，离开预览后不会写入系统。');
+    page.appendChild(createDataSummary([
+      ['格式', state.extension.toUpperCase()],
+      ['大小', state.fileSize > 0 ? formatSize(state.fileSize) : '未知'],
+      ['来源', '1940Netdisk 文件直链'],
+      ['状态', '已加载']
+    ]));
+
+    var sample = document.createElement('div');
+    sample.className = 'font-sample';
+    sample.style.fontFamily = '"' + family + '", sans-serif';
+    var large = document.createElement('p');
+    large.className = 'font-large';
+    large.textContent = '1940Netdisk 文件预览 0123456789';
+    var body = document.createElement('p');
+    body.className = 'font-body';
+    body.textContent = '中文样张：轻量、清晰、可审阅。英文字符样张：Aa Bb Cc 0123456789。';
+    sample.append(large, body);
+    page.appendChild(sample);
+
+    clearViewer();
+    els.viewer.appendChild(wrapper);
+  }
+
+  /* ── Email ── */
+  async function renderEmail() {
+    if (state.extension === 'msg') {
+      renderCapabilitySummary({
+        title: 'Outlook 邮件已识别',
+        detail: 'MSG 属于复合二进制邮件容器。增强预览可用时会交给 File Viewer 邮件渲染器；本地回退模式提供安全摘要，避免误读私有二进制内容。',
+        category: '邮件归档'
+      });
+      return;
+    }
+
+    showStatus('正在解析邮件', '会在浏览器本地提取头信息、正文和附件清单。');
+    var text = await fetchText('邮件');
+    var mailText = state.extension === 'mbox' ? firstMboxMessage(text) : text;
+    var parsed = parseEmailMessage(mailText);
+    clearViewer();
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'email-view';
+    var page = document.createElement('article');
+    page.className = 'email-page';
+    appendPageHeading(page, parsed.subject || '邮件预览', '只读展示邮件头信息、正文和附件名称，不执行邮件中的脚本。');
+
+    var header = document.createElement('div');
+    header.className = 'email-header';
+    appendEmailField(header, '发件人', parsed.from || '未知');
+    appendEmailField(header, '收件人', parsed.to || '未知');
+    appendEmailField(header, '时间', parsed.date || '未知');
+    appendEmailField(header, '主题', parsed.subject || '无主题');
+    page.appendChild(header);
+
+    var body = document.createElement('div');
+    body.className = 'email-body';
+    body.textContent = parsed.body || '没有提取到可读正文。';
+    page.appendChild(body);
+
+    if (parsed.attachments.length) {
+      var list = document.createElement('div');
+      list.className = 'email-attachments';
+      var heading = document.createElement('h3');
+      heading.textContent = '附件清单（' + parsed.attachments.length + '）';
+      list.appendChild(heading);
+      for (var a = 0; a < parsed.attachments.length; a++) {
+        var att = parsed.attachments[a];
+        var row = document.createElement('div');
+        row.className = 'email-attachment';
+        var nameEl = document.createElement('span');
+        nameEl.textContent = att.name || '未命名附件';
+        var meta = document.createElement('small');
+        meta.textContent = att.type || '附件';
+        row.append(nameEl, meta);
+        list.appendChild(row);
+      }
+      page.appendChild(list);
+    }
+
+    wrapper.appendChild(page);
+    els.viewer.appendChild(wrapper);
+  }
+
+  function appendEmailField(parent, label, value) {
+    var strong = document.createElement('strong');
+    strong.textContent = label;
+    var span = document.createElement('span');
+    span.textContent = decodeMimeWords(value);
+    parent.append(strong, span);
+  }
+
+  function firstMboxMessage(text) {
+    var normalized = String(text || '').replace(/\r\n/g, '\n');
+    var parts = normalized.split(/\nFrom .*\n/g).filter(function(p) { return p.trim(); });
+    return parts[0] || normalized;
+  }
+
+  function parseEmailMessage(raw) {
+    var normalized = String(raw || '').replace(/\r\n/g, '\n');
+    var splitIndex = normalized.search(/\n\n/);
+    var headerText = splitIndex >= 0 ? normalized.slice(0, splitIndex) : '';
+    var bodyText = splitIndex >= 0 ? normalized.slice(splitIndex + 2) : normalized;
+    var headers = parseEmailHeaders(headerText);
+    var contentType = headers['content-type'] || '';
+    var boundary = (contentType.match(/boundary="?([^";]+)"?/i) || [])[1] || '';
+    var attachments = [];
+    var body = bodyText;
+
+    if (boundary) {
+      var parts = bodyText.split('--' + boundary);
+      var readable = [];
+      for (var p = 0; p < parts.length; p++) {
+        var part = parts[p];
+        var idx = part.search(/\n\n/);
+        if (idx < 0) continue;
+        var partHeaders = parseEmailHeaders(part.slice(0, idx));
+        var partBody = part.slice(idx + 2).trim();
+        var disposition = partHeaders['content-disposition'] || '';
+        var partType = partHeaders['content-type'] || '';
+        var fileName = extractMailFileName(disposition) || extractMailFileName(partType);
+
+        if (/attachment/i.test(disposition) || fileName) {
+          attachments.push({ name: fileName || '未命名附件', type: cleanContentType(partType) });
+        } else if (/text\/plain/i.test(partType)) {
+          readable.push(decodeTransferText(partBody, partHeaders['content-transfer-encoding']));
+        } else if (!readable.length && /text\/html/i.test(partType)) {
+          readable.push(stripHtml(decodeTransferText(partBody, partHeaders['content-transfer-encoding'])));
+        }
+      }
+      body = readable.filter(Boolean).join('\n\n');
+    } else if (/text\/html/i.test(contentType)) {
+      body = stripHtml(bodyText);
+    }
+
+    return {
+      from: headers.from || '',
+      to: headers.to || '',
+      date: headers.date || '',
+      subject: decodeMimeWords(headers.subject || ''),
+      body: decodeTransferText(body.trim(), headers['content-transfer-encoding']),
+      attachments: attachments
+    };
+  }
+
+  function parseEmailHeaders(text) {
+    var headers = {};
+    var current = '';
+    var lines = String(text || '').split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (/^\s/.test(line) && current) {
+        headers[current] += ' ' + line.trim();
+        continue;
+      }
+      var match = line.match(/^([^:]+):\s*(.*)$/);
+      if (!match) continue;
+      current = match[1].toLowerCase();
+      headers[current] = match[2].trim();
+    }
+    return headers;
+  }
+
+  function extractMailFileName(value) {
+    var encoded = String(value || '').match(/filename\*=UTF-8''([^;]+)/i);
+    if (encoded) {
+      try { return decodeURIComponent(encoded[1].replace(/^"|"$/g, '')); }
+      catch(e) { return encoded[1]; }
+    }
+    var plain = String(value || '').match(/filename="?([^";]+)"?/i) || String(value || '').match(/name="?([^";]+)"?/i);
+    return plain ? decodeMimeWords(plain[1]) : '';
+  }
+
+  function cleanContentType(value) {
+    return String(value || '').split(';')[0].trim() || '附件';
+  }
+
+  function decodeTransferText(text, encoding) {
+    encoding = encoding || '';
+    var value = String(text || '').trim();
+    if (/base64/i.test(encoding)) {
+      try {
+        var binary = atob(value.replace(/\s/g, ''));
+        return new TextDecoder('utf-8').decode(Uint8Array.from(binary, function(c) { return c.charCodeAt(0); }));
+      } catch(e) { return value; }
+    }
+    if (/quoted-printable/i.test(encoding)) {
+      return value.replace(/=\n/g, '').replace(/=([A-Fa-f0-9]{2})/g, function(_, hex) { return String.fromCharCode(parseInt(hex, 16)); });
+    }
+    return value;
+  }
+
+  function decodeMimeWords(value) {
+    return String(value || '').replace(/=\?([^?]+)\?([BQ])\?([^?]+)\?=/gi, function(_, charset, mode, text) {
+      try {
+        if (mode.toUpperCase() === 'B') {
+          var binary = atob(text);
+          return new TextDecoder(charset).decode(Uint8Array.from(binary, function(c) { return c.charCodeAt(0); }));
+        }
+        var decoded = text.replace(/_/g, ' ').replace(/=([A-Fa-f0-9]{2})/g, function(_, hex) { return String.fromCharCode(parseInt(hex, 16)); });
+        return new TextDecoder(charset).decode(Uint8Array.from(decoded, function(c) { return c.charCodeAt(0); }));
+      } catch(e) { return text; }
+    });
+  }
+
+  function stripHtml(html) {
+    var template = document.createElement('template');
+    template.innerHTML = String(html || '');
+    template.content.querySelectorAll('script, style, iframe, object').forEach(function(node) { node.remove(); });
+    return template.content.textContent.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  /* ── Capability Summary ── */
+  function renderCapabilitySummary(options) {
+    options = options || {};
+    var info = getCapabilityInfo(state.extension);
+    var title = options.title || info.title;
+    var detail = options.detail || info.detail;
+    var category = options.category || info.category;
+    var notes = options.notes || info.notes;
+    var wrapper = createPagedView('summary-view', 'summary-page');
+    var page = wrapper.firstElementChild;
+
+    var icon = document.createElement('div');
+    icon.className = 'summary-icon';
+    icon.textContent = (state.extension || '文件').slice(0, 3).toUpperCase();
+    page.appendChild(icon);
+    appendPageHeading(page, title, detail);
+    page.appendChild(createDataSummary([
+      ['格式', state.extension ? state.extension.toUpperCase() : '未知'],
+      ['类别', category],
+      ['大小', state.fileSize > 0 ? formatSize(state.fileSize) : '未知'],
+      ['处理', '安全摘要']
+    ]));
+
+    var stack = document.createElement('div');
+    stack.className = 'summary-stack';
+    for (var i = 0; i < notes.length; i++) {
+      var item = notes[i];
+      var chip = document.createElement('div');
+      chip.className = 'summary-chip';
+      var strong = document.createElement('strong');
+      strong.textContent = item[0];
+      var span = document.createElement('span');
+      span.textContent = item[1];
+      chip.append(strong, span);
+      stack.appendChild(chip);
+    }
+    page.appendChild(stack);
+
+    clearViewer();
+    els.viewer.appendChild(wrapper);
+  }
+
+  function getCapabilityInfo(ext) {
+    var groups = [
+      { match: ['doc','dot','rtf','odt','xls','xlsb','xlt','xltm','ods','fods','numbers','ppt','odp'],
+        title: 'Office 兼容文档已识别', category: '办公文档',
+        detail: '增强预览可用时会交给 File Viewer 的 Office 链路处理；本地回退模式会保留文件信息和下载入口。',
+        notes: [['覆盖','包含旧版 Word、Excel、PPT、RTF、OpenDocument 等业务文档。'],['建议','若需要完全还原版式，可保持增强预览资产可访问。']] },
+      { match: ['ofd'],
+        title: 'OFD 版式文档已识别', category: '国产版式文档',
+        detail: '增强预览可用时会交给 OFD 浏览器端渲染器；回退模式提供安全摘要和下载入口。',
+        notes: [['场景','电子发票、公文、归档材料。'],['边界','OFD 高保真渲染需要专用解析器。']] },
+      { match: ['eml','msg','mbox'],
+        title: '邮件归档已识别', category: '邮件',
+        detail: 'EML/MBOX 会尽量在本地提取正文和附件名；MSG 可交给增强预览邮件链路，回退时只做安全摘要。',
+        notes: [['安全','邮件 HTML 不会执行脚本。'],['附件','增强预览可进一步处理邮件中的附件预览。']] },
+      { match: ['dwg','dxf','dwf','dwfx','xps'],
+        title: '工程图纸已识别', category: '工程图纸（CAD/DWF）',
+        detail: '1940Netdisk 已识别工程图纸类型。当前轻量预览提供安全摘要，完整矢量/图层渲染建议后续接入专用 CAD 渲染器。',
+        notes: [['边界','不在浏览器里执行不可信二进制指令。'],['建议','业务侧优先提供 PDF、DXF 或受控 CAD 预览服务。']] },
+      { match: ['drawio','dio','excalidraw','mermaid','mmd','plantuml','puml'],
+        title: '绘图/流程图已识别', category: '绘图文件',
+        detail: '增强预览可用时会尝试渲染 Draw.io、Excalidraw、Mermaid、PlantUML 等图形；回退模式给出安全摘要。',
+        notes: [['场景','架构图、流程图、白板草图、UML。'],['策略','图形渲染属于按需加载能力，不进入后台首屏。']] },
+      { match: ['xmind'],
+        title: 'XMind 脑图已识别', category: '脑图',
+        detail: '增强预览可用时会解析 XMind 包结构并渲染脑图；回退模式保留安全摘要。',
+        notes: [['场景','知识结构、会议纪要、项目规划。'],['建议','需要高质量脑图缩放时使用增强预览链路。']] },
+      { match: ['geojson','kml','gpx','shp'],
+        title: '地理数据已识别', category: '地理数据',
+        detail: '增强预览可用时会尝试转为 GeoJSON 并渲染点线面；回退模式不解析坐标数据。',
+        notes: [['场景','轨迹、边界、轻量 GIS 数据。'],['边界','复杂坐标系和大体积 SHP 需要专用渲染器。']] },
+      { match: ['psd','ai','eps'],
+        title: '设计资产已识别', category: '设计文件',
+        detail: '当前提供文件摘要。PSD 图层、AI/PDF-backed 文件和 EPS 需要专用解析器才能高保真展示。',
+        notes: [['可落地能力','图片类资产仍会直接走浏览器原生解码。'],['建议','设计源文件可同时导出 PNG/SVG 作为快速预览。']] },
+      { match: ['sqlite','sqlite3','db','parquet','avro','wasm','webarchive'],
+        title: '结构化数据已识别', category: '数据资产',
+        detail: '当前提供安全摘要。SQLite、Parquet、Avro 和 WASM 需要按需加载 WASM 与后台线程后才适合完整解析。',
+        notes: [['安全','不执行 WASM，也不展开未知二进制内容。'],['建议','大数据文件优先在业务层提供抽样或分页索引。']] },
+      { match: ['glb','gltf','obj','stl','ply','fbx','dae','3ds','3mf','usd','usdz','kmz','step','stp','iges','igs','ifc'],
+        title: '三维 / BIM 文件已识别', category: '三维模型',
+        detail: '当前提供安全摘要。完整三维预览需要 Three.js 加载器或更重的几何 WASM 内核。',
+        notes: [['推荐格式','浏览器预览优先使用 GLB/GLTF。'],['边界','STEP/IFC/IGES 通常需要专业几何内核。']] },
+      { match: ['epub','umd'],
+        title: '电子书已识别', category: '电子书',
+        detail: '增强预览可用时会读取目录与章节资源；回退模式提供安全摘要。',
+        notes: [['场景','培训手册、长篇阅读材料。'],['策略','正文解析按需执行，避免大文件阻塞。']] },
+      { match: ['olb','dra','gds','oas','oasis'],
+        title: 'EDA 文件已识别', category: '电子设计附件',
+        detail: '增强预览可用时会尝试读取版图或封装结构；回退模式只做安全摘要。',
+        notes: [['场景','元件库、封装图纸、芯片版图初筛。'],['边界','预览不替代专业电气/几何校核。']] },
+      { match: ['typ','typst'],
+        title: '专业文档类型已识别', category: '排版文档',
+        detail: '当前提供安全摘要。此类格式可后续按业务优先级接入独立渲染器，避免拖慢普通文件首屏。',
+        notes: [['策略','命中格式后再加载重型依赖。'],['建议','常用附件优先沉淀为 PDF、Markdown、图片或稳定交换格式。']] }
+    ];
+
+    var found = groups.find(function(g) { return g.match.includes(ext); });
+    return found || {
+      title: '文件类型已识别', category: '其他文件',
+      detail: '当前格式暂未提供高保真在线渲染，1940Netdisk 会保留下载和直链能力。',
+      notes: [['下一步','可按真实业务样本补充专用预览链路。'],['安全','未知格式不会在预览页执行。']]
+    };
+  }
+
+  /* ── Office Open XML (DOCX / XLSX / PPTX) ── */
+  async function renderOpenXml(kind) {
+    if (!('DecompressionStream' in window)) {
+      showStatus('当前浏览器不支持本地 Office 解压预览', '请使用最新版 Chrome、Edge 或 Firefox，或下载文件后打开。', 'error');
+      return;
+    }
+
+    showStatus('正在解析文档', '文档会在浏览器本地渲染，不会发送到外部预览服务。');
+    var response = await fetch(state.fileUrl, { credentials: 'include' });
+    if (!response.ok) throw new Error('文档读取失败：HTTP ' + response.status);
+
+    var zip = await loadZip(await response.arrayBuffer());
+    if (kind === 'docx') await renderDocx(zip);
+    if (kind === 'xlsx') await renderXlsx(zip);
+    if (kind === 'pptx') await renderPptx(zip);
+  }
+
+  async function renderDocx(zip) {
+    var documentXml = await zip.text('word/document.xml');
+    if (!documentXml) throw new Error('DOCX 缺少 word/document.xml。');
+
+    var xml = parseXml(documentXml);
+    var body = firstByLocalName(xml, 'body') || xml.documentElement;
+    var page = createDocPage();
+
+    for (var child of elementChildren(body)) {
+      if (localName(child) === 'p') {
+        var paragraph = createDocParagraph(child);
+        if (paragraph) page.appendChild(paragraph);
+      } else if (localName(child) === 'tbl') {
+        page.appendChild(createDocTable(child));
+      }
+    }
+
+    if (!page.childElementCount) {
+      var empty = document.createElement('p');
+      empty.textContent = '文档没有可提取的正文内容。';
+      page.appendChild(empty);
+    }
+    showDocPage(page);
+  }
+
+  async function renderXlsx(zip) {
+    var sharedStrings = await readSharedStrings(zip);
+    var worksheetNames = zip.names()
+      .filter(function(name) { return /^xl\/worksheets\/sheet\d+\.xml$/i.test(name); })
+      .sort(compareNumberedPath);
+
+    if (!worksheetNames.length) throw new Error('XLSX 缺少 worksheet 数据。');
+
+    var page = createDocPage();
+    for (var i = 0; i < Math.min(worksheetNames.length, 5); i++) {
+      var xml = parseXml(await zip.text(worksheetNames[i]));
+      var section = document.createElement('section');
+      section.className = 'sheet-section';
+
+      var heading = document.createElement('h2');
+      heading.textContent = 'Sheet ' + (i + 1);
+      section.appendChild(heading);
+
+      section.appendChild(createSheetTable(xml, sharedStrings));
+      page.appendChild(section);
+    }
+    showDocPage(page);
+  }
+
+  async function renderPptx(zip) {
+    var slideNames = zip.names()
+      .filter(function(name) { return /^ppt\/slides\/slide\d+\.xml$/i.test(name); })
+      .sort(compareNumberedPath);
+
+    if (!slideNames.length) throw new Error('PPTX 缺少 slide 数据。');
+
+    var page = createDocPage();
+    for (var i = 0; i < Math.min(slideNames.length, 30); i++) {
+      var xml = parseXml(await zip.text(slideNames[i]));
+      var section = document.createElement('section');
+      section.className = 'slide-section';
+
+      var heading = document.createElement('h2');
+      heading.textContent = 'Slide ' + (i + 1);
+      section.appendChild(heading);
+
+      var paragraphs = allByLocalName(xml, 'p')
+        .map(function(node) { return collectText(node).trim(); })
+        .filter(Boolean);
+
+      if (paragraphs.length) {
+        for (var p = 0; p < paragraphs.length; p++) {
+          var paraEl = document.createElement('p');
+          paraEl.textContent = paragraphs[p];
+          section.appendChild(paraEl);
+        }
+      } else {
+        var emptyP = document.createElement('p');
+        emptyP.textContent = '此页没有可提取文本。';
+        section.appendChild(emptyP);
+      }
+
+      page.appendChild(section);
+    }
+    showDocPage(page);
+  }
+
+  function createDocPage() {
+    var page = document.createElement('article');
+    page.className = 'doc-page';
+    return page;
+  }
+
+  function showDocPage(page) {
+    clearViewer();
+    var wrapper = document.createElement('div');
+    wrapper.className = 'doc-view';
+    wrapper.appendChild(page);
+    els.viewer.appendChild(wrapper);
+  }
+
+  function createDocParagraph(node) {
+    var text = collectText(node);
+    var style = getParagraphStyle(node).toLowerCase();
+    var trimmed = text.trim();
+
+    if (!trimmed && !text.includes('\n')) return null;
+
+    var tag = 'p';
+    if (style.includes('title')) tag = 'h1';
+    if (style.includes('heading1') || style.includes('heading 1')) tag = 'h2';
+    if (style.includes('heading2') || style.includes('heading 2')) tag = 'h3';
+
+    var element = document.createElement(tag);
+    element.textContent = text;
+    return element;
+  }
+
+  function createDocTable(tbl) {
+    var table = document.createElement('table');
+    var rowNodes = elementChildren(tbl).filter(function(node) { return localName(node) === 'tr'; });
+    for (var r = 0; r < rowNodes.length; r++) {
+      var row = document.createElement('tr');
+      var cells = elementChildren(rowNodes[r]).filter(function(node) { return localName(node) === 'tc'; });
+      for (var c = 0; c < cells.length; c++) {
+        var cell = document.createElement('td');
+        var parts = allByLocalName(cells[c], 'p')
+          .map(function(p) { return collectText(p).trim(); })
+          .filter(Boolean);
+        cell.textContent = parts.join('\n');
+        row.appendChild(cell);
+      }
+      table.appendChild(row);
+    }
+    return table;
+  }
+
+  function getParagraphStyle(node) {
+    var pPr = elementChildren(node).find(function(child) { return localName(child) === 'pPr'; });
+    if (!pPr) return '';
+    var pStyle = elementChildren(pPr).find(function(child) { return localName(child) === 'pStyle'; });
+    return pStyle ? attr(pStyle, 'val') : '';
+  }
+
+  async function readSharedStrings(zip) {
+    var xmlText = await zip.text('xl/sharedStrings.xml');
+    if (!xmlText) return [];
+    var xml = parseXml(xmlText);
+    return allByLocalName(xml, 'si').map(function(node) { return collectText(node); });
+  }
+
+  function createSheetTable(xml, sharedStrings) {
+    var table = document.createElement('table');
+    table.className = 'sheet-table';
+    var rows = allByLocalName(xml, 'row').slice(0, 200);
+    var maxCol = 0;
+    var matrix = rows.map(function(row) {
+      var values = [];
+      var cells = elementChildren(row).filter(function(node) { return localName(node) === 'c'; });
+      for (var i = 0; i < cells.length; i++) {
+        var cell = cells[i];
+        var ref = attr(cell, 'r');
+        var col = ref ? columnIndex(ref.replace(/\d+/g, '')) : values.length;
+        values[col] = readCellValue(cell, sharedStrings);
+        maxCol = Math.max(maxCol, col);
+      }
+      return values;
+    });
+
+    for (var r = 0; r < matrix.length; r++) {
+      var tr = document.createElement('tr');
+      for (var c = 0; c <= Math.min(maxCol, 30); c++) {
+        var td = document.createElement('td');
+        td.textContent = matrix[r][c] || '';
+        tr.appendChild(td);
+      }
+      table.appendChild(tr);
+    }
+    return table;
+  }
+
+  function readCellValue(cell, sharedStrings) {
+    var type = attr(cell, 't');
+    if (type === 'inlineStr') {
+      var inline = firstByLocalName(cell, 'is');
+      return inline ? collectText(inline) : '';
+    }
+    var valueNode = firstByLocalName(cell, 'v');
+    var raw = valueNode ? valueNode.textContent : '';
+    if (type === 's') return sharedStrings[Number(raw)] || '';
+    return raw;
+  }
+
+  function columnIndex(letters) {
+    var value = 0;
+    var str = String(letters || '').toUpperCase();
+    for (var i = 0; i < str.length; i++) {
+      var code = str.charCodeAt(i);
+      if (code < 65 || code > 90) continue;
+      value = value * 26 + (code - 64);
+    }
+    return Math.max(0, value - 1);
+  }
+
+  function compareNumberedPath(left, right) {
+    var a = Number((left.match(/(\d+)(?=\.xml$)/) || [0, 0])[1]);
+    var b = Number((right.match(/(\d+)(?=\.xml$)/) || [0, 0])[1]);
+    return a - b;
+  }
+
+  /* ── XML Helpers ── */
+  function parseXml(text) {
+    var xml = new DOMParser().parseFromString(text, 'application/xml');
+    if (xml.getElementsByTagName('parsererror').length) {
+      throw new Error('文档 XML 解析失败。');
+    }
+    return xml;
+  }
+
+  function collectText(node) {
+    var output = '';
+    function walk(current) {
+      var children = current.childNodes || [];
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        var name = localName(child);
+        if (name === 't') {
+          output += child.textContent || '';
+        } else if (name === 'tab') {
+          output += '\t';
+        } else if (name === 'br' || name === 'cr') {
+          output += '\n';
+        } else {
+          walk(child);
+        }
+      }
+    }
+    walk(node);
+    return output;
+  }
+
+  function allByLocalName(root, name) {
+    var found = [];
+    function walk(node) {
+      if (localName(node) === name) found.push(node);
+      var children = node.childNodes || [];
+      for (var i = 0; i < children.length; i++) walk(children[i]);
+    }
+    walk(root);
+    return found;
+  }
+
+  function firstByLocalName(root, name) {
+    return allByLocalName(root, name)[0] || null;
+  }
+
+  function elementChildren(node) {
+    var children = node.childNodes || [];
+    var result = [];
+    for (var i = 0; i < children.length; i++) {
+      if (children[i].nodeType === 1) result.push(children[i]);
+    }
+    return result;
+  }
+
+  function localName(node) {
+    if (!node) return '';
+    var name = node.localName || node.nodeName || '';
+    var parts = name.split(':');
+    return parts[parts.length - 1];
+  }
+
+  function attr(node, name) {
+    if (!node) return '';
+    return node.getAttribute(name)
+      || node.getAttribute('w:' + name)
+      || node.getAttribute('r:' + name)
+      || node.getAttribute('a:' + name)
+      || '';
+  }
+
+  /* ── ZIP (OpenXML) Parser ── */
+  async function loadZip(arrayBuffer) {
+    var bytes = new Uint8Array(arrayBuffer);
+    var view = new DataView(arrayBuffer);
+    var eocd = findEndOfCentralDirectory(view);
+    if (eocd < 0) throw new Error('文档不是有效的 ZIP/OpenXML 文件。');
+
+    var totalEntries = view.getUint16(eocd + 10, true);
+    var centralDirectoryOffset = view.getUint32(eocd + 16, true);
+    var entries = new Map();
+    var offset = centralDirectoryOffset;
+
+    for (var i = 0; i < totalEntries; i++) {
+      if (view.getUint32(offset, true) !== 0x02014b50) break;
+
+      var flags = view.getUint16(offset + 8, true);
+      var method = view.getUint16(offset + 10, true);
+      var compressedSize = view.getUint32(offset + 20, true);
+      var uncompressedSize = view.getUint32(offset + 24, true);
+      var fileNameLength = view.getUint16(offset + 28, true);
+      var extraLength = view.getUint16(offset + 30, true);
+      var commentLength = view.getUint16(offset + 32, true);
+      var localHeaderOffset = view.getUint32(offset + 42, true);
+      var nameBytes = bytes.slice(offset + 46, offset + 46 + fileNameLength);
+      var fileName = new TextDecoder('utf-8').decode(nameBytes);
+
+      entries.set(fileName, {
+        method: method,
+        compressedSize: compressedSize,
+        uncompressedSize: uncompressedSize,
+        localHeaderOffset: localHeaderOffset,
+        isDirectory: fileName.endsWith('/')
+      });
+
+      offset += 46 + fileNameLength + extraLength + commentLength;
+    }
+
+    async function bytesFor(name) {
+      var entry = entries.get(name);
+      if (!entry) return null;
+      if (view.getUint32(entry.localHeaderOffset, true) !== 0x04034b50) {
+        throw new Error('ZIP 内部条目头缺失：' + name);
+      }
+
+      var fnLen = view.getUint16(entry.localHeaderOffset + 26, true);
+      var exLen = view.getUint16(entry.localHeaderOffset + 28, true);
+      var start = entry.localHeaderOffset + 30 + fnLen + exLen;
+      var compressed = bytes.slice(start, start + entry.compressedSize);
+
+      if (entry.method === 0) return compressed;
+      if (entry.method === 8) return inflateRaw(compressed);
+      throw new Error('不支持的 ZIP 压缩方式：' + entry.method);
+    }
+
+    return {
+      names: function() { return Array.from(entries.keys()); },
+      entries: function() { return Array.from(entries, function(kv) { return { name: kv[0], ...kv[1] }; }); },
+      bytes: bytesFor,
+      text: async function(name) {
+        var data = await bytesFor(name);
+        return data ? new TextDecoder('utf-8').decode(data) : '';
+      }
+    };
+  }
+
+  function findEndOfCentralDirectory(view) {
+    var min = Math.max(0, view.byteLength - 0xffff - 22);
+    for (var offset = view.byteLength - 22; offset >= min; offset--) {
+      if (view.getUint32(offset, true) === 0x06054b50) return offset;
+    }
+    return -1;
+  }
+
+  async function inflateRaw(bytes) {
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  /* ── Helpers ── */
+  function createPagedView(wrapperClass, pageClass) {
+    var wrapper = document.createElement('div');
+    wrapper.className = wrapperClass;
+    var page = document.createElement('article');
+    page.className = pageClass;
+    wrapper.appendChild(page);
+    return wrapper;
+  }
+
+  function appendPageHeading(page, title, detail) {
+    var heading = document.createElement('h2');
+    heading.textContent = title;
+    var p = document.createElement('p');
+    p.textContent = detail;
+    page.append(heading, p);
+  }
+
+  function createDataSummary(items) {
+    var summary = document.createElement('div');
+    summary.className = 'data-summary';
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var chip = document.createElement('div');
+      chip.className = 'data-chip';
+      var strong = document.createElement('strong');
+      strong.textContent = item[0];
+      var span = document.createElement('span');
+      span.textContent = item[1];
+      chip.append(strong, span);
+      summary.appendChild(chip);
+    }
+    return summary;
+  }
+
+  function showStatus(title, detail, variant) {
+    variant = variant || '';
+    els.viewer.className = 'viewer';
+    clearViewer();
+    var status = document.createElement('div');
+    status.className = ('status ' + variant).trim();
+    if (!variant) {
+      var spinner = document.createElement('div');
+      spinner.className = 'spinner';
+      spinner.style.cssText = 'width:36px;height:36px;border:3px solid var(--glass-border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:8px;';
+      status.appendChild(spinner);
+    }
+    var strong = document.createElement('strong');
+    strong.textContent = title;
+    status.appendChild(strong);
+    if (detail) {
+      var span = document.createElement('span');
+      span.textContent = detail;
+      status.appendChild(span);
+    }
+    els.viewer.appendChild(status);
+  }
+
+  function clearViewer() {
+    els.viewer.replaceChildren();
+    els.viewer.className = 'viewer';
+  }
+
+  /* ── Public API ── */
+  window.KVPreview = {
+    copyDirectLink: async function() {
+      if (!state.fileUrl) return;
+      try {
+        await navigator.clipboard.writeText(state.fileUrl);
+        els.copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+        window.setTimeout(function() {
+          els.copyBtn.innerHTML = '<i class="fas fa-link"></i> 复制直链';
+        }, 1400);
+      } catch(e) {
+        window.prompt('复制直链', state.fileUrl);
+      }
+    },
+    downloadFile: function() {
+      if (!state.fileUrl) return;
+      var link = document.createElement('a');
+      link.href = state.fileUrl;
+      link.download = state.fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  };
+
+  /* ── Boot ── */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

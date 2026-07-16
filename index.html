@@ -1,0 +1,2051 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1940Netdisk · 文件上传</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- Vue 2 -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+  <!-- Theme -->
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/mobile-refactor.css">
+  <style>
+    /* ===== Index 页面覆盖样式 ===== */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--navbar-height);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-lg);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 2px solid var(--olive);
+      box-shadow: var(--shadow-sm);
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .header-title img {
+      height: 32px;
+    }
+    .header-title span {
+      font-family: var(--font-display);
+      font-size: 1.375rem;
+      color: var(--khaki);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .main-container {
+      padding-top: calc(var(--navbar-height) + var(--space-lg));
+      max-width: var(--content-max-width);
+      margin: 0 auto;
+    }
+
+    .upload-section .drop-zone {
+      min-height: 120px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      padding: 1.2rem 1.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-md);
+    }
+    .card-header .card-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      letter-spacing: 0.05em;
+      color: var(--khaki);
+      border-bottom: 2px solid var(--olive);
+      padding-bottom: 0.4rem;
+      margin-bottom: 0;
+    }
+
+    .upload-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-sm);
+    }
+    .upload-item.success {
+      border-color: rgba(107, 143, 90, 0.3);
+      background: rgba(107, 143, 90, 0.05);
+    }
+    .upload-item.error {
+      border-color: rgba(139, 90, 43, 0.3);
+      background: rgba(139, 90, 43, 0.05);
+    }
+
+    .upload-item-progress {
+      height: 4px;
+      background: rgba(107, 122, 138, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: var(--space-xs);
+    }
+    .upload-item-progress .fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--olive), var(--khaki));
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .result-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+    .result-item.selected {
+      border-color: var(--olive);
+      background: rgba(90, 107, 74, 0.06);
+    }
+
+    .history-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      overflow: hidden;
+      transition: all var(--transition-fast);
+    }
+    .history-item:hover {
+      border-color: var(--olive);
+      box-shadow: var(--shadow-glow);
+    }
+    .history-item.selected {
+      border-color: var(--gold);
+    }
+    .history-item-thumb {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: var(--steel-dark);
+    }
+    .history-item-info {
+      padding: var(--space-sm);
+    }
+    .history-item-name {
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      color: var(--khaki-light);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .history-item-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+    .history-item:hover .history-item-overlay {
+      opacity: 1;
+    }
+    .history-item-overlay button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background var(--transition-fast);
+    }
+    .history-item-overlay button:hover {
+      background: var(--olive);
+    }
+
+    .compress-controls {
+      margin-top: var(--space-md);
+      padding: var(--space-md);
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(90,107,74,0.3);
+      border-radius: 3px;
+    }
+    .compress-format-grid {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-md);
+    }
+    .compress-format-grid button {
+      padding: 6px 12px;
+      background: rgba(107, 122, 138, 0.06);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      color: var(--color-text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      font-family: var(--font-body);
+    }
+    .compress-format-grid button:hover {
+      border-color: var(--olive);
+      color: var(--khaki);
+    }
+    .compress-format-grid button.active {
+      background: rgba(90, 107, 74, 0.12);
+      border-color: var(--olive);
+      color: var(--khaki);
+    }
+    .compress-format-grid button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .compress-settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+    }
+    .compress-control label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-xs);
+    }
+    .compress-range-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .compress-range-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--olive);
+      height: 4px;
+    }
+    .compress-range-row .range-val {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--khaki);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .compress-checkbox {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      margin-top: var(--space-sm);
+    }
+    .compress-checkbox input[type="checkbox"] {
+      accent-color: var(--olive);
+    }
+
+    .compress-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: 0.75rem;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+    .compress-toggle input[type="checkbox"] {
+      accent-color: var(--olive);
+    }
+
+    /* 粘贴通知 */
+    .paste-notice-content {
+      padding: var(--space-md);
+    }
+    .paste-notice-meta {
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      margin-top: var(--space-sm);
+    }
+
+    /* 结果区 textarea */
+    .result-area {
+      width: 100%;
+      min-height: 60px;
+      padding: var(--space-sm);
+      background: rgba(107, 122, 138, 0.04);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      resize: vertical;
+      outline: none;
+    }
+    .result-area:focus {
+      border-color: var(--olive);
+    }
+
+    /* 断点覆盖 */
+    @media (max-width: 768px) {
+      .compress-settings-grid {
+        grid-template-columns: 1fr;
+      }
+      .result-item {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+    /* ===== User Profile Dropdown ===== */
+    .user-profile-dd {
+      position: relative;
+      margin-left: var(--space-md);
+    }
+    .user-dd-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 4px;
+      border: 1.5px solid var(--khaki);
+      border-radius: 3px;
+      background: var(--olive);
+      cursor: pointer;
+      font-size: .82em;
+      color: var(--khaki-light);
+      transition: all var(--transition-fast);
+    }
+    .user-dd-toggle:hover {
+      background: var(--olive-light);
+      border-color: var(--gold);
+      color: var(--gold-light);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+    .user-avatar-mini,
+    .user-dd-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--khaki), var(--steel));
+      color: #fff;
+      font-size: .72em;
+      font-weight: 700;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .user-dd-avatar {
+      width: 40px;
+      height: 40px;
+      font-size: .85em;
+    }
+    .user-avatar-mini img,
+    .user-dd-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .user-dd-name {
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .user-dd-toggle .fa-chevron-down {
+      font-size: .7em;
+      transition: transform var(--transition-fast);
+    }
+    .user-dd-toggle .fa-chevron-down.rotate-180 {
+      transform: rotate(180deg);
+    }
+    .user-dd-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 200px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 2px solid var(--olive);
+      border-radius: 3px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all var(--transition-fast);
+      z-index: 1100;
+    }
+    .user-dd-menu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    .user-dd-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+    }
+    .user-dd-nickname {
+      font-weight: 600;
+      font-size: .88em;
+    }
+    .user-dd-username {
+      font-size: .75em;
+      opacity: .6;
+    }
+    .user-dd-divider {
+      height: 1px;
+      background: var(--olive);
+      margin: 0 8px;
+    }
+    .user-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      background: none;
+      color: var(--text-primary);
+      font-size: .85em;
+      cursor: pointer;
+      text-align: left;
+      transition: background var(--transition-fast);
+    }
+    .user-dd-item:hover {
+      background: var(--glass-bg-hover);
+    }
+    .user-dd-item i {
+      width: 16px;
+      text-align: center;
+      font-size: .85em;
+      color: var(--khaki);
+    }
+    /* ===== Profile Modal ===== */
+    .profile-avatar-section {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-md);
+    }
+    .profile-avatar-preview {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--khaki), var(--steel));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.4em;
+      font-weight: 700;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .profile-avatar-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .profile-avatar-inputs {
+      flex: 1;
+      min-width: 0;
+    }
+    .form-divider {
+      border: none;
+      border-top: 1px solid var(--glass-border);
+      margin: var(--space-md) 0;
+    }
+    /* ===== Preview Modal 核心样式覆盖 ===== */
+    .preview-modal img { max-width:min(92vw,1280px); max-height:78vh; border-radius:8px; object-fit:contain; background:#070b12; box-shadow:0 28px 90px rgba(0,0,0,.46); }
+    .preview-modal .iframe-container { width:min(92vw,1280px); height:min(78vh,820px); position:relative; border-radius:8px; overflow:hidden; background:#070b12; border:1px solid rgba(255,255,255,.12); box-shadow:0 28px 90px rgba(0,0,0,.46); }
+    .preview-modal .iframe-container iframe { width:100%; height:100%; border:none; }
+    .preview-close { position:absolute; top:20px; right:20px; width:44px; height:44px; border:none; border-radius:8px; background:rgba(255,255,255,.12); color:#fff; font-size:1.2em; cursor:pointer; z-index:10001; transition:background .2s; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; }
+    .preview-close:hover { background:rgba(255,255,255,.35); }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <!-- ========== 顶部导航栏 ========== -->
+    <div class="header">
+      <div class="header-title">
+        <img src="/favicon.svg" alt="1940Netdisk">
+        <span>1940Netdisk</span>
+      </div>
+      <button type="button" class="theme-toggle-btn header-theme-toggle" data-theme-toggle aria-label="切换主题">
+        <i class="fas fa-moon"></i>
+      </button>
+      <div class="nav-links">
+        <a href="/" class="active"><i class="fas fa-upload"></i> <span>上传</span></a>
+        <a href="/gallery.html"><i class="fas fa-images"></i> <span>图库</span></a>
+        <a href="/admin.html"><i class="fas fa-cog"></i> <span>管理</span></a>
+        <a href="/webdav.html"><i class="fas fa-network-wired"></i> <span>WebDAV</span></a>
+      </div>
+      <!-- User Profile Dropdown -->
+      <div class="user-profile-dd" v-if="!authChecking && !isGuest && sessionUser" ref="userDropdown">
+        <button class="user-dd-toggle" @click="userDropdownOpen = !userDropdownOpen" @blur="handleUserDdBlur">
+          <span class="user-avatar-mini" v-html="sessionUserAvatar"></span>
+          <span class="user-dd-name">{{ sessionUser.nickname || sessionUser.username }}</span>
+          <i class="fas fa-chevron-down" :class="{ 'rotate-180': userDropdownOpen }"></i>
+        </button>
+        <div class="user-dd-menu" :class="{ show: userDropdownOpen }">
+          <div class="user-dd-header">
+            <span class="user-dd-avatar" v-html="sessionUserAvatar"></span>
+            <div>
+              <div class="user-dd-nickname">{{ sessionUser.nickname || sessionUser.username }}</div>
+              <div class="user-dd-username">@{{ sessionUser.username }}</div>
+            </div>
+          </div>
+          <div class="user-dd-divider"></div>
+          <button class="user-dd-item" @click="openProfileModal">
+            <i class="fas fa-user-cog"></i> 个人信息
+          </button>
+          <button class="user-dd-item" @click="handleLogout">
+            <i class="fas fa-sign-out-alt"></i> 退出登录
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 访客提示 ========== -->
+    <div class="guest-notice" v-if="!authChecking && isGuest && guestUploadConfig">
+      <span><i class="fas fa-info-circle"></i> 访客模式 · 单文件上限 {{formatSize(guestUploadConfig.maxFileSize)}} · 每日 {{guestUploadConfig.maxDailyUploads}} 次</span>
+    </div>
+
+    <!-- ========== 主容器 ========== -->
+    <div class="main-container">
+      <!-- ===== 上传区域 ===== -->
+      <div class="card upload-section">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-cloud-upload-alt"></i> 上传文件
+          </div>
+          <span class="text-xs text-muted">上限 {{ currentUploadLimitLabel }}</span>
+        </div>
+
+        <!-- 拖拽 & 文件选择 -->
+        <div class="drop-zone"
+             @dragover.prevent="onDragOver"
+             @dragleave.prevent="onDragLeave"
+             @drop.prevent="onDrop"
+             :class="{ 'drag-over': isDragging }"
+             @click="triggerUpload">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <div>拖拽文件到此处，或点击选择文件</div>
+          <div class="text-xs text-muted mt-sm" v-if="!authChecking && isGuest && guestUploadConfig">
+            访客模式 · {{formatSize(guestUploadConfig.maxFileSize)}} 上限
+          </div>
+        </div>
+        <input type="file" ref="fileInput" @change="handleFileSelect" multiple style="display:none">
+
+        <!-- 存储切换 -->
+        <div class="storage-switcher mt-md">
+          <div class="storage-options">
+            <button :class="{ active: storageMode === 'telegram' }" @click="setStorageMode('telegram')" title="Telegram 频道存储">
+              <i class="fab fa-telegram"></i> Telegram
+            </button>
+            <button :class="{ active: storageMode === 'r2' }" @click="setStorageMode('r2')" v-if="r2Available" title="Cloudflare R2 存储">
+              <i class="fas fa-cloud"></i> R2
+            </button>
+            <button :class="{ active: storageMode === 's3' }" @click="setStorageMode('s3')" v-if="s3Available" title="S3 兼容存储">
+              <i class="fas fa-database"></i> S3
+            </button>
+            <button :class="{ active: storageMode === 'discord' }" @click="setStorageMode('discord')" v-if="discordAvailable" title="Discord 频道存储">
+              <i class="fab fa-discord"></i> Discord
+            </button>
+            <button :class="{ active: storageMode === 'huggingface' }" @click="setStorageMode('huggingface')" v-if="huggingfaceAvailable" title="HuggingFace 存储">
+              <i class="fas fa-hugging-face"></i> HuggingFace
+            </button>
+            <button :class="{ active: storageMode === 'github' }" @click="setStorageMode('github')" v-if="githubAvailable" title="GitHub 存储">
+              <i class="fab fa-github"></i> GitHub
+            </button>
+          </div>
+        </div>
+
+        <!-- 文件夹选择 -->
+        <div class="folder-target-panel">
+          <div class="folder-target-head">
+            <span class="folder-target-title"><i class="fas fa-folder"></i> 上传目录</span>
+            <div class="folder-action-row">
+              <button class="btn btn-sm btn-ghost" @click="clearFolderPath" v-if="folderPath" title="清除目录">
+                <i class="fas fa-times"></i>
+              </button>
+              <button class="btn btn-sm btn-ghost" @click="fetchUploadFolders(true)" :disabled="uploadFoldersLoading" title="刷新目录列表">
+                <i class="fas fa-sync" :class="{ 'fa-spin': uploadFoldersLoading }"></i>
+              </button>
+            </div>
+          </div>
+          <div class="folder-target-row">
+            <input class="input-glass" v-model="folderPath" @input="handleFolderPathInput" placeholder="文件夹路径（可选）">
+          </div>
+          <div class="folder-picker-list" v-if="!isGuest && (uploadFolders.length || uploadFoldersLoading || uploadFoldersFetched)">
+            <button v-for="folder in uploadFolderOptions" :key="folder.path" :class="{ active: folderPath === folder.path }" @click="selectUploadFolder(folder.path)" :title="`${folder.path} (${folder.fileCount} 文件)`">
+              <i class="fas fa-folder"></i> {{ folder.name || folder.path.split('/').pop() }}
+            </button>
+          </div>
+          <div class="folder-create-row" v-if="showUploadFolderCreator">
+            <input class="input-glass" ref="newFolderInput" v-model="newUploadFolderPath" placeholder="新目录路径" @keyup.enter="createUploadFolder">
+            <button class="btn btn-sm btn-primary" @click="createUploadFolder" :disabled="uploadFolderCreating">
+              <i class="fas fa-check"></i> 创建
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="cancelUploadFolderCreator">
+              <i class="fas fa-times"></i> 取消
+            </button>
+          </div>
+        </div>
+
+        <!-- 图片压缩设置 -->
+        <div class="image-compress-head flex-row-wrap" style="margin-bottom:var(--space-sm);">
+          <div class="image-compress-title text-sm text-secondary">
+            <i class="fas fa-compress-alt"></i> 图片处理
+          </div>
+          <div class="flex-row gap-xs" style="flex-wrap:wrap;">
+            <button class="btn btn-sm" :class="imageUploadDecision === 'original' ? 'btn-primary' : 'btn-ghost'" @click="setImageUploadDecision('original')">
+              <i class="fas fa-file-image"></i> 原图
+            </button>
+            <button class="btn btn-sm" :class="imageUploadDecision === 'optimized' ? 'btn-primary' : 'btn-ghost'" @click="setImageUploadDecision('optimized')">
+              <i class="fas fa-compress"></i> 压缩
+            </button>
+            <button class="btn btn-sm" :class="imageUploadDecision === 'ask' ? 'btn-primary' : 'btn-ghost'" @click="setImageUploadDecision('ask')">
+              <i class="fas fa-question-circle"></i> 询问
+            </button>
+          </div>
+          <label class="compress-toggle" title="开启后默认在确认窗口中选择压缩" v-if="imageUploadDecision === 'ask'">
+            <input type="checkbox" v-model="imageCompress.enabled" @change="handleImageCompressToggle">
+            <span>默认压缩</span>
+          </label>
+        </div>
+
+        <!-- 压缩详细设置 -->
+        <div class="compress-controls" v-if="imageCompressPanelExpanded">
+          <div class="compress-format-grid">
+            <button v-for="fmt in imageCompressFormats" :key="fmt.value"
+                    :class="{ active: imageCompress.format === fmt.value }"
+                    :disabled="!isFormatSupported(fmt.value)"
+                    :title="fmt.tip"
+                    @click="selectCompressFormat(fmt.value)">
+              <i :class="fmt.icon"></i> {{ fmt.label }}
+            </button>
+          </div>
+          <div class="compress-settings-grid">
+            <div class="compress-control">
+              <label>质量: {{ imageCompress.quality }}%</label>
+              <div class="compress-range-row">
+                <input type="range" min="30" max="95" v-model.number="imageCompress.quality" @input="saveImageCompressSettings">
+                <span class="range-val">{{ imageCompress.quality }}%</span>
+              </div>
+            </div>
+            <div class="compress-control">
+              <label>最大边长: {{ imageCompress.maxDimension || '不限' }}px</label>
+              <div class="compress-range-row">
+                <input type="range" min="0" max="12000" step="100" v-model.number="imageCompress.maxDimension" @input="saveImageCompressSettings">
+                <span class="range-val">{{ imageCompress.maxDimension || '∞' }}</span>
+              </div>
+            </div>
+          </div>
+          <label class="compress-checkbox">
+            <input type="checkbox" v-model="imageCompress.keepOriginalWhenLarger" @change="saveImageCompressSettings">
+            压缩后体积更大时保留原图
+          </label>
+          <div class="text-xs text-muted mt-sm">{{ imageCompressSummary }}</div>
+        </div>
+
+        <!-- 上传方式 -->
+        <div class="upload-methods mt-md">
+          <button class="method-btn" @click="triggerUpload">
+            <i class="fas fa-folder-open"></i> 选择文件
+          </button>
+          <button class="method-btn" @click="pasteFromClipboard">
+            <i class="fas fa-paste"></i> 粘贴上传
+          </button>
+          <button class="method-btn" @click="showUrlInput = !showUrlInput">
+            <i class="fas fa-link"></i> URL 上传
+          </button>
+        </div>
+
+        <!-- URL 输入 -->
+        <div class="url-input-container flex-row gap-sm" v-if="showUrlInput" style="margin-bottom:var(--space-md);">
+          <input class="input-glass" v-model="urlToUpload" placeholder="https://example.com/image.jpg" @keyup.enter="uploadFromUrl" style="flex:1;">
+          <button class="btn btn-primary" @click="uploadFromUrl" :disabled="urlUploading">
+            <i class="fas fa-cloud-upload-alt" :class="{ 'fa-spin': urlUploading }"></i> 上传
+          </button>
+        </div>
+
+        <!-- 上传列表 -->
+        <div class="upload-list" v-if="uploadingFiles.length > 0">
+          <div class="flex-between mb-sm">
+            <span class="text-sm text-secondary"><i class="fas fa-tasks"></i> 上传队列 ({{ uploadingFiles.length }})</span>
+            <div class="flex-row gap-xs">
+              <button class="btn btn-sm btn-ghost" @click="retryAllFailed" v-if="failedCount > 0" :disabled="uploadingFiles.some(f => f.status === 'uploading')">
+                <i class="fas fa-redo"></i> 重试失败 ({{ failedCount }})
+              </button>
+              <button class="btn btn-sm btn-ghost" @click="clearUploadQueue">
+                <i class="fas fa-eraser"></i> 清空
+              </button>
+            </div>
+          </div>
+          <div v-for="(file, index) in uploadingFiles" :key="index"
+               class="upload-item flex-row gap-sm"
+               :class="file.status">
+            <img v-if="file.preview" :src="file.preview" style="width:40px;height:40px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;">
+            <i v-else :class="getFileIcon(file.originalName)" style="font-size:1.25rem;color:var(--color-text-muted);width:40px;text-align:center;"></i>
+            <div style="flex:1;min-width:0;">
+              <div class="text-sm text-truncate">{{ file.name }}</div>
+              <div class="text-xs text-muted">{{ formatSize(file.size) }}</div>
+              <div class="upload-item-progress" v-if="file.status === 'uploading' || file.status === 'processing'">
+                <div class="fill" :style="{ width: file.progress + '%' }"></div>
+              </div>
+              <div class="text-xs" v-if="file.compressionStatus" style="color:var(--khaki);">{{ file.compressionStatus }}</div>
+              <div class="text-xs" v-if="file.error" style="color:var(--rust-light);">{{ file.error }}</div>
+            </div>
+            <div class="flex-row gap-xs">
+              <span class="badge" :class="file.status === 'success' ? 'badge-success' : file.status === 'error' ? 'badge-danger' : 'badge-default'">
+                {{ getStatusText(file.status) }}
+              </span>
+              <button v-if="file.status === 'error'" class="btn btn-sm btn-ghost" @click="retryUpload(file)">
+                <i class="fas fa-redo"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 结果区域 ===== -->
+      <div class="card result-section">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-check-circle"></i> 上传结果
+            <span class="text-sm text-muted" style="font-family:var(--font-body);text-transform:none;letter-spacing:0;" v-if="uploadedFiles.length">({{ uploadedFiles.length }})</span>
+          </div>
+          <div class="result-actions flex-row gap-xs" v-if="uploadedFiles.length > 0">
+            <button class="btn btn-sm btn-ghost" @click="selectAll" :title="isAllSelected ? '取消全选' : '全选'">
+              <i class="fas" :class="isAllSelected ? 'fa-check-square' : 'fa-square'"></i> {{ isAllSelected ? '取消全选' : '全选' }}
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="copySelectedLinks" v-if="selectedCount > 0">
+              <i class="fas fa-copy"></i> 复制选中
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="copyAllLinks">
+              <i class="fas fa-copy"></i> 复制全部
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="clearResults">
+              <i class="fas fa-eraser"></i> 清空
+            </button>
+          </div>
+        </div>
+
+        <!-- 链接格式 -->
+        <div class="link-format-tabs" v-if="uploadedFiles.length > 0">
+          <span :class="{ active: linkFormat === 'url' }" @click="linkFormat = 'url'">直链</span>
+          <span :class="{ active: linkFormat === 'markdown' }" @click="linkFormat = 'markdown'">Markdown</span>
+          <span :class="{ active: linkFormat === 'html' }" @click="linkFormat = 'html'">HTML</span>
+          <span :class="{ active: linkFormat === 'bbcode' }" @click="linkFormat = 'bbcode'">BBCode</span>
+          <span :class="{ active: linkFormat === 'ubb' }" @click="linkFormat = 'ubb'">UBB</span>
+        </div>
+
+        <!-- 文件列表 -->
+        <div class="result-list" v-if="uploadedFiles.length > 0">
+          <div v-for="(file, index) in uploadedFiles" :key="index"
+               class="result-item"
+               :class="{ selected: file.selected }">
+            <input type="checkbox" v-model="file.selected" style="accent-color:var(--olive);flex-shrink:0;">
+            <img v-if="file.fileName && isImageFile(file.fileName)" :src="file.url" @error="$event.target.style.display='none'" style="width:40px;height:40px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;">
+            <i v-else :class="getFileIcon(file.fileName || file.name)" style="font-size:1.25rem;width:40px;text-align:center;color:var(--color-text-muted);flex-shrink:0;"></i>
+            <div class="result-item-info" style="flex:1;min-width:0;">
+              <div class="text-sm text-truncate">{{ getDisplayName(file) }}</div>
+              <div class="text-xs text-muted">{{ formatSize(file.size) }}</div>
+            </div>
+            <div class="result-item-actions flex-row gap-xs">
+              <button class="btn btn-sm btn-ghost" @click="copyLink(file)" title="复制链接">
+                <i class="fas fa-copy"></i>
+              </button>
+              <button class="btn btn-sm btn-ghost" @click="openPreview(file)" title="预览">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn btn-sm btn-ghost" @click="downloadFile(file)" title="下载">
+                <i class="fas fa-download"></i>
+              </button>
+              <button class="btn btn-sm btn-ghost" @click="removeFromResults(index)" title="移除">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 批量链接文本 -->
+        <textarea class="result-area mt-md" v-if="uploadedFiles.length > 0" readonly :value="getBatchLinks()" @click="$event.target.select()" placeholder="点击选择全部链接..."></textarea>
+
+        <!-- 空状态 -->
+        <div class="empty-state" v-if="uploadedFiles.length === 0">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>选择文件或拖拽上传，结果将显示在此处</p>
+        </div>
+      </div>
+
+      <!-- ===== 历史记录 ===== -->
+      <div class="card history-section" v-if="uploadHistory.length > 0">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-history"></i> 上传历史
+            <span class="text-sm text-muted" style="font-family:var(--font-body);text-transform:none;letter-spacing:0;">({{ uploadHistory.length }})</span>
+          </div>
+          <div class="result-actions flex-row gap-xs">
+            <span class="text-xs text-muted">
+              图片 {{ historyStats.images }} · 视频 {{ historyStats.videos }} · 其他 {{ historyStats.others }}
+            </span>
+            <button class="btn btn-sm btn-ghost" @click="selectAllHistory">
+              <i class="fas" :class="isAllHistorySelected ? 'fa-check-square' : 'fa-square'"></i>
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="copySelectedHistoryLinks" v-if="selectedHistoryCount > 0">
+              <i class="fas fa-copy"></i> 复制 ({{ selectedHistoryCount }})
+            </button>
+            <button class="btn btn-sm btn-danger" @click="clearHistory">
+              <i class="fas fa-trash"></i> 清空
+            </button>
+          </div>
+        </div>
+
+        <!-- 统计 -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-value">{{ historyStats.images }}</span>
+            <span class="stat-label">图片</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ historyStats.videos }}</span>
+            <span class="stat-label">视频</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ historyStats.others }}</span>
+            <span class="stat-label">其他</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ formatSize(historyStats.totalSize) }}</span>
+            <span class="stat-label">总计</span>
+          </div>
+        </div>
+
+        <!-- 历史网格 -->
+        <div class="history-grid">
+          <div v-for="(item, index) in uploadHistory" :key="index"
+               class="history-item"
+               :class="{ selected: item.selected }"
+               style="position:relative;">
+            <img v-if="!item._imgError && item.fileName && isImageFile(item.fileName)"
+                 :src="item.url"
+                 class="history-item-thumb"
+                 @error="handleHistoryImgError($event, item)">
+            <div v-else class="history-item-thumb flex-center" style="background:var(--steel-dark);">
+              <i :class="getFileIcon(item.fileName || item.name)" style="font-size:2rem;color:var(--color-text-muted);"></i>
+            </div>
+            <div class="history-item-info">
+              <div class="history-item-name">{{ getDisplayName(item) }}</div>
+              <div class="text-xs text-muted">{{ formatSize(item.size) }}</div>
+            </div>
+            <div class="history-item-overlay">
+              <button @click.stop="copyLink(item)" title="复制链接"><i class="fas fa-copy"></i></button>
+              <button @click.stop="openPreview(item)" title="预览"><i class="fas fa-eye"></i></button>
+              <button @click.stop="downloadFile(item)" title="下载"><i class="fas fa-download"></i></button>
+              <button @click.stop="removeFromHistory(index)" title="删除"><i class="fas fa-trash"></i></button>
+              <button @click.stop="toggleHistorySelect(index)" title="选择">
+                <i class="fas" :class="item.selected ? 'fa-check-square' : 'fa-square'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 预览模态框 ========== -->
+    <div class="preview-modal" v-if="previewData" @click="closePreview">
+      <button class="preview-close" @click.stop="closePreview"><i class="fas fa-times"></i></button>
+      <img v-if="previewData.type === 'native-image'" :src="previewData.url" @click.stop>
+      <div v-else-if="previewData.type === 'iframe'" class="iframe-container" @click.stop>
+        <iframe ref="previewIframe" :src="previewData.iframeUrl" allow="clipboard-write;autoplay;fullscreen;encrypted-media" allowfullscreen></iframe>
+      </div>
+      <div class="preview-toolbar-bar" @click.stop>
+        <span class="preview-filename">{{ previewData.fileName }}</span>
+        <div class="flex-row gap-xs">
+          <button class="btn btn-primary btn-sm" @click="copyPreviewLink"><i class="fas fa-copy"></i> 复制直链</button>
+          <button class="btn btn-ghost btn-sm" @click="downloadPreviewFile"><i class="fas fa-download"></i> 下载</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 压缩确认模态框 ========== -->
+    <div class="modal-overlay" :class="{ active: pendingUploadBatch }" v-if="pendingUploadBatch" @click.self="cancelPendingUpload">
+      <div class="compress-confirm-card">
+        <div class="compress-confirm-header flex-between mb-md">
+          <div>
+            <div class="compress-confirm-title"><i class="fas fa-image"></i> 图片处理确认</div>
+            <div class="text-sm text-muted">检测到 {{ pendingUploadStats.imageCount }} 张图片</div>
+          </div>
+          <button class="btn btn-sm btn-ghost" @click="cancelPendingUpload"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="compress-confirm-stats">
+          <div class="compress-stat"><strong>{{ pendingUploadStats.fileCount }}</strong> 个文件</div>
+          <div class="compress-stat"><strong>{{ formatSize(pendingUploadStats.totalSize) }}</strong></div>
+          <div class="compress-stat" v-if="pendingUploadStats.imageCount"><strong>{{ pendingUploadStats.imageCount }}</strong> 张图片</div>
+        </div>
+        <div class="compress-mode-grid">
+          <button :class="{ active: pendingCompressionChoice === 'original' }" @click="setPendingCompressionMode('original')">
+            <i class="fas fa-file-image"></i>
+            <div>原图上传</div>
+            <div class="text-xs text-muted">不压缩</div>
+          </button>
+          <button :class="{ active: pendingCompressionChoice === 'compress' }" @click="setPendingCompressionMode('compress')">
+            <i class="fas fa-compress-alt"></i>
+            <div>压缩后上传</div>
+            <div class="text-xs text-muted">使用下方设置</div>
+          </button>
+        </div>
+        <div class="compress-controls" v-if="pendingCompressionChoice === 'compress'">
+          <div class="compress-format-grid">
+            <button v-for="fmt in imageCompressFormats" :key="fmt.value"
+                    :class="{ active: imageCompress.format === fmt.value }"
+                    :disabled="!isFormatSupported(fmt.value)"
+                    @click="selectCompressFormat(fmt.value)">
+              <i :class="fmt.icon"></i> {{ fmt.label }}
+            </button>
+          </div>
+          <div class="compress-settings-grid">
+            <div class="compress-control">
+              <label>质量: {{ imageCompress.quality }}%</label>
+              <div class="compress-range-row">
+                <input type="range" min="30" max="95" v-model.number="imageCompress.quality" @input="saveImageCompressSettings">
+                <span class="range-val">{{ imageCompress.quality }}%</span>
+              </div>
+            </div>
+            <div class="compress-control">
+              <label>最大边长: {{ imageCompress.maxDimension || '不限' }}px</label>
+              <div class="compress-range-row">
+                <input type="range" min="0" max="12000" step="100" v-model.number="imageCompress.maxDimension" @input="saveImageCompressSettings">
+                <span class="range-val">{{ imageCompress.maxDimension || '∞' }}</span>
+              </div>
+            </div>
+          </div>
+          <label class="compress-checkbox">
+            <input type="checkbox" v-model="imageCompress.keepOriginalWhenLarger" @change="saveImageCompressSettings">
+            压缩后更大时保留原图
+          </label>
+        </div>
+        <div class="compress-confirm-actions">
+          <button class="btn btn-ghost" @click="cancelPendingUpload">取消上传</button>
+          <button class="btn" @click="uploadPendingOriginal">原图上传</button>
+          <button class="btn btn-primary" @click="uploadPendingCompressed">压缩上传</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 粘贴通知 ========== -->
+    <div class="modal-overlay" :class="{ active: pasteUploadNotice }" v-if="pasteUploadNotice" @click.self="dismissPasteUploadNotice">
+      <div class="glass-card" style="max-width:420px;">
+        <div class="paste-notice-content">
+          <div class="flex-row gap-sm mb-sm">
+            <i :class="getPasteNoticeIcon(pasteUploadNotice.type)" :style="{ color: pasteUploadNotice.type === 'success' ? 'var(--color-success)' : pasteUploadNotice.type === 'error' ? 'var(--rust-light)' : 'var(--steel-light)', fontSize: '1.25rem' }"></i>
+            <div>
+              <div class="text-sm" style="font-weight:600;">{{ pasteUploadNotice.title }}</div>
+              <div class="text-xs text-muted">{{ pasteUploadNotice.message }}</div>
+            </div>
+          </div>
+          <div class="paste-notice-meta" v-if="pasteUploadNotice.fileCount">
+            <span>{{ pasteUploadNotice.fileCount }} 文件 · {{ pasteUploadNotice.totalSize }}</span>
+            <span class="ml-sm" v-if="pasteUploadNotice.storageTarget">→ {{ pasteUploadNotice.storageTarget }}</span>
+          </div>
+        </div>
+        <div class="modal-actions mt-sm">
+          <button class="btn btn-sm btn-ghost" @click="dismissPasteUploadNotice">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 个人设置弹窗 ========== -->
+    <div class="modal-overlay" :class="{ active: profileModalVisible }" v-if="profileModalVisible" @click.self="closeProfileModal">
+      <div class="modal-dialog" style="max-width:520px;">
+        <div class="modal-header"><span class="modal-title">个人信息设置</span><button class="modal-close" @click="closeProfileModal">&times;</button></div>
+        <div class="modal-inner">
+          <div class="modal-form">
+            <div class="form-group">
+              <label>头像</label>
+              <div class="profile-avatar-section">
+                <div class="profile-avatar-preview" v-html="profileAvatarHtml()"></div>
+                <div class="profile-avatar-inputs">
+                  <input class="input-glass" v-model="profileForm.avatar" placeholder="粘贴头像图片URL（上传网盘后复制直链）" style="width:100%;font-size:.82em;">
+                  <div style="display:flex;gap:6px;margin-top:6px;">
+                    <button class="btn btn-ghost btn-sm" type="button" @click="useUploadedAsAvatar" :disabled="!lastUploadedUrl"><i class="fas fa-cloud-upload-alt"></i> 使用刚上传的图片</button>
+                    <button class="btn btn-ghost btn-sm" type="button" @click="profileForm.avatar = ''"><i class="fas fa-trash-alt"></i> 清除</button>
+                  </div>
+                  <div style="font-size:.75em;opacity:.6;margin-top:4px;">提示：先上传头像图片到网盘，复制直链粘贴到上方输入框</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group"><label>用户名</label><input class="input-glass" :value="sessionUser ? sessionUser.username : ''" disabled style="opacity:.6;"></div>
+            <div class="form-group"><label>昵称</label><input class="input-glass" v-model="profileForm.nickname" placeholder="输入显示昵称"></div>
+            <hr class="form-divider">
+            <div class="form-group"><label>当前密码</label><input class="input-glass" type="password" v-model="profileForm.currentPassword" placeholder="输入当前密码以修改密码"></div>
+            <div class="form-group"><label>新密码</label><input class="input-glass" type="password" v-model="profileForm.newPassword" placeholder="留空则不修改密码"></div>
+            <div class="form-group"><label>确认新密码</label><input class="input-glass" type="password" v-model="profileForm.confirmPassword" placeholder="再次输入新密码"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" @click="closeProfileModal">取消</button>
+          <button class="btn btn-primary" @click="saveProfile" :disabled="profileSaving">{{ profileSaving ? '保存中...' : '保存设置' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== Toast 通知 ========== -->
+    <div class="toast-container">
+      <div class="toast" :class="'toast-' + toast.type" v-for="(toast, index) in toasts" :key="index">
+        <i :class="getToastIcon(toast.type)"></i>
+        <span class="toast-msg">{{ toast.message }}</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 1940Netdisk · Index 页面 Vue 应用
+    // 钢铁玻璃 UI · 完整业务逻辑保留
+    // ============================================================
+
+    const LOCAL_PREVIEW_PAGE = "/preview.html";
+
+    new Vue({
+      el: "#app",
+      data: {
+        baseURL: document.location.origin,
+        isDragging: false,
+        showUrlInput: false,
+        urlToUpload: "",
+        urlUploading: false,
+        pendingUploadBatch: null,
+        pendingCompressionChoice: "original",
+        pasteUploadNotice: null,
+        pasteUploadNoticeTimer: null,
+        globalPasteHandler: null,
+        globalKeydownHandler: null,
+        imageUploadDecision: "original",
+        imageCompress: {
+          enabled: false,
+          format: "webp",
+          quality: 82,
+          maxDimension: 0,
+          keepOriginalWhenLarger: true,
+          support: {
+            webp: true,
+            avif: true,
+            jpeg: true,
+            png: true,
+          },
+        },
+        uploadingFiles: [],
+        uploadedFiles: [],
+        uploadHistory: [],
+        linkFormat: "url",
+        previewData: null,
+        toasts: [],
+        isAuthenticated: false,
+        folderPath: "",
+        uploadFolders: [],
+        uploadFoldersLoading: false,
+        uploadFoldersFetched: false,
+        showUploadFolderCreator: false,
+        newUploadFolderPath: "",
+        uploadFolderCreating: false,
+        storageMode: "telegram",
+        storageTarget: "Telegram 频道",
+        r2Available: false,
+        s3Available: false,
+        discordAvailable: false,
+        huggingfaceAvailable: false,
+        githubAvailable: false,
+        authChecking: true,
+        // User profile
+        sessionUser: null,
+        userDropdownOpen: false,
+        profileModalVisible: false,
+        profileSaving: false,
+        profileForm: {
+          nickname: '',
+          avatar: '',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        },
+        isGuest: false,
+        guestUploadConfig: null,
+        uploadConfig: {
+          maxSize: 100 * 1024 * 1024,
+          chunkSize: 5 * 1024 * 1024,
+          smallFileThreshold: 20 * 1024 * 1024,
+          maxConcurrent: 3,
+        },
+        uploadLimits: {},
+      },
+      computed: {
+        selectedCount() {
+          return this.uploadedFiles.filter((f) => f.selected).length;
+        },
+        isAllSelected() {
+          return (
+            this.uploadedFiles.length > 0 &&
+            this.uploadedFiles.every((f) => f.selected)
+          );
+        },
+        failedCount() {
+          return this.uploadingFiles.filter((f) => f.status === "error").length;
+        },
+        imageCompressFormats() {
+          return [
+            { value: "webp", label: "WebP", mime: "image/webp", ext: "webp", icon: "fas fa-image", tip: "兼容性好，通常比 JPEG/PNG 更省空间" },
+            { value: "avif", label: "AVIF", mime: "image/avif", ext: "avif", icon: "fas fa-bolt", tip: "压缩率更高，适合现代浏览器" },
+            { value: "jpeg", label: "JPEG", mime: "image/jpeg", ext: "jpg", icon: "fas fa-file-image", tip: "适合照片，兼容性最好" },
+            { value: "png", label: "PNG", mime: "image/png", ext: "png", icon: "far fa-file-image", tip: "保留透明通道，体积通常较大" },
+          ];
+        },
+        imageCompressSummary() {
+          const format = this.imageCompressFormats.find((item) => item.value === this.imageCompress.format) || this.imageCompressFormats[0];
+          const sizeText = this.imageCompress.maxDimension ? `最大边长 ${this.imageCompress.maxDimension}px` : "保留原始尺寸";
+          const modeText = this.imageUploadDecision === "optimized"
+            ? `默认使用 ${format.label}，质量 ${this.imageCompress.quality}%，${sizeText}。`
+            : this.imageUploadDecision === "ask"
+              ? this.imageCompress.enabled
+                ? `询问窗口默认使用 ${format.label}，质量 ${this.imageCompress.quality}%，${sizeText}。`
+                : "询问窗口默认选择原图上传。"
+              : "默认直接上传原始图片文件。";
+          return modeText;
+        },
+        imageUploadDecisionSummary() {
+          const messages = {
+            original: "默认直接上传原始图片文件，不弹出确认窗口。",
+            optimized: "上传前会按下方设置转换图片。",
+            ask: "每批图片上传前先询问，并记住本次处理方式。",
+          };
+          return messages[this.imageUploadDecision] || messages.original;
+        },
+        sessionUserAvatar() {
+          if (!this.sessionUser) return '?';
+          if (this.sessionUser.avatar) {
+            return '<img src="' + this.$escapeUrl(this.sessionUser.avatar) + '" alt="avatar">';
+          }
+          return this.getInitials(this.sessionUser.nickname || this.sessionUser.username);
+        },
+        lastUploadedUrl() {
+          if (this.uploadedFiles.length > 0) {
+            var f = this.uploadedFiles[0];
+            return f.url || f.path || '';
+          }
+          return '';
+        },
+        imageCompressPanelExpanded() {
+          return this.imageCompress.enabled || this.imageUploadDecision === "optimized" || this.imageUploadDecision === "ask";
+        },
+        uploadFolderOptions() {
+          return (this.uploadFolders || [])
+            .map((folder) => {
+              const path = this.normalizeFolderPath(folder.path || folder.folderPath || "");
+              if (!path) return null;
+              return { ...folder, path, fileCount: Number(folder.fileCount || 0) };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+              const depthA = a.path.split("/").length;
+              const depthB = b.path.split("/").length;
+              if (depthA !== depthB) return depthA - depthB;
+              return a.path.localeCompare(b.path, "zh-CN", { sensitivity: "base" });
+            });
+        },
+        currentUploadLimitLabel() {
+          const limit = this.getUploadLimit(this.storageMode);
+          return this.formatSize(limit.maxBytes || this.uploadConfig.maxSize);
+        },
+        pendingUploadStats() {
+          const files = this.pendingUploadBatch?.files || [];
+          return files.reduce((stats, file) => {
+            stats.fileCount += 1;
+            stats.totalSize += file.size || 0;
+            if (this.isCompressibleImage(file)) stats.imageCount += 1;
+            return stats;
+          }, { fileCount: 0, imageCount: 0, totalSize: 0 });
+        },
+        selectedHistoryCount() {
+          return this.uploadHistory.filter((f) => f.selected).length;
+        },
+        isAllHistorySelected() {
+          return this.uploadHistory.length > 0 && this.uploadHistory.every((f) => f.selected);
+        },
+        historyStats() {
+          const stats = { images: 0, videos: 0, others: 0, totalSize: 0 };
+          this.uploadHistory.forEach((item) => {
+            const ext = item.name.split(".").pop().toLowerCase();
+            if (["jpg","jpeg","png","gif","webp","bmp"].includes(ext)) stats.images++;
+            else if (["mp4","webm","avi","mov"].includes(ext)) stats.videos++;
+            else stats.others++;
+            stats.totalSize += item.size || 0;
+          });
+          return stats;
+        },
+      },
+      methods: {
+        normalizeFolderPath(value) {
+          const parts = String(value || "").replace(/\\/g, "/").split("/");
+          const normalized = [];
+          parts.forEach((part) => {
+            const cleaned = String(part || "").trim();
+            if (!cleaned || cleaned === ".") return;
+            if (cleaned === "..") { normalized.pop(); return; }
+            normalized.push(cleaned);
+          });
+          return normalized.join("/");
+        },
+        handleFolderPathInput() {
+          this.folderPath = this.normalizeFolderPath(this.folderPath);
+          try { localStorage.setItem("uploadFolderPath", this.folderPath); } catch (e) {}
+        },
+        clearFolderPath() {
+          this.folderPath = "";
+          try { localStorage.setItem("uploadFolderPath", ""); } catch (e) {}
+        },
+        persistFolderPath() {
+          this.folderPath = this.normalizeFolderPath(this.folderPath);
+          try { localStorage.setItem("uploadFolderPath", this.folderPath); } catch (e) {}
+        },
+        selectUploadFolder(path) {
+          this.folderPath = this.normalizeFolderPath(path);
+          this.persistFolderPath();
+          this.showToast(`已选择上传目录：${this.folderPath || "根目录"}`, "success");
+        },
+        ensureUploadFolderLocal(path, fileCount) {
+          const normalized = this.normalizeFolderPath(path);
+          if (!normalized) return;
+          const parts = normalized.split("/");
+          let current = "";
+          parts.forEach((part) => {
+            current = current ? `${current}/${part}` : part;
+            const exists = (this.uploadFolders || []).some((folder) =>
+              this.normalizeFolderPath(folder.path || folder.folderPath || "") === current
+            );
+            if (!exists) {
+              this.uploadFolders.push({
+                path: current, name: part,
+                parentPath: current.includes("/") ? current.split("/").slice(0,-1).join("/") : "",
+                depth: current.split("/").length,
+                fileCount: current === normalized ? Number(fileCount || 0) : 0,
+              });
+            }
+          });
+        },
+        normalizeUploadFolderList(folders) {
+          const map = new Map();
+          (Array.isArray(folders) ? folders : []).forEach((folder) => {
+            const path = this.normalizeFolderPath(folder?.path || folder?.folderPath || "");
+            if (!path) return;
+            map.set(path, { ...folder, path, name: folder?.name || path.split("/").pop() || path, fileCount: Number(folder?.fileCount || 0) });
+          });
+          return Array.from(map.values());
+        },
+        async fetchUploadFolders(force) {
+          if (this.isGuest) return;
+          if (this.uploadFoldersLoading) return;
+          if (this.uploadFoldersFetched && !force) return;
+          this.uploadFoldersLoading = true;
+          let unauthorized = false;
+          let lastError = "";
+          try {
+            const endpoints = ["/api/manage/folders?storage=all", "/api/manage/list?includeFolders=1&limit=1"];
+            const merged = new Map();
+            for (const endpoint of endpoints) {
+              const response = await fetch(endpoint, { method: "GET", credentials: "include" });
+              if (response.status === 401 || response.status === 403) { unauthorized = true; break; }
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok || data.success === false) { lastError = data.error || "目录读取失败"; continue; }
+              this.normalizeUploadFolderList(data.folders).forEach((folder) => merged.set(folder.path, folder));
+            }
+            if (unauthorized) { this.uploadFoldersFetched = false; if (force) this.showToast("需要先登录管理后台后才能读取已有目录", "error"); return; }
+            if (merged.size === 0 && lastError) throw new Error(lastError);
+            this.uploadFolders = Array.from(merged.values());
+            if (this.folderPath) this.ensureUploadFolderLocal(this.folderPath);
+            this.uploadFoldersFetched = true;
+          } catch (error) {
+            if (force) {
+              const message = error.message === "Failed to fetch" ? "无法读取后端目录，请确认服务已启动" : error.message || "目录读取失败";
+              this.showToast(message, "error");
+            }
+          } finally { this.uploadFoldersLoading = false; }
+        },
+        openUploadFolderCreator() {
+          if (this.isGuest) { this.showToast("访客模式不可新建目录", "error"); return; }
+          this.newUploadFolderPath = this.folderPath ? `${this.folderPath}/新目录` : "新目录";
+          this.showUploadFolderCreator = true;
+          this.$nextTick(() => this.$refs.newFolderInput?.focus?.());
+        },
+        cancelUploadFolderCreator() { this.showUploadFolderCreator = false; this.newUploadFolderPath = ""; },
+        async createUploadFolder() {
+          if (this.uploadFolderCreating) return;
+          const path = this.normalizeFolderPath(this.newUploadFolderPath);
+          if (!path) { this.showToast("请输入目录路径", "error"); return; }
+          this.uploadFolderCreating = true;
+          try {
+            const response = await fetch("/api/manage/folders", {
+              method: "POST", credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) throw new Error(data.error || "目录创建失败");
+            this.ensureUploadFolderLocal(path);
+            this.selectUploadFolder(path);
+            this.showUploadFolderCreator = false;
+            this.newUploadFolderPath = "";
+            this.uploadFoldersFetched = true;
+            this.showToast(`目录已创建：${path}`, "success");
+          } catch (error) { this.showToast(error.message || "目录创建失败", "error"); }
+          finally { this.uploadFolderCreating = false; }
+        },
+        triggerUpload() { this.$refs.fileInput.click(); },
+        handleFileSelect(event) {
+          const files = Array.from(event.target.files || []);
+          this.prepareFilesForUpload(files);
+          event.target.value = "";
+        },
+        onDragOver() { this.isDragging = true; },
+        onDragLeave() { this.isDragging = false; },
+        onDrop(event) {
+          this.isDragging = false;
+          const files = Array.from(event.dataTransfer.files || []);
+          this.prepareFilesForUpload(files);
+        },
+        getClipboardFileExtension(mimeType, fallback) {
+          const type = String(mimeType || "").split(";")[0].toLowerCase();
+          const map = {
+            "image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif","image/bmp":"bmp","image/svg+xml":"svg","image/avif":"avif",
+            "video/mp4":"mp4","video/webm":"webm","audio/mpeg":"mp3","audio/wav":"wav","audio/ogg":"ogg","application/pdf":"pdf","application/zip":"zip","text/plain":"txt"
+          };
+          return map[type] || type.split("/").pop() || (fallback || "bin");
+        },
+        normalizeClipboardFile(file, index, prefix) {
+          const name = String(file.name || "").trim();
+          if (name && !/^image\.(png|jpe?g|gif|webp)$/i.test(name)) return file;
+          const ext = this.getClipboardFileExtension(file.type);
+          const safeExt = String(ext || "bin").replace(/[^a-z0-9]/gi,"") || "bin";
+          return new File([file], `${prefix||"paste"}_${Date.now()}_${(index||0)+1}.${safeExt}`, { type: file.type || "application/octet-stream", lastModified: file.lastModified || Date.now() });
+        },
+        extractFilesFromClipboardData(clipboardData, prefix) {
+          const files = [];
+          const seen = new Set();
+          const pushFile = (file, index) => {
+            if (!file) return;
+            const key = `${file.name||""}:${file.type||""}:${file.size}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            files.push(this.normalizeClipboardFile(file, index, prefix));
+          };
+          Array.from(clipboardData?.files || []).forEach(pushFile);
+          Array.from(clipboardData?.items || []).forEach((item, index) => { if (item.kind === "file") pushFile(item.getAsFile(), index); });
+          return files;
+        },
+        shouldIgnorePasteTarget(target) { return Boolean(target?.closest?.("input, textarea, select, [contenteditable='true']")); },
+        async queuePastedFiles(files, sourceLabel) {
+          if (!files || files.length === 0) {
+            this.showPasteUploadNotice({ type:"error", title:"没有检测到可上传文件", message:"请先复制图片或文件，再使用粘贴上传。" });
+            return;
+          }
+          const valid = this.validateUploadFiles(files);
+          if (!valid || valid.length === 0) {
+            this.showPasteUploadNotice({ type:"error", title:"粘贴内容未加入队列", message:"文件可能超过当前存储上限，或剪贴板内容不支持上传。" });
+            return;
+          }
+          const context = this.createUploadContext();
+          const imageCount = valid.filter((file) => this.isCompressibleImage(file)).length;
+          const totalSize = valid.reduce((sum, file) => sum + (file.size||0), 0);
+          const needsChoice = imageCount > 0 && this.imageUploadDecision === "ask";
+          this.showPasteUploadNotice({
+            type: "success", title: needsChoice ? "已识别粘贴文件" : "粘贴上传已加入队列",
+            message: needsChoice ? `通过 ${sourceLabel||"Ctrl+V"} 识别到文件，请在确认窗口选择图片处理方式。` : `通过 ${sourceLabel||"Ctrl+V"} 添加成功，已加入上传队列并开始处理。`,
+            fileCount: valid.length, totalSize: this.formatSize(totalSize), storageTarget: context.storageTarget, folderPath: context.folderPath
+          });
+          setTimeout(() => {
+            this.prepareFilesForUpload(valid, { skipValidation: true }).catch((error) => {
+              this.showPasteUploadNotice({ type:"error", title:"粘贴上传启动失败", message: error.message || "请稍后重试。" });
+            });
+          }, 0);
+        },
+        async pasteFromClipboard() {
+          try {
+            const items = await navigator.clipboard.read();
+            const files = [];
+            for (const [itemIndex, item] of items.entries()) {
+              for (const type of item.types || []) {
+                if (type === "text/plain" || type === "text/html") continue;
+                try {
+                  const blob = await item.getType(type);
+                  if (!blob || !blob.size) continue;
+                  files.push(new File([blob], `clipboard_${Date.now()}_${itemIndex+1}.${this.getClipboardFileExtension(type)}`, { type }));
+                } catch(e) {}
+              }
+            }
+            await this.queuePastedFiles(files, "粘贴按钮");
+          } catch(err) {
+            this.showPasteUploadNotice({ type:"error", title:"无法读取剪贴板", message:"浏览器拒绝访问剪贴板时，请直接按 Ctrl/Cmd + V 粘贴文件或图片。" });
+          }
+        },
+        async uploadFromUrl() {
+          if (!this.urlToUpload.trim()) { this.showToast("请输入有效的URL", "error"); return; }
+          try { const url = new URL(this.urlToUpload); if (!["http:","https:"].includes(url.protocol)) { this.showToast("仅支持HTTP/HTTPS协议的URL","error"); return; } }
+          catch { this.showToast("URL格式无效","error"); return; }
+          this.urlUploading = true;
+          try {
+            const response = await fetch(`${this.baseURL}/api/upload-from-url`, {
+              method:"POST", headers:{"Content-Type":"application/json"},
+              body: JSON.stringify({ url: this.urlToUpload, storageMode: this.storageMode, folderPath: this.normalizeFolderPath(this.folderPath) }),
+              credentials: "include"
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "上传失败");
+            if (Array.isArray(data) && data[0]?.src) {
+              const src = data[0].src;
+              const fileName = this.urlToUpload.split("/").pop().split("?")[0] || "url_image";
+              const uploadedFile = { name: fileName, fileName, url: `${this.baseURL}${src}`, path: src, size: 0, selected: false, uploadTime: Date.now() };
+              this.uploadedFiles.unshift(uploadedFile);
+              this.addToHistory(uploadedFile);
+              this.showToast(`成功从URL上传到 ${this.storageTarget}`, "success");
+            }
+            this.urlToUpload = "";
+          } catch(err) { this.showToast("URL上传失败：" + err.message, "error"); }
+          finally { this.urlUploading = false; }
+        },
+        createUploadContext() { return { storageMode: this.storageMode, storageTarget: this.storageTarget, folderPath: this.normalizeFolderPath(this.folderPath) }; },
+        getImageFormatConfig(format) { return this.imageCompressFormats.find((item) => item.value === format) || this.imageCompressFormats[0]; },
+        isFormatSupported(format) { return this.imageCompress.support?.[format] !== false; },
+        loadImageUploadDecision() {
+          try { const saved = localStorage.getItem("kvault:image-upload-decision"); if (["original","optimized","ask"].includes(saved)) this.imageUploadDecision = saved; } catch(e) {}
+        },
+        setImageUploadDecision(decision) {
+          if (!["original","optimized","ask"].includes(decision)) return;
+          this.imageUploadDecision = decision;
+          if (decision === "optimized") this.imageCompress.enabled = true;
+          else if (decision === "original") this.imageCompress.enabled = false;
+          try { localStorage.setItem("kvault:image-upload-decision", decision); } catch(e) {}
+          this.saveImageCompressSettings();
+        },
+        storageEnabledFromStatus(statusItem) { return !!(statusItem && (statusItem.connected || statusItem.configured) && statusItem.enabled !== false); },
+        getUploadLimit(storageMode) {
+          const fallback = {
+            telegram: { maxBytes: 20*1024*1024, directThreshold: 20*1024*1024, supportsChunkUpload: false },
+            r2: { maxBytes: this.uploadConfig.maxSize, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
+            s3: { maxBytes: this.uploadConfig.maxSize, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
+            discord: { maxBytes: 25*1024*1024, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
+            huggingface: { maxBytes: 35*1024*1024, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
+            webdav: { maxBytes: this.uploadConfig.maxSize, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
+            github: { maxBytes: this.uploadConfig.maxSize, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
+          };
+          const base = fallback[storageMode] || fallback.telegram;
+          return { ...base, ...(this.uploadLimits?.[storageMode] || {}) };
+        },
+        validateUploadItemSize(item) {
+          const limit = this.getUploadLimit(this.getItemStorageMode(item));
+          const maxBytes = this.isGuest && this.guestUploadConfig ? Math.min(limit.maxBytes || Infinity, this.guestUploadConfig.maxFileSize) : limit.maxBytes;
+          if (maxBytes && item.file.size > maxBytes) throw new Error(`${this.getItemStorageTarget(item)} 单文件上限为 ${this.formatSize(maxBytes)}。较大的浏览器上传请切换到 R2、S3、WebDAV 或 GitHub。`);
+        },
+        shouldUseChunkedUpload(item) {
+          if (this.isGuest) return false;
+          const limit = this.getUploadLimit(this.getItemStorageMode(item));
+          if (limit.supportsChunkUpload === false) return false;
+          const threshold = limit.directThreshold || this.uploadConfig.smallFileThreshold;
+          return item.file.size > threshold;
+        },
+        async detectImageCompressionSupport() {
+          if (!document.createElement("canvas").toBlob) return;
+          const canvas = document.createElement("canvas");
+          canvas.width = 1; canvas.height = 1;
+          const ctx = canvas.getContext("2d");
+          if (ctx) { ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,1,1); }
+          await Promise.all(this.imageCompressFormats.map((format) => new Promise((resolve) => {
+            canvas.toBlob((blob) => { this.$set(this.imageCompress.support, format.value, !!blob && blob.type === format.mime); resolve(); }, format.mime, 0.82);
+          })));
+          if (!this.isFormatSupported(this.imageCompress.format)) {
+            const fallback = this.imageCompressFormats.find((f) => this.isFormatSupported(f.value));
+            if (fallback) this.imageCompress.format = fallback.value;
+          }
+        },
+        loadImageCompressSettings() {
+          try {
+            const raw = localStorage.getItem("imageCompressSettings");
+            if (!raw) return;
+            const settings = JSON.parse(raw);
+            if (typeof settings.enabled === "boolean") this.imageCompress.enabled = settings.enabled;
+            if (settings.format) this.imageCompress.format = settings.format;
+            if (settings.quality) this.imageCompress.quality = settings.quality;
+            if (settings.maxDimension !== undefined) this.imageCompress.maxDimension = settings.maxDimension;
+            if (typeof settings.keepOriginalWhenLarger === "boolean") this.imageCompress.keepOriginalWhenLarger = settings.keepOriginalWhenLarger;
+            this.normalizeImageCompressSettings();
+          } catch(e) {}
+        },
+        syncImageCompressState() {
+          if (this.imageUploadDecision === "optimized") this.imageCompress.enabled = true;
+          else if (this.imageUploadDecision === "original") this.imageCompress.enabled = false;
+        },
+        normalizeImageCompressSettings() {
+          const quality = Number(this.imageCompress.quality) || 82;
+          const maxDimension = Number(this.imageCompress.maxDimension) || 0;
+          this.imageCompress.quality = Math.min(95, Math.max(30, quality));
+          this.imageCompress.maxDimension = Math.min(12000, Math.max(0, Math.round(maxDimension)));
+          if (!this.imageCompressFormats.some((f) => f.value === this.imageCompress.format)) this.imageCompress.format = "webp";
+        },
+        saveImageCompressSettings() {
+          this.normalizeImageCompressSettings();
+          try { localStorage.setItem("imageCompressSettings", JSON.stringify({ enabled: this.imageCompress.enabled, format: this.imageCompress.format, quality: this.imageCompress.quality, maxDimension: this.imageCompress.maxDimension, keepOriginalWhenLarger: this.imageCompress.keepOriginalWhenLarger })); } catch(e) {}
+        },
+        handleImageCompressToggle() {
+          if (this.imageCompress.enabled) { if (this.imageUploadDecision === "original") { this.imageUploadDecision = "optimized"; try { localStorage.setItem("kvault:image-upload-decision","optimized"); } catch(e) {} } }
+          else if (this.imageUploadDecision === "optimized") { this.imageUploadDecision = "original"; try { localStorage.setItem("kvault:image-upload-decision","original"); } catch(e) {} }
+          this.saveImageCompressSettings();
+        },
+        selectCompressFormat(format) { if (!this.isFormatSupported(format)) return; this.imageCompress.format = format; this.saveImageCompressSettings(); },
+        snapshotImageCompressOptions(enabled) {
+          this.normalizeImageCompressSettings();
+          const format = this.getImageFormatConfig(this.imageCompress.format);
+          return { enabled: !!enabled, format: format.value, quality: this.imageCompress.quality, maxDimension: this.imageCompress.maxDimension, keepOriginalWhenLarger: this.imageCompress.keepOriginalWhenLarger };
+        },
+        isCompressibleImage(file) { const type = (file.type||"").toLowerCase(); if (!type.startsWith("image/")) return false; return !["image/gif","image/svg+xml"].includes(type); },
+        validateUploadFiles(files) {
+          const valid = [];
+          const selectedLimit = this.getUploadLimit(this.storageMode);
+          const maxSize = this.isGuest && this.guestUploadConfig ? Math.min(selectedLimit.maxBytes||Infinity, this.guestUploadConfig.maxFileSize) : selectedLimit.maxBytes || this.uploadConfig.maxSize;
+          const maxSizeLabel = this.formatSize(maxSize);
+          files.forEach((file) => { if (file.size > maxSize) this.showToast(`${file.name} 超过${maxSizeLabel}限制`, "error"); else valid.push(file); });
+          if (valid.length === 0) return;
+          return valid;
+        },
+        async prepareFilesForUpload(files, options) {
+          const valid = options?.skipValidation ? Array.from(files||[]) : this.validateUploadFiles(files);
+          if (!valid || valid.length === 0) return { fileCount:0, totalSize:0, pending:false };
+          const context = this.createUploadContext();
+          const imageCount = valid.filter((f) => this.isCompressibleImage(f)).length;
+          const totalSize = valid.reduce((sum, f) => sum+(f.size||0), 0);
+          if (imageCount > 0) {
+            if (this.imageUploadDecision !== "ask") {
+              await this.processFiles(valid, this.snapshotImageCompressOptions(this.imageUploadDecision === "optimized"), context);
+              return { fileCount: valid.length, imageCount, totalSize, pending: false, storageTarget: context.storageTarget, folderPath: context.folderPath };
+            }
+            this.pendingUploadBatch = { files: valid, context };
+            this.pendingCompressionChoice = this.imageCompress.enabled ? "compress" : "original";
+            return { fileCount: valid.length, imageCount, totalSize, pending: true, storageTarget: context.storageTarget, folderPath: context.folderPath };
+          }
+          await this.processFiles(valid, this.snapshotImageCompressOptions(false), context);
+          return { fileCount: valid.length, imageCount, totalSize, pending: false, storageTarget: context.storageTarget, folderPath: context.folderPath };
+        },
+        setPendingCompressionMode(mode) { this.pendingCompressionChoice = mode; },
+        cancelPendingUpload() { this.pendingUploadBatch = null; this.pendingCompressionChoice = "original"; },
+        consumePendingUploadBatch() { const batch = this.pendingUploadBatch; this.pendingUploadBatch = null; return batch; },
+        async uploadPendingOriginal() { const batch = this.consumePendingUploadBatch(); if (!batch) return; this.pendingCompressionChoice = "original"; await this.processFiles(batch.files, this.snapshotImageCompressOptions(false), batch.context); },
+        async uploadPendingCompressed() { const batch = this.consumePendingUploadBatch(); if (!batch) return; this.pendingCompressionChoice = "compress"; await this.processFiles(batch.files, this.snapshotImageCompressOptions(true), batch.context); },
+        getItemStorageMode(item) { return item.storageMode || this.storageMode; },
+        getItemStorageTarget(item) { return item.storageTarget || this.storageTarget; },
+        getItemFolderPath(item) { return this.normalizeFolderPath(item.folderPath || ""); },
+        replaceFileExtension(name, ext) { const safeExt = String(ext||"").replace(/^\./,""); if (!safeExt) return name; return `${String(name||"image").replace(/\.[^/.]+$/,"")}.${safeExt}`; },
+        loadImageFromFile(file) { return new Promise((resolve, reject) => { const url = URL.createObjectURL(file); const img = new Image(); img.onload = ()=>{ URL.revokeObjectURL(url); resolve(img); }; img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("图片解码失败")); }; img.src = url; }); },
+        canvasToBlob(canvas, mime, quality) { return new Promise((resolve, reject) => { if (!canvas.toBlob) { reject(new Error("当前浏览器不支持图片压缩")); return; } canvas.toBlob((blob) => { if (!blob) { reject(new Error("图片压缩失败")); return; } resolve(blob); }, mime, quality); }); },
+        async compressImageFile(file, options) {
+          if (!options.enabled || !this.isCompressibleImage(file)) return { file, changed: false };
+          const format = this.getImageFormatConfig(options.format);
+          if (!this.isFormatSupported(format.value)) return { file, changed: false, reason: `浏览器不支持输出 ${format.label}，已上传原图` };
+          const image = await this.loadImageFromFile(file);
+          const naturalWidth = image.naturalWidth || image.width;
+          const naturalHeight = image.naturalHeight || image.height;
+          if (!naturalWidth || !naturalHeight) throw new Error("无法读取图片尺寸");
+          let width = naturalWidth, height = naturalHeight;
+          const maxDimension = Number(options.maxDimension) || 0;
+          if (maxDimension > 0 && Math.max(width,height) > maxDimension) { const ratio = maxDimension / Math.max(width,height); width = Math.max(1, Math.round(width*ratio)); height = Math.max(1, Math.round(height*ratio)); }
+          const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("无法创建图片处理画布");
+          if (format.mime === "image/jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,width,height); }
+          ctx.drawImage(image, 0, 0, width, height);
+          const blob = await this.canvasToBlob(canvas, format.mime, options.quality/100);
+          if (blob.type && blob.type !== format.mime) return { file, changed: false, reason: `浏览器不支持输出 ${format.label}，已上传原图` };
+          if (options.keepOriginalWhenLarger && blob.size >= file.size) return { file, changed: false, reason: "压缩后体积未变小，已保留原图" };
+          const compressed = new File([blob], this.replaceFileExtension(file.name, format.ext), { type: format.mime, lastModified: file.lastModified });
+          return { file: compressed, changed: true, formatLabel: format.label, originalSize: file.size, outputSize: compressed.size, resized: width!==naturalWidth || height!==naturalHeight };
+        },
+        async prepareUploadItem(item) {
+          if (item.imageCompressionPrepared) return;
+          item.imageCompressionPrepared = true;
+          const options = item.imageCompressOptions || { enabled: false };
+          if (!options.enabled || !this.isCompressibleImage(item.originalFile)) return;
+          const format = this.getImageFormatConfig(options.format);
+          item.status = "processing"; item.compressionStatus = `正在转换为 ${format.label}...`;
+          try {
+            const result = await this.compressImageFile(item.originalFile, options);
+            if (!result.changed) { item.compressionStatus = result.reason || "已跳过压缩"; return; }
+            item.file = result.file; item.name = result.file.name; item.size = result.file.size;
+            if (item.preview) URL.revokeObjectURL(item.preview);
+            item.preview = URL.createObjectURL(result.file);
+            const saved = Math.max(0, result.originalSize - result.outputSize);
+            const resizedText = result.resized ? "，已调整尺寸" : "";
+            item.compressionStatus = `已转为 ${result.formatLabel}，节省 ${this.formatSize(saved)}${resizedText}`;
+          } catch(err) { console.warn("Image compression skipped:", err); item.compressionStatus = `压缩失败，已上传原图：${err.message}`; }
+        },
+        async processFiles(files, imageCompressOptions, uploadContext) {
+          if (!files || files.length === 0) return;
+          const context = uploadContext || this.createUploadContext();
+          const compressOptions = imageCompressOptions || this.snapshotImageCompressOptions(this.imageCompress.enabled);
+          for (const file of files) {
+            const uploadItem = {
+              name: file.name, size: file.size, file: file, originalFile: file, originalName: file.name, originalSize: file.size,
+              status: "waiting", preview: null, progress: 0, error: null, compressionStatus: "",
+              imageCompressionPrepared: false, imageCompressOptions: { ...compressOptions },
+              storageMode: context.storageMode, storageTarget: context.storageTarget, folderPath: context.folderPath, isChunked: false
+            };
+            if (file.type.startsWith("image/")) uploadItem.preview = URL.createObjectURL(file);
+            this.uploadingFiles.push(uploadItem);
+          }
+          await this.startUpload();
+        },
+        async startUpload() {
+          const waiting = this.uploadingFiles.filter((f) => f.status === "waiting");
+          if (waiting.length === 0) return;
+          const telegramItems = waiting.filter((item) => this.getItemStorageMode(item) === "telegram");
+          const otherItems = waiting.filter((item) => this.getItemStorageMode(item) !== "telegram");
+          for (let i = 0; i < telegramItems.length; i++) {
+            await this.uploadFile(telegramItems[i]);
+            if (i < telegramItems.length - 1) await new Promise((r) => setTimeout(r, 500));
+          }
+          const concurrent = this.uploadConfig.maxConcurrent;
+          for (let i = 0; i < otherItems.length; i += concurrent) {
+            await Promise.all(otherItems.slice(i, i+concurrent).map((item) => this.uploadFile(item)));
+          }
+          const successCount = waiting.filter((f) => f.status === "success").length;
+          if (successCount > 0) {
+            const targets = [...new Set(waiting.map((item) => this.getItemStorageTarget(item)))];
+            this.showToast(`成功上传 ${successCount} 个文件到 ${targets.length===1?targets[0]:"多个存储目标"}`, "success");
+          }
+          setTimeout(() => { this.uploadingFiles = this.uploadingFiles.filter((f) => f.status !== "success"); }, 2000);
+        },
+        async uploadFile(item) {
+          try {
+            await this.prepareUploadItem(item);
+            this.validateUploadItemSize(item);
+            item.status = "uploading"; item.progress = 0;
+            item.isChunked = this.shouldUseChunkedUpload(item);
+            if (item.isChunked) await this.chunkedUpload(item);
+            else await this.directUpload(item);
+          } catch(err) { item.status = "error"; item.error = err.message; console.error("Upload error:", err); }
+        },
+        async directUpload(item) {
+          const formData = new FormData();
+          formData.append("file", item.file);
+          formData.append("storageMode", this.getItemStorageMode(item));
+          formData.append("folderPath", this.getItemFolderPath(item));
+          const response = await fetch(`${this.baseURL}/upload`, { method:"POST", body:formData, credentials:"include" });
+          const data = await response.json();
+          if (!response.ok || (Array.isArray(data) && data[0]?.error)) throw new Error((Array.isArray(data)?data[0]?.error:data?.error) || "上传失败");
+          const src = data[0]?.src;
+          if (!src) throw new Error("未返回文件路径");
+          item.status = "success"; item.progress = 100;
+          this.handleUploadSuccess(item, src);
+        },
+        async chunkedUpload(item) {
+          const file = item.file, chunkSize = this.uploadConfig.chunkSize, totalChunks = Math.ceil(file.size / chunkSize);
+          const initRes = await fetch(`${this.baseURL}/api/chunked-upload/init`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ fileName:file.name, fileSize:file.size, fileType:file.type, totalChunks, storageMode:this.getItemStorageMode(item), folderPath:this.getItemFolderPath(item) }), credentials:"include" });
+          const initData = await initRes.json();
+          if (!initRes.ok) throw new Error(initData.error || "初始化上传失败");
+          const uploadId = initData.uploadId;
+          for (let i = 0; i < totalChunks; i++) {
+            const start = i*chunkSize, end = Math.min(start+chunkSize, file.size);
+            const fd = new FormData(); fd.append("chunk", file.slice(start,end)); fd.append("uploadId", uploadId); fd.append("chunkIndex", i);
+            const chunkRes = await fetch(`${this.baseURL}/api/chunked-upload/chunk`, { method:"POST", body:fd, credentials:"include" });
+            if (!chunkRes.ok) { const err = await chunkRes.json(); throw new Error(err.error || `分片 ${i+1} 上传失败`); }
+            item.progress = Math.round(((i+1)/totalChunks)*90);
+          }
+          const compRes = await fetch(`${this.baseURL}/api/chunked-upload/complete`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({uploadId}), credentials:"include" });
+          const compData = await compRes.json();
+          if (!compRes.ok) throw new Error(compData.error || "合并分片失败");
+          item.status = "success"; item.progress = 100;
+          this.handleUploadSuccess(item, compData.src);
+        },
+        handleUploadSuccess(item, src) {
+          const uploadedFile = { name: item.file.name, fileName: item.file.name, url: `${this.baseURL}${src}`, path: src, size: item.file.size, selected: false, uploadTime: Date.now() };
+          this.uploadedFiles.unshift(uploadedFile);
+          this.addToHistory(uploadedFile);
+        },
+        formatLink(file) {
+          const url = this.getCleanFileUrl(file);
+          const name = this.getDisplayName(file);
+          switch (this.linkFormat) {
+            case "markdown": return `![${name}](${url})`;
+            case "html": return `<img src="${url}" alt="${name}">`;
+            case "bbcode": return `[img]${url}[/img]`;
+            case "ubb": return `[IMG]${url}[/IMG]`;
+            default: return url;
+          }
+        },
+        getBatchLinks() {
+          const selected = this.uploadedFiles.filter((f) => f.selected);
+          return (selected.length > 0 ? selected : this.uploadedFiles).map((f) => this.formatLink(f)).join("\n");
+        },
+        async copyLink(file) {
+          try { await this.copyToClipboard(this.formatLink(file)); this.showToast("链接已复制","success"); }
+          catch(err) { this.showToast("复制失败，请手动复制","error"); }
+        },
+        copySelectedLinks() { this.copyToClipboard(this.uploadedFiles.filter(f=>f.selected).map(f=>this.formatLink(f)).join("\n")); this.showToast(`已复制 ${this.selectedCount} 个链接`,"success"); },
+        copyAllLinks() { this.copyToClipboard(this.uploadedFiles.map(f=>this.formatLink(f)).join("\n")); this.showToast(`已复制 ${this.uploadedFiles.length} 个链接`,"success"); },
+        selectAll() { const ns = !this.isAllSelected; this.uploadedFiles.forEach((f)=>f.selected=ns); },
+        clearResults() { this.uploadedFiles = []; },
+        clearUploadQueue() { this.uploadingFiles = this.uploadingFiles.filter(f=>f.status==="uploading"||f.status==="processing"); if (this.uploadingFiles.length===0) this.showToast("队列已清空","success"); },
+        async retryUpload(item) { item.status="waiting"; item.error=null; item.progress=0; await this.uploadFile(item); },
+        async retryAllFailed() {
+          const failed = this.uploadingFiles.filter(f=>f.status==="error");
+          if (failed.length===0) return;
+          this.showToast(`正在重试 ${failed.length} 个失败项...`,"info");
+          failed.forEach(i=>{ i.status="waiting"; i.error=null; i.progress=0; });
+          await this.startUpload();
+          const sc = failed.filter(f=>f.status==="success").length;
+          if (sc>0) this.showToast(`重试成功 ${sc}/${failed.length} 个文件`,"success");
+        },
+        removeFromResults(index) { this.uploadedFiles.splice(index, 1); },
+        downloadFile(file) { const a=document.createElement("a"); a.href=this.getCleanFileUrl(file); a.download=this.getDisplayName(file); a.click(); },
+        previewImage(url) { this.previewData = { type:"native-image", url }; },
+        openPreview(file) {
+          const fileName = this.getDisplayName(file);
+          const fileUrl = this.getCleanFileUrl(file);
+          const ext = fileName.split(".").pop().toLowerCase();
+          const imageExts = ["jpg","jpeg","png","gif","webp","bmp","svg","ico"];
+          if (imageExts.includes(ext)) { this.previewData = { type:"native-image", url:fileUrl, fileName }; return; }
+          const videoExts = ["mp4","webm","ogg","ogv","mov","m4v"];
+          const audioExts = ["mp3","wav","ogg","oga","flac","aac","m4a","opus"];
+          const docExts = ["pdf","txt","md","json","xml","csv","docx","xlsx","pptx"];
+          if (videoExts.includes(ext) || audioExts.includes(ext) || docExts.includes(ext)) {
+            const params = new URLSearchParams({ url:fileUrl, title:fileName, autoplay:"1", embed:"1" });
+            this.previewData = { type:"iframe", iframeUrl:`${LOCAL_PREVIEW_PAGE}?${params.toString()}`, url:fileUrl, fileName };
+            return;
+          }
+          this.downloadFile(file);
+        },
+        closePreview() { if (this.$refs.previewIframe) this.$refs.previewIframe.src = "about:blank"; this.previewData = null; },
+        copyPreviewLink() {
+          if (!this.previewData) return;
+          const link = this.previewData.url;
+          const fallback = ()=>{ const ta=document.createElement("textarea"); ta.value=link; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); this.showToast("直链已复制","success"); };
+          if (navigator.clipboard?.writeText) navigator.clipboard.writeText(link).then(()=>this.showToast("直链已复制","success")).catch(()=>fallback());
+          else fallback();
+        },
+        downloadPreviewFile() { if (!this.previewData) return; const a=document.createElement("a"); a.href=this.previewData.url; a.download=this.previewData.fileName||"download"; a.click(); },
+        addToHistory(file) { if (!this.uploadHistory.find(h=>h.url===file.url)) { this.uploadHistory.unshift({...file,selected:false}); this.saveHistory(); } },
+        selectAllHistory() { const ns=!this.isAllHistorySelected; this.uploadHistory.forEach(f=>f.selected=ns); },
+        toggleHistorySelect(index) { this.uploadHistory[index].selected = !this.uploadHistory[index].selected; },
+        copySelectedHistoryLinks() { this.copyToClipboard(this.uploadHistory.filter(f=>f.selected).map(f=>this.formatLink(f)).join("\n")); this.showToast(`已复制 ${this.selectedHistoryCount} 个链接`,"success"); },
+        removeFromHistory(index) { this.uploadHistory.splice(index,1); this.saveHistory(); },
+        getDisplayName(item) {
+          const name = item.fileName || item.name;
+          if (name && !name.includes("://")) return name;
+          if (item.url) { const p = item.url.split("/").pop().split("?")[0]; if (p && p.includes(".") && p.length<80) return p; }
+          return "未知文件";
+        },
+        getCleanFileUrl(item) {
+          let rawUrl = item.url || item.path || "";
+          if (rawUrl.startsWith("https://") && rawUrl.includes("/file/")) { const m = rawUrl.match(/\/file\/([^?#]+)/); if (m) return `${this.baseURL}/file/${m[1]}`; }
+          if (rawUrl.startsWith("/file/")) return `${this.baseURL}${rawUrl}`;
+          if (rawUrl && !rawUrl.includes("/") && !rawUrl.includes("://")) return `${this.baseURL}/file/${rawUrl}`;
+          const ls = rawUrl.split("/").pop().split("?")[0];
+          if (ls && ls.includes(".")) return `${this.baseURL}/file/${ls}`;
+          return rawUrl;
+        },
+        getCleanFilePath(item) {
+          const fullUrl = this.getCleanFileUrl(item);
+          try { return new URL(fullUrl).pathname; } catch { const m = fullUrl.match(/(\/file\/[^?#]+)/); return m ? m[1] : fullUrl; }
+        },
+        isImageFile(filename) {
+          if (!filename) return false;
+          return ["jpg","jpeg","png","gif","webp","bmp","svg","ico"].includes(this.getFileExt(filename).toLowerCase());
+        },
+        getFileExt(filename) { if (!filename) return ""; const p=filename.split("."); return p.length>1?p.pop():""; },
+        getFileIcon(filename) { const ext=this.getFileExt(filename).toLowerCase(); const m={ mp4:"fas fa-video",webm:"fas fa-video",avi:"fas fa-video",mov:"fas fa-video",mkv:"fas fa-video",flv:"fas fa-video",mp3:"fas fa-music",wav:"fas fa-music",ogg:"fas fa-music",flac:"fas fa-music",aac:"fas fa-music",m4a:"fas fa-music",pdf:"fas fa-file-pdf",doc:"fas fa-file-word",docx:"fas fa-file-word",xls:"fas fa-file-excel",xlsx:"fas fa-file-excel",ppt:"fas fa-file-powerpoint",pptx:"fas fa-file-powerpoint",txt:"fas fa-file-alt",md:"fas fa-file-alt",zip:"fas fa-file-archive",rar:"fas fa-file-archive","7z":"fas fa-file-archive",tar:"fas fa-file-archive",gz:"fas fa-file-archive",js:"fas fa-file-code",ts:"fas fa-file-code",py:"fas fa-file-code",java:"fas fa-file-code",c:"fas fa-file-code",cpp:"fas fa-file-code",html:"fas fa-file-code",css:"fas fa-file-code",json:"fas fa-file-code" }; return m[ext]||"fas fa-file"; },
+        getFileIconClass(filename) {
+          const ext=this.getFileExt(filename).toLowerCase();
+          const v=["mp4","webm","avi","mov","mkv","flv"]; const a=["mp3","wav","ogg","flac","aac","m4a"]; const d=["pdf","doc","docx","xls","xlsx","ppt","pptx","txt","md"]; const z=["zip","rar","7z","tar","gz"]; const c=["js","ts","py","java","c","cpp","html","css","json"];
+          if (v.includes(ext)) return "video-file"; if (a.includes(ext)) return "audio-file"; if (d.includes(ext)) return "document-file"; if (z.includes(ext)) return "archive-file"; if (c.includes(ext)) return "code-file"; return "other-file";
+        },
+        handleHistoryImgError(event, item) { item._imgError = true; this.$forceUpdate(); },
+        clearHistory() {
+          if (confirm("确定要清空所有上传历史吗？")) { this.uploadHistory = []; this.saveHistory(); this.showToast("历史记录已清空","success"); }
+        },
+        saveHistory() { localStorage.setItem("uploadHistory", JSON.stringify(this.uploadHistory)); },
+        loadHistory() {
+          try {
+            const history = localStorage.getItem("uploadHistory");
+            if (history) {
+              let needsSave = false;
+              this.uploadHistory = JSON.parse(history).map((h) => {
+                let item = { ...h, selected: false };
+                if (item.url) { const cu = this.cleanUrlField(item.url); if (cu !== item.url) { item.url = cu; needsSave = true; } }
+                if (!item.fileName || item.fileName.includes("://")) {
+                  if (item.name && !item.name.includes("://")) { item.fileName = item.name; needsSave = true; }
+                  else {
+                    const p = (item.url||"").split("/").pop().split("?")[0];
+                    if (p && p.includes(".") && p.length<80) { item.fileName = p; item.name = p; needsSave = true; }
+                    else { item.fileName = "未知文件"; item.name = "未知文件"; needsSave = true; }
+                  }
+                }
+                return item;
+              });
+              if (needsSave) { this.saveHistory(); console.log("历史记录已迁移修复"); }
+            }
+          } catch(e) { console.error("加载历史记录失败:", e); this.uploadHistory = []; }
+        },
+        cleanUrlField(url) {
+          if (!url) return url;
+          if (url.includes("/file/https://") || url.includes("/file/http://")) { const m = url.match(/\/file\/([^\/?#]+\.[a-zA-Z0-9]+)(?:[?#].*)?$/); if (m) return `${this.baseURL}/file/${m[1]}`; }
+          if (url.match(/https?:\/\/.*https?:\/\//)) { const lu = url.match(/(https?:\/\/[^\/]+\/file\/[^?#]+)/); if (lu) { const fid = lu[1].split("/file/").pop(); return `${this.baseURL}/file/${fid}`; } }
+          if (url.startsWith("https://") && url.includes("/file/")) { const m = url.match(/\/file\/([^?#]+)/); if (m) return `${this.baseURL}/file/${m[1]}`; }
+          if (url.startsWith("/file/")) return `${this.baseURL}${url}`;
+          return url;
+        },
+        formatSize(bytes) { if (!bytes) return "0 B"; const u=["B","KB","MB","GB"]; let i=0; while(bytes>=1024 && i<u.length-1) { bytes/=1024; i++; } return bytes.toFixed(i>0?2:0)+" "+u[i]; },
+        getStatusText(status) { return { waiting:"等待中", processing:"处理中", uploading:"上传中", success:"成功", error:"失败" }[status]||status; },
+        async copyToClipboard(text) {
+          try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return; } } catch(e) {}
+          const ta=document.createElement("textarea"); ta.value=text; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+        },
+        showToast(message, type) { const t={message,type:(type||"info")}; this.toasts.push(t); setTimeout(()=>{const i=this.toasts.indexOf(t); if(i>-1) this.toasts.splice(i,1);},3000); },
+        showPasteUploadNotice(notice) {
+          if (this.pasteUploadNoticeTimer) { clearTimeout(this.pasteUploadNoticeTimer); this.pasteUploadNoticeTimer=null; }
+          this.pasteUploadNotice = { type: notice.type||"info", title: notice.title||"粘贴上传", message: notice.message||"", fileCount: notice.fileCount||0, totalSize: notice.totalSize||"", storageTarget: notice.storageTarget||this.storageTarget, folderPath: notice.folderPath||"" };
+          this.pasteUploadNoticeTimer = setTimeout(()=>{ this.dismissPasteUploadNotice(); }, notice.type==="error"?6500:5200);
+        },
+        dismissPasteUploadNotice() { if (this.pasteUploadNoticeTimer) { clearTimeout(this.pasteUploadNoticeTimer); this.pasteUploadNoticeTimer=null; } this.pasteUploadNotice=null; },
+        getPasteNoticeIcon(type) { return { success:"fas fa-clipboard-check", error:"fas fa-triangle-exclamation", info:"fas fa-paste" }[type]||"fas fa-paste"; },
+        getToastIcon(type) { return { success:"fas fa-check-circle", error:"fas fa-times-circle", info:"fas fa-info-circle" }[type]||"fas fa-info-circle"; },
+        getInitials(str) {
+          if (!str) return '?';
+          var trimmed = String(str).trim();
+          if (/[\u4e00-\u9fff]/.test(trimmed)) return trimmed.slice(0, 2);
+          return trimmed.slice(0, 2).toUpperCase();
+        },
+        loadSessionUser: function() {
+          try {
+            var sessionId = localStorage.getItem('1940netdisk_session') || sessionStorage.getItem('1940netdisk_session');
+            if (!sessionId) { this.sessionUser = null; return; }
+            var raw = localStorage.getItem('1940netdisk_data');
+            if (!raw) { this.sessionUser = null; return; }
+            var data = JSON.parse(raw);
+            var users = data.users || [];
+            for (var i = 0; i < users.length; i++) {
+              if (users[i].id === sessionId) {
+                this.sessionUser = users[i];
+                return;
+              }
+            }
+            this.sessionUser = null;
+          } catch(e) { this.sessionUser = null; }
+        },
+        handleUserDdBlur: function() {
+          var self = this;
+          setTimeout(function() { self.userDropdownOpen = false; }, 200);
+        },
+        $escapeUrl: function(str) {
+          if (!str) return '';
+          return String(str).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"').replace(/'/g, ''');
+        },
+        profileAvatarHtml: function() {
+          if (this.profileForm.avatar) {
+            return '<img src="' + this.$escapeUrl(this.profileForm.avatar) + '" alt="avatar">';
+          }
+          return this.getInitials(this.profileForm.nickname || (this.sessionUser ? this.sessionUser.nickname || this.sessionUser.username : '?'));
+        },
+        openProfileModal: function() {
+          this.profileForm.nickname = this.sessionUser ? (this.sessionUser.nickname || this.sessionUser.username) : '';
+          this.profileForm.avatar = this.sessionUser ? (this.sessionUser.avatar || '') : '';
+          this.profileForm.currentPassword = '';
+          this.profileForm.newPassword = '';
+          this.profileForm.confirmPassword = '';
+          this.userDropdownOpen = false;
+          this.profileModalVisible = true;
+        },
+        closeProfileModal: function() {
+          this.profileModalVisible = false;
+          this.profileSaving = false;
+        },
+        useUploadedAsAvatar: function() {
+          if (this.lastUploadedUrl) {
+            this.profileForm.avatar = this.lastUploadedUrl;
+          }
+        },
+        saveProfile: function() {
+          var self = this;
+          if (self.profileSaving) return;
+          if (!self.profileForm.nickname || !self.profileForm.nickname.trim()) {
+            self.showToast('昵称不能为空', 'warning');
+            return;
+          }
+          // If changing password, validate
+          if (self.profileForm.newPassword || self.profileForm.confirmPassword) {
+            if (!self.profileForm.currentPassword) {
+              self.showToast('请输入当前密码', 'warning');
+              return;
+            }
+            if (self.profileForm.newPassword !== self.profileForm.confirmPassword) {
+              self.showToast('两次新密码不一致', 'warning');
+              return;
+            }
+            if (self.profileForm.newPassword.length < 6) {
+              self.showToast('新密码至少6个字符', 'warning');
+              return;
+            }
+          }
+          self.profileSaving = true;
+          try {
+            var raw = localStorage.getItem('1940netdisk_data');
+            if (!raw) { self.showToast('无法读取用户数据', 'error'); self.profileSaving = false; return; }
+            var data = JSON.parse(raw);
+            var sessionId = localStorage.getItem('1940netdisk_session') || sessionStorage.getItem('1940netdisk_session');
+            if (!sessionId) { self.showToast('未登录', 'error'); self.profileSaving = false; return; }
+            var user = null;
+            for (var i = 0; i < data.users.length; i++) {
+              if (data.users[i].id === sessionId) {
+                user = data.users[i];
+                break;
+              }
+            }
+            if (!user) { self.showToast('用户不存在', 'error'); self.profileSaving = false; return; }
+            // Verify current password if changing password
+            if (self.profileForm.newPassword) {
+              if (user.password !== self.profileForm.currentPassword) {
+                self.showToast('当前密码错误', 'error');
+                self.profileSaving = false;
+                return;
+              }
+              user.password = self.profileForm.newPassword;
+            }
+            // Update nickname and avatar
+            user.nickname = self.profileForm.nickname.trim();
+            user.avatar = self.profileForm.avatar || '';
+            localStorage.setItem('1940netdisk_data', JSON.stringify(data));
+            // Update local session user
+            self.sessionUser = user;
+            self.closeProfileModal();
+            self.showToast('个人信息已保存', 'success');
+          } catch(e) {
+            self.showToast('保存失败: ' + e.message, 'error');
+          }
+          self.profileSaving = false;
+        },
+        async handleLogout() {
+          try { await fetch("/api/auth/logout",{method:"POST",credentials:"include"}); window.location.href="/login.html"; }
+          catch(e) { this.showToast("退出失败","error"); }
+        },
+        async checkAuth() {
+          this.authChecking = true;
+          try {
+            const res = await fetch("/api/auth/check",{credentials:"include"});
+            const data = await res.json();
+            if (data.authRequired && !data.authenticated) {
+              this.isAuthenticated = false;
+              if (data.guestUpload && data.guestUpload.enabled) {
+                this.isGuest = true;
+                this.guestUploadConfig = { maxFileSize: data.guestUpload.maxFileSize||5*1024*1024, maxDailyUploads: data.guestUpload.dailyLimit||10 };
+                this.storageMode = "telegram"; this.storageTarget = "Telegram 频道";
+                return true;
+              }
+              window.location.href = "/login.html?redirect=" + encodeURIComponent(window.location.pathname);
+              return false;
+            }
+            this.isGuest = false; this.guestUploadConfig = null;
+            this.isAuthenticated = data.authRequired && data.authenticated;
+            return true;
+          } catch(e) { console.error("Auth check failed:",e); this.isGuest=false; this.guestUploadConfig=null; return true; }
+          finally { this.authChecking = false; }
+        },
+        async checkStorageTarget() {
+          try {
+            const res = await fetch("/api/status",{credentials:"include"});
+            const status = await res.json();
+            this.uploadLimits = status.uploadLimits || {};
+            this.r2Available = this.storageEnabledFromStatus(status.r2);
+            this.s3Available = this.storageEnabledFromStatus(status.s3);
+            this.discordAvailable = this.storageEnabledFromStatus(status.discord);
+            this.huggingfaceAvailable = this.storageEnabledFromStatus(status.huggingface);
+            this.githubAvailable = this.storageEnabledFromStatus(status.github);
+            const savedMode = localStorage.getItem("storageMode");
+            const ma = { r2:this.r2Available, s3:this.s3Available, discord:this.discordAvailable, huggingface:this.huggingfaceAvailable, github:this.githubAvailable };
+            const ml = { telegram:"Telegram 频道", r2:"R2 存储桶", s3:"S3 存储", discord:"Discord 频道", huggingface:"HuggingFace 仓库", github:"GitHub 仓库" };
+            if (savedMode && ml[savedMode]) {
+              if (savedMode==="telegram") { this.storageMode="telegram"; this.storageTarget=ml.telegram; }
+              else if (ma[savedMode] && !this.isGuest) { this.storageMode=savedMode; this.storageTarget=ml[savedMode]; }
+              else if (savedMode==="r2" && this.r2Available) { this.storageMode="r2"; this.storageTarget=ml.r2; }
+              else { this.storageMode="telegram"; this.storageTarget=ml.telegram; }
+            } else { this.storageMode="telegram"; this.storageTarget=ml.telegram; }
+          } catch(e) { this.storageMode="telegram"; this.storageTarget="Telegram 频道"; this.uploadLimits={}; this.r2Available=false; this.s3Available=false; this.discordAvailable=false; this.huggingfaceAvailable=false; this.githubAvailable=false; }
+        },
+        setStorageMode(mode) {
+          const mc = { telegram:{label:"Telegram 频道",available:true}, r2:{label:"R2 存储桶",available:this.r2Available}, s3:{label:"S3 存储",available:this.s3Available}, discord:{label:"Discord 频道",available:this.discordAvailable}, huggingface:{label:"HuggingFace 仓库",available:this.huggingfaceAvailable}, github:{label:"GitHub 仓库",available:this.githubAvailable} };
+          const config = mc[mode];
+          if (!config) return;
+          if (this.authChecking) return;
+          if (this.isGuest && !["telegram","r2"].includes(mode)) { this.showToast("访客模式仅支持 Telegram 和 R2 存储","error"); return; }
+          if (!config.available && mode!=="telegram") { this.showToast(`${config.label}未配置或未启用`,"error"); return; }
+          this.storageMode = mode; this.storageTarget = config.label;
+          localStorage.setItem("storageMode", mode);
+          this.showToast(`已切换到 ${config.label}`,"success");
+        },
+      },
+      async mounted() {
+        this.loadImageUploadDecision();
+        this.loadImageCompressSettings();
+        this.syncImageCompressState();
+        this.detectImageCompressionSupport();
+        try { this.folderPath = this.normalizeFolderPath(localStorage.getItem("uploadFolderPath")||""); } catch(e) { this.folderPath=""; }
+        const shouldContinue = await this.checkAuth();
+        if (!shouldContinue) return;
+        await this.checkStorageTarget();
+        this.fetchUploadFolders();
+        this.loadHistory();
+        this.loadSessionUser();
+        this.globalPasteHandler = async (e) => {
+          const cd = e.clipboardData;
+          if (!cd) return;
+          const hasFile = Array.from(cd.files||[]).length>0 || Array.from(cd.items||[]).some(i=>i.kind==="file");
+          if (this.shouldIgnorePasteTarget(e.target) && !hasFile) return;
+          const files = this.extractFilesFromClipboardData(cd, "paste");
+          if (files.length > 0) { e.preventDefault(); await this.queuePastedFiles(files, "Ctrl/Cmd + V"); }
+        };
+        document.addEventListener("paste", this.globalPasteHandler);
+        this.globalKeydownHandler = (e) => { if (e.key==="Escape" && this.previewData) this.closePreview(); };
+        document.addEventListener("keydown", this.globalKeydownHandler);
+      },
+      beforeDestroy() {
+        if (this.globalPasteHandler) document.removeEventListener("paste", this.globalPasteHandler);
+        if (this.globalKeydownHandler) document.removeEventListener("keydown", this.globalKeydownHandler);
+        if (this.pasteUploadNoticeTimer) clearTimeout(this.pasteUploadNoticeTimer);
+      },
+    });
+  </script>
+</body>
+</html>
