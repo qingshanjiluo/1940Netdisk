@@ -1,0 +1,64 @@
+2026-07-16T07:29:24.702128Z	Cloning repository...
+2026-07-16T07:29:25.668704Z	From https://github.com/qingshanjiluo/1940Netdisk
+2026-07-16T07:29:25.66906Z	 * branch            a380df2874a4cd640182377bd052a3d3a1b71587 -> FETCH_HEAD
+2026-07-16T07:29:25.669169Z	
+2026-07-16T07:29:25.710274Z	HEAD is now at a380df2 feat: 替换 favicon 为复古工业徽章图标 + 更新 README 引用
+2026-07-16T07:29:25.710598Z	
+2026-07-16T07:29:25.753448Z	
+2026-07-16T07:29:25.753817Z	Using v2 root directory strategy
+2026-07-16T07:29:25.765261Z	Success: Finished cloning repository files
+2026-07-16T07:29:27.285703Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-07-16T07:29:27.286096Z	
+2026-07-16T07:29:27.428564Z	No Wrangler configuration file found. Continuing.
+2026-07-16T07:29:27.428914Z	No build command specified. Skipping build step.
+2026-07-16T07:29:27.429415Z	Found Functions directory at /functions. Uploading.
+2026-07-16T07:29:27.434097Z	 ⛅️ wrangler 3.114.17
+2026-07-16T07:29:27.434262Z	-------------------
+2026-07-16T07:29:28.423281Z	[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 2 errors:[0m
+2026-07-16T07:29:28.423703Z	
+2026-07-16T07:29:28.423816Z	  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "@cloudflare/pages-plugin-sentry"[0m
+2026-07-16T07:29:28.423892Z	  
+2026-07-16T07:29:28.42394Z	      utils/middleware.js:1:25:
+2026-07-16T07:29:28.423998Z	  [37m      1 │ import sentryPlugin from [32m"@cloudflare/pages-plugin-sentry"[37m;
+2026-07-16T07:29:28.42405Z	          ╵                          [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+2026-07-16T07:29:28.424099Z	  
+2026-07-16T07:29:28.424151Z	    You can mark the path "@cloudflare/pages-plugin-sentry" as external to exclude it from the bundle, which will remove this error.
+2026-07-16T07:29:28.424202Z	  
+2026-07-16T07:29:28.424243Z	  
+2026-07-16T07:29:28.42429Z	  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "@sentry/tracing"[0m
+2026-07-16T07:29:28.424339Z	  
+2026-07-16T07:29:28.424438Z	      utils/middleware.js:2:7:
+2026-07-16T07:29:28.424483Z	  [37m      2 │ import [32m'@sentry/tracing'[37m;
+2026-07-16T07:29:28.424534Z	          ╵        [32m~~~~~~~~~~~~~~~~~[0m
+2026-07-16T07:29:28.424583Z	  
+2026-07-16T07:29:28.424652Z	    You can mark the path "@sentry/tracing" as external to exclude it from the bundle, which will remove this error.
+2026-07-16T07:29:28.424705Z	  
+2026-07-16T07:29:28.424753Z	  
+2026-07-16T07:29:28.424806Z	
+2026-07-16T07:29:28.424854Z	
+2026-07-16T07:29:28.427388Z	
+2026-07-16T07:29:28.429328Z	[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 2 errors:[0m
+2026-07-16T07:29:28.429721Z	
+2026-07-16T07:29:28.429853Z	  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "@cloudflare/pages-plugin-sentry"[0m
+2026-07-16T07:29:28.430051Z	  
+2026-07-16T07:29:28.430211Z	      utils/middleware.js:1:25:
+2026-07-16T07:29:28.430412Z	  [37m      1 │ import sentryPlugin from [32m"@cloudflare/pages-plugin-sentry"[37m;
+2026-07-16T07:29:28.43059Z	          ╵                          [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+2026-07-16T07:29:28.430752Z	  
+2026-07-16T07:29:28.430923Z	    You can mark the path "@cloudflare/pages-plugin-sentry" as external to exclude it from the bundle, which will remove this error.
+2026-07-16T07:29:28.431105Z	  
+2026-07-16T07:29:28.431269Z	  
+2026-07-16T07:29:28.431466Z	  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "@sentry/tracing"[0m
+2026-07-16T07:29:28.431594Z	  
+2026-07-16T07:29:28.431706Z	      utils/middleware.js:2:7:
+2026-07-16T07:29:28.431883Z	  [37m      2 │ import [32m'@sentry/tracing'[37m;
+2026-07-16T07:29:28.432076Z	          ╵        [32m~~~~~~~~~~~~~~~~~[0m
+2026-07-16T07:29:28.432231Z	  
+2026-07-16T07:29:28.432427Z	    You can mark the path "@sentry/tracing" as external to exclude it from the bundle, which will remove this error.
+2026-07-16T07:29:28.432633Z	  
+2026-07-16T07:29:28.43279Z	  
+2026-07-16T07:29:28.43294Z	
+2026-07-16T07:29:28.433082Z	
+2026-07-16T07:29:28.43914Z	🪵  Logs were written to "/root/.config/.wrangler/logs/wrangler-2026-07-16_07-29-27_869.log"
+2026-07-16T07:29:28.510483Z	Failed building Pages Functions.
+2026-07-16T07:29:29.205975Z	Failed: generating Pages Functions failed. Check the logs above for more information. If this continues for an unknown reason, contact support: https://cfl.re/3WgEyrH
