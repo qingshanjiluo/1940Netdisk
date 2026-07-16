@@ -42,7 +42,9 @@
     .admin-dropdown-divider { height:1px; background:var(--border); margin:4px 0; }
 
     .main-layout { display:flex; gap:var(--space-md); padding:var(--space-md); min-height:calc(100vh - 70px); }
-    .folder-sidebar { width:220px; min-width:220px; background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; padding:var(--space-sm); display:flex; flex-direction:column; gap:var(--space-sm); max-height:calc(100vh - 100px); overflow-y:auto; transition:border-color .2s; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .disk-layout { display:flex; gap:var(--space-md); flex-wrap:wrap; }
+    .folder-sidebar { width:220px; min-width:220px; background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; padding:var(--space-sm); display:flex; flex-direction:column; gap:var(--space-sm); max-height:calc(100vh - 100px); overflow-y:auto; transition:border-color .2s, width .2s, min-width .2s, flex .2s; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .disk-content { flex:1 1 320px; min-width:0; display:flex; flex-direction:column; gap:var(--space-md); }
     .folder-sidebar.is-drag-active { border-color:var(--gold); box-shadow:0 0 20px rgba(212,175,55,.15); }
     .folder-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-xs); }
     .folder-head-title { display:flex; align-items:center; gap:6px; font-size:.85em; font-weight:600; }
@@ -58,7 +60,6 @@
     .folder-node-main i { width:14px; }
     .folder-node-main span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .folder-node-count { font-size:.75em; opacity:.5; }
-    .disk-content { flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--space-md); }
     .folder-breadcrumb { display:flex; align-items:center; gap:6px; font-size:.85em; flex-wrap:wrap; }
     .folder-crumb { cursor:pointer; opacity:.7; transition:all .15s; padding:2px 4px; border-radius:4px; }
     .folder-crumb:hover { opacity:1; color:var(--gold); background:var(--glass-hover); }
@@ -201,11 +202,16 @@
     /* Preview modal 高于普通弹窗 */
     .preview-modal { z-index:5000 !important; }
 
+    @media(max-width:1024px){
+      .disk-layout { flex-wrap:wrap; }
+      .folder-sidebar { width:180px; min-width:180px; }
+    }
     @media(max-width:768px){
       .admin-header { padding:var(--space-xs) var(--space-sm); }
       .admin-header .stats-loaded { display:none; }
       .status-panel .status-item span { display:none; }
-      .folder-sidebar { display:none; }
+      .folder-sidebar { width:100%; min-width:100%; max-height:none; }
+      .disk-content { flex:1 1 auto; min-width:100%; }
       .main-layout { padding:var(--space-sm); }
       .content-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:var(--space-sm); }
     }

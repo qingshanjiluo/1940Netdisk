@@ -1056,16 +1056,28 @@
 
     const LOCAL_PREVIEW_PAGE = "/preview.html";
 
-    // 确保 Vue 已加载，若未加载则给出用户提示
-    if (typeof Vue === 'undefined') {
-      document.getElementById('app').innerHTML =
-        '<div style="padding:40px;text-align:center;color:#B8A88A;font-family:sans-serif;">' +
-        '<h2>1940Netdisk</h2>' +
-        '<p style="margin-top:20px;color:#8FA0B0;">Vue.js 加载失败，请刷新页面或检查网络连接。</p>' +
-        '<button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;background:#5A6B4A;color:#fff;border:none;border-radius:4px;cursor:pointer;">刷新页面</button>' +
-        '</div>';
-    } else {
-    new Vue({
+    (function() {
+      var appEl = document.getElementById('app');
+      var attempts = 0;
+
+      function boot() {
+        if (typeof Vue === 'undefined') {
+          if (attempts < 60) {
+            attempts++;
+            setTimeout(boot, 100);
+            return;
+          }
+          if (appEl) {
+            appEl.removeAttribute('v-cloak');
+            appEl.innerHTML = '<div style="padding:40px;text-align:center;color:#B8A88A;font-family:sans-serif;">' +
+              '<h2>1940Netdisk</h2>' +
+              '<p style="margin-top:20px;color:#8FA0B0;">Vue.js 加载失败，请刷新页面或检查网络连接。</p>' +
+              '<button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;background:#5A6B4A;color:#fff;border:none;border-radius:4px;cursor:pointer;">刷新页面</button>' +
+              '</div>';
+          }
+          return;
+        }
+        new Vue({
       el: "#app",
       data: {
         baseURL: document.location.origin,
@@ -1899,7 +1911,7 @@
         },
         $escapeUrl: function(str) {
           if (!str) return '';
-          return String(str).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"').replace(/'/g, ''');
+          return String(str).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"').replace(/'/g, '');
         },
         profileAvatarHtml: function() {
           if (this.profileForm.avatar) {
@@ -2072,8 +2084,14 @@
         if (this.globalKeydownHandler) document.removeEventListener("keydown", this.globalKeydownHandler);
         if (this.pasteUploadNoticeTimer) clearTimeout(this.pasteUploadNoticeTimer);
       },
-    });
-    } // end if Vue defined
+        });
+      }
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        boot();
+      } else {
+        document.addEventListener('DOMContentLoaded', boot);
+      }
+    })();
   </script>
 </body>
 </html>

@@ -20,14 +20,15 @@
   },
   "dependencies": {
     "@cloudflare/pages-plugin-sentry": "^1.1.4",
-    "@sentry/tracing": "^7.120.4"
+    "@sentry/tracing": "^7.120.4",
+    "acorn": "^8.17.0"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",
     "hono": "^4.12.25",
     "mocha": "^11.7.6",
     "wait-on": "^9.0.10",
-    "wrangler": "^4.98.0"
+    "wrangler": "^4.111.0"
   },
   "overrides": {
     "@babel/runtime": "^7.29.7",
