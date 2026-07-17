@@ -626,13 +626,13 @@
         <button type="button" class="action-btn" data-theme-toggle aria-label="切换主题" title="切换主题"><i class="fas fa-moon" data-theme-icon></i></button>
         <button class="action-btn" title="前端 UI 设计" @click="showUiDesignSettingsPanel"><i class="fas fa-sliders-h"></i></button>
         <!-- User Profile Dropdown -->
-        <div class="user-profile-dd" v-if="currentAdminUser" ref="userDropdown">
-          <button class="user-dd-toggle" @click="userDropdownOpen = !userDropdownOpen" @blur="handleUserDdBlur">
+        <div class="user-profile-dd" v-if="currentAdminUser" ref="userDropdown" @mouseenter="userDropdownOpen = true" @mouseleave="userDropdownOpen = false">
+          <button class="user-dd-toggle" @click.stop="userDropdownOpen = !userDropdownOpen">
             <span class="user-avatar-mini" v-html="sessionUserAvatar"></span>
             <span class="user-dd-name">{{ currentAdminUser.nickname || currentAdminUser.username }}</span>
             <i class="fas fa-chevron-down" :class="{ 'rotate-180': userDropdownOpen }"></i>
           </button>
-          <div class="user-dd-menu" :class="{ show: userDropdownOpen }">
+          <div class="user-dd-menu" :class="{ show: userDropdownOpen }" @click.stop>
             <div class="user-dd-header">
               <span class="user-dd-avatar" v-html="sessionUserAvatar"></span>
               <div>
@@ -2546,10 +2546,6 @@
           if (/[\u4e00-\u9fff]/.test(trimmed)) return trimmed.slice(0, 2);
           return trimmed.slice(0, 2).toUpperCase();
         },
-        handleUserDdBlur: function(){
-          var self = this;
-          setTimeout(function(){ self.userDropdownOpen = false; }, 200);
-        },
         handleLogout: function(){
           var self = this;
           fetch('./api/auth/logout', { method: 'POST', credentials: 'include' }).then(function(){
@@ -2720,7 +2716,7 @@
           var fileIndex = this.tableData.findIndex(function(file){ return file.name === name; });
           if (fileIndex === -1) return;
           this.tableData[fileIndex].metadata.liked = !(this.tableData[fileIndex].metadata.liked || false);
-          fetch('./api/manage/toggleLike/' + name, { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
+          fetch('./api/manage/toggleLike/' + name, { method: 'POST', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
             if (!result.success) { this.tableData[fileIndex].metadata.liked = !this.tableData[fileIndex].metadata.liked; showToast('更新收藏状态失败', 'error'); }
             else showToast(this.tableData[fileIndex].metadata.liked ? '收藏成功' : '取消收藏', 'success');
           }.bind(this)).catch(function(){ this.tableData[fileIndex].metadata.liked = !this.tableData[fileIndex].metadata.liked; showToast('同步服务器失败', 'error'); }.bind(this));
@@ -2734,7 +2730,7 @@
               return true;
             }
           }).then(function(result) {
-            fetch('./api/manage/editName/' + encodeURIComponent(item.name) + '?newName=' + encodeURIComponent(result.value), { method: 'GET', credentials: 'include' })
+            fetch('./api/manage/editName/' + encodeURIComponent(item.name) + '?newName=' + encodeURIComponent(result.value), { method: 'POST', credentials: 'include' })
               .then(function(r) { return r.json(); })
               .then(function(data) {
                 if (data.success) { item.metadata.fileName = result.value; showToast('文件名修改成功', 'success'); }
@@ -2834,7 +2830,7 @@
         handleBatchBlock: function(type){
           var self = this; var typeToName = { Block: '黑名单', White: '白名单' };
           showConfirm('确定要将这 ' + self.selectedFiles.length + ' 个文件加入' + typeToName[type] + '吗?', '提示').then(function(){
-            var promises = self.selectedFiles.map(function(file){ return fetch('./api/manage/' + type.toLowerCase() + '/' + file.name, { method: 'GET', credentials: 'include' }); });
+            var promises = self.selectedFiles.map(function(file){ return fetch('./api/manage/' + type.toLowerCase() + '/' + file.name, { method: 'POST', credentials: 'include' }); });
             Promise.all(promises).then(function(responses){
               responses.forEach(function(response, index){
                 if (response.ok) { var fi = self.tableData.findIndex(function(item){ return item.name === self.selectedFiles[index].name; }); if (fi !== -1) self.tableData[fi].metadata.ListType = type; }

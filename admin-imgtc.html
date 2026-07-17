@@ -747,7 +747,7 @@ new Vue({
       var fi = this.tableData.findIndex(function(f){ return f.name === name; });
       if (fi < 0) return;
       this.tableData[fi].metadata.liked = !(this.tableData[fi].metadata.liked === true);
-      fetch('./api/manage/toggleLike/'+encodeURIComponent(name), { method:'GET', credentials:'include' })
+      fetch('./api/manage/toggleLike/'+encodeURIComponent(name), { method:'POST', credentials:'include' })
         .then(function(r){ return r.json(); })
         .then(function(result){
           if (!result.success) {
@@ -761,7 +761,7 @@ new Vue({
     },
     handleDelete: function(index, key) {
       showConfirm('此操作将永久删除该文件, 是否继续?', '提示').then(function(){
-        fetch('./api/manage/delete/'+encodeURIComponent(key), { method:'GET', credentials:'include' })
+        fetch('./api/manage/delete/'+encodeURIComponent(key), { method:'POST', credentials:'include' })
           .then(function(response){
             if (response.ok) {
               var fi = this.tableData.findIndex(function(f){ return f.name === key; });
@@ -810,7 +810,7 @@ new Vue({
       var self = this;
       if (command === 'delete') {
         showConfirm('此操作将永久删除这 '+this.selectedFiles.length+' 个文件, 是否继续?', '提示').then(function(){
-          Promise.all(self.selectedFiles.map(function(file){ return fetch('./api/manage/delete/'+encodeURIComponent(file.name), { method:'GET', credentials:'include' }); }))
+          Promise.all(self.selectedFiles.map(function(file){ return fetch('./api/manage/delete/'+encodeURIComponent(file.name), { method:'POST', credentials:'include' }); }))
             .then(function(results){
               results.forEach(function(response, idx){
                 if (response.ok) {
@@ -846,7 +846,7 @@ new Vue({
         var type = command === 'block' ? 'Block' : 'White';
         var nameMap = { Block:'黑名单', White:'白名单' };
         showConfirm('确定要将这 '+this.selectedFiles.length+' 个文件加入'+nameMap[type]+'吗?', '提示').then(function(){
-          Promise.all(self.selectedFiles.map(function(file){ return fetch('./api/manage/'+type.toLowerCase()+'/'+encodeURIComponent(file.name), { method:'GET', credentials:'include' }); }))
+          Promise.all(self.selectedFiles.map(function(file){ return fetch('./api/manage/'+type.toLowerCase()+'/'+encodeURIComponent(file.name), { method:'POST', credentials:'include' }); }))
             .then(function(responses){
               responses.forEach(function(response, idx){
                 if (response.ok) {
@@ -943,7 +943,7 @@ new Vue({
           return true;
         }
       }).then(function(result){
-        fetch('./api/manage/editName/'+encodeURIComponent(item.name)+'?newName='+encodeURIComponent(result.value), { method:'GET', credentials:'include' })
+        fetch('./api/manage/editName/'+encodeURIComponent(item.name)+'?newName='+encodeURIComponent(result.value), { method:'POST', credentials:'include' })
           .then(function(r){ return r.json(); })
           .then(function(data){
             if (data.success) { item.metadata.fileName = result.value; showToast('文件名修改成功', 'success'); }

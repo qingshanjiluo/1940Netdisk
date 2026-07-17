@@ -826,13 +826,13 @@
           <span data-theme-label>夜间</span>
         </button>
         <!-- User Profile Dropdown -->
-        <div class="user-profile-dd" v-if="sessionUser" ref="userDropdown">
-          <button class="user-dd-toggle" @click="userDropdownOpen = !userDropdownOpen" @blur="handleUserDdBlur">
+        <div class="user-profile-dd" v-if="sessionUser" ref="userDropdown" @mouseenter="userDropdownOpen = true" @mouseleave="userDropdownOpen = false">
+          <button class="user-dd-toggle" @click.stop="userDropdownOpen = !userDropdownOpen">
             <span class="user-avatar-mini" v-html="sessionUserAvatar"></span>
             <span class="user-dd-name">{{ sessionUser.nickname || sessionUser.username }}</span>
             <i class="fas fa-chevron-down" :class="{ 'rotate-180': userDropdownOpen }"></i>
           </button>
-          <div class="user-dd-menu" :class="{ show: userDropdownOpen }">
+          <div class="user-dd-menu" :class="{ show: userDropdownOpen }" @click.stop>
             <div class="user-dd-header">
               <span class="user-dd-avatar" v-html="sessionUserAvatar"></span>
               <div>
@@ -1225,7 +1225,7 @@
           for (const img of selected) {
             try {
               const response = await fetch(`./api/manage/delete/${img.name}`, {
-                method: 'GET',
+                method: 'POST',
                 credentials: 'include'
               });
               if (response.ok) {
@@ -1305,7 +1305,7 @@
           if (!confirm('确定要删除这个文件吗？')) return;
           try {
             const response = await fetch(`./api/manage/delete/${img.name}`, {
-              method: 'GET',
+              method: 'POST',
               credentials: 'include'
             });
             if (response.ok) {
@@ -1361,10 +1361,6 @@
           if (/[\u4e00-\u9fff]/.test(trimmed)) return trimmed.slice(0, 2);
           return trimmed.slice(0, 2).toUpperCase();
         },
-        handleUserDdBlur: function() {
-          var self = this;
-          setTimeout(function() { self.userDropdownOpen = false; }, 200);
-        },
         async handleLogout() {
           try { await fetch("/api/auth/logout",{method:"POST",credentials:"include"}); window.location.href="/login.html"; }
           catch(e) { this.showToast("退出失败","error"); }
@@ -1377,9 +1373,15 @@
               window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
               return false;
             }
-            // Store user info from API
+            // Store user info from API (include id and avatar)
             if (data.user) {
-              this.sessionUser = { username: data.user.username, nickname: data.user.nickname, role: data.user.role };
+              this.sessionUser = {
+                id: data.user.id || '',
+                username: data.user.username || '',
+                nickname: data.user.nickname || '',
+                avatar: data.user.avatar || '',
+                role: data.user.role || 'user'
+              };
             }
             return true;
           } catch (e) {
