@@ -1365,8 +1365,8 @@
             })
             .catch(function(e){
               console.error('Auth check failed:', e);
-              window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
-              return false;
+              // 网络异常不跳转，由后端 API 中间件兜底
+              return true;
             });
         },
         loadCurrentAdminUser: function(){

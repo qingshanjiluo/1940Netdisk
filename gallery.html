@@ -1205,9 +1205,8 @@
             return true;
           } catch (e) {
             console.error('Auth check failed:', e);
-            // 网络异常时跳转登录页，避免无认证访问
-            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
-            return false;
+            // 网络异常时不跳转，由后端 API 中间件兜底
+            return true;
           }
         }
       },
