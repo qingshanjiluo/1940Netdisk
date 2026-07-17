@@ -93,32 +93,32 @@ export async function onRequestPost(context) {
       if (!env.R2_BUCKET) {
         return errorResponse("R2 未配置。");
       }
-      result = await uploadToR2(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToR2(uploadFile, fileName, fileExtension, env, folderPath, uploadedBy);
     } else if (storageMode === "s3") {
       if (!env.S3_ENDPOINT || !env.S3_ACCESS_KEY_ID) {
         return errorResponse("S3 未配置。");
       }
-      result = await uploadToS3(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToS3(uploadFile, fileName, fileExtension, env, folderPath, uploadedBy);
     } else if (storageMode === "discord") {
       if (!env.DISCORD_WEBHOOK_URL && !env.DISCORD_BOT_TOKEN) {
         return errorResponse("Discord 未配置。");
       }
-      result = await uploadToDiscordStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToDiscordStorage(uploadFile, fileName, fileExtension, env, folderPath, uploadedBy);
     } else if (storageMode === "huggingface") {
       if (!hasHuggingFaceConfig(env)) {
         return errorResponse("HuggingFace 未配置。");
       }
-      result = await uploadToHFStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToHFStorage(uploadFile, fileName, fileExtension, env, folderPath, uploadedBy);
     } else if (storageMode === "webdav") {
       if (!hasWebDAVConfig(env)) {
         return errorResponse("WebDAV 未配置。");
       }
-      result = await uploadToWebDAVStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToWebDAVStorage(uploadFile, fileName, fileExtension, env, folderPath, uploadedBy);
     } else if (storageMode === "github") {
       if (!hasGitHubConfig(env)) {
         return errorResponse("GitHub 未配置。");
       }
-      result = await uploadToGitHubStorage(uploadFile, fileName, fileExtension, env, folderPath);
+      result = await uploadToGitHubStorage(uploadFile, fileName, fileExtension, env, folderPath, uploadedBy);
     } else {
       result = await uploadToTelegramStorage(
         uploadFile,
@@ -126,7 +126,8 @@ export async function onRequestPost(context) {
         fileExtension,
         env,
         new URL(request.url).origin,
-        folderPath
+        folderPath,
+        uploadedBy
       );
     }
 
@@ -257,7 +258,8 @@ async function uploadToTelegramStorage(
   fileExtension,
   env,
   fallbackOrigin = "",
-  folderPath = ""
+  folderPath = "",
+  uploadedBy = null
 ) {
   const telegramFormData = new FormData();
   telegramFormData.append("chat_id", env.TG_Chat_ID);
@@ -404,7 +406,7 @@ async function sendToTelegram(formData, apiEndpoint, env, retryCount = 0) {
   }
 }
 
-async function uploadToR2(file, fileName, fileExtension, env, folderPath = "") {
+async function uploadToR2(file, fileName, fileExtension, env, folderPath = "", uploadedBy = null) {
   try {
     const fileId = randomId("r2");
     const objectKey = `${fileId}.${fileExtension}`;
@@ -443,7 +445,7 @@ async function uploadToR2(file, fileName, fileExtension, env, folderPath = "") {
   }
 }
 
-async function uploadToS3(file, fileName, fileExtension, env, folderPath = "") {
+async function uploadToS3(file, fileName, fileExtension, env, folderPath = "", uploadedBy = null) {
   try {
     const s3 = createS3Client(env);
     const fileId = randomId("s3");
@@ -486,7 +488,7 @@ async function uploadToS3(file, fileName, fileExtension, env, folderPath = "") {
   }
 }
 
-async function uploadToDiscordStorage(file, fileName, fileExtension, env, folderPath = "") {
+async function uploadToDiscordStorage(file, fileName, fileExtension, env, folderPath = "", uploadedBy = null) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const result = await uploadToDiscord(arrayBuffer, fileName, file.type, env);
@@ -530,7 +532,7 @@ async function uploadToDiscordStorage(file, fileName, fileExtension, env, folder
   }
 }
 
-async function uploadToHFStorage(file, fileName, fileExtension, env, folderPath = "") {
+async function uploadToHFStorage(file, fileName, fileExtension, env, folderPath = "", uploadedBy = null) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const fileId = randomId("hf");
@@ -572,7 +574,7 @@ async function uploadToHFStorage(file, fileName, fileExtension, env, folderPath 
   }
 }
 
-async function uploadToWebDAVStorage(file, fileName, fileExtension, env, folderPath = "") {
+async function uploadToWebDAVStorage(file, fileName, fileExtension, env, folderPath = "", uploadedBy = null) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const fileId = randomId("wd");
@@ -611,7 +613,7 @@ async function uploadToWebDAVStorage(file, fileName, fileExtension, env, folderP
   }
 }
 
-async function uploadToGitHubStorage(file, fileName, fileExtension, env, folderPath = "") {
+async function uploadToGitHubStorage(file, fileName, fileExtension, env, folderPath = "", uploadedBy = null) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const fileId = randomId("github");

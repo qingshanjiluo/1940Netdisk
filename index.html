@@ -31,6 +31,7 @@
   <!-- Theme -->
   <link rel="stylesheet" href="/theme.css">
   <link rel="stylesheet" href="/mobile-refactor.css">
+  <script src="/theme.js?v=20260305"></script>
   <style>
     /* 隐藏未编译的 Vue 模板，直到 Vue 挂载完成 */
     [v-cloak] { display: none !important; }
@@ -2076,8 +2077,11 @@
             this.sessionUser = null;
           } catch(e) { this.sessionUser = null; }
         },
-        handleUserDdBlur: function() {
+        handleUserDdBlur: function(e) {
           var self = this;
+          // 如果焦点移到了下拉菜单内部，不关闭
+          if (e && e.relatedTarget && e.relatedTarget.closest &&
+              e.relatedTarget.closest('.user-dd-menu,.user-dd-toggle')) return;
           setTimeout(function() { self.userDropdownOpen = false; }, 200);
         },
         $escapeUrl: function(str) {
