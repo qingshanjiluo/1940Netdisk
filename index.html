@@ -2194,7 +2194,7 @@
               this.sessionUser = { username: data.user.username, nickname: data.user.nickname, role: data.user.role };
             }
             return true;
-          } catch(e) { console.error("Auth check failed:",e); this.isGuest=false; this.guestUploadConfig=null; return true; }
+          } catch(e) { console.error("Auth check failed:",e); this.isGuest=false; this.guestUploadConfig=null; window.location.href = "/login.html?redirect=" + encodeURIComponent(window.location.pathname); return false; }
           finally { this.authChecking = false; }
         },
         async checkStorageTarget() {

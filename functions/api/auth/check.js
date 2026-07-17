@@ -9,7 +9,7 @@ import {
   verifySession
 } from '../../utils/auth.js';
 import { getGuestConfig } from '../../utils/guest.js';
-import { findUserByUsername } from '../../utils/admin-data.js';
+import { findUserByUsername, loadAdminData } from '../../utils/admin-data.js';
 
 export async function onRequestGet(context) {
   const { env } = context;
@@ -17,8 +17,61 @@ export async function onRequestGet(context) {
   try {
     const guestConfig = getGuestConfig(env);
 
-    // 如果没有配置认证
+    // 如果没有配置环境变量认证，检查 KV 是否有用户数据
     if (!isAuthRequired(env)) {
+      // 检查 KV 中是否有用户数据（类似 admin/manage middleware 的逻辑）
+      try {
+        const data = await loadAdminData(env);
+        if (data.users.length > 0) {
+          // KV 有注册用户，需要完整的认证检查
+          const authResult = await checkAuthentication(context);
+
+          if (authResult.authenticated) {
+            // 已通过 session / basic auth 认证
+            let userInfo = null;
+            const sessionToken = getSessionFromCookie(context.request);
+            if (sessionToken && env.img_url) {
+              try {
+                const sessionData = await env.img_url.get(`session:${sessionToken}`, { type: 'json' });
+                if (sessionData && sessionData.user) {
+                  const user = await findUserByUsername(env, sessionData.user);
+                  if (user) {
+                    userInfo = { username: user.username, nickname: user.nickname, role: user.role };
+                  } else {
+                    userInfo = { username: sessionData.user, role: 'admin', nickname: '管理员' };
+                  }
+                }
+              } catch (e) {
+                console.error('Get user info error:', e);
+              }
+            }
+
+            return new Response(JSON.stringify({
+              authenticated: true,
+              authRequired: true,
+              reason: authResult.reason,
+              user: userInfo,
+              guestUpload: guestConfig
+            }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          // 未认证，要求登录
+          return new Response(JSON.stringify({
+            authenticated: false,
+            authRequired: true,
+            message: '需要登录',
+            guestUpload: guestConfig
+          }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      } catch (e) {
+        console.error('Auth check admin data error:', e);
+      }
+
+      // 没有用户数据，无需登录
       return new Response(JSON.stringify({
         authenticated: true,
         authRequired: false,

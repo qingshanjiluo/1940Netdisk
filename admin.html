@@ -1178,7 +1178,7 @@
         tokenForm: { name: '', scopes: ['upload','read'], expiryPreset: 'never', customExpiresAt: '' },
         moveDialogVisible: false, moveDialogLoading: false, moveDialogFoldersLoading: false,
         moveDialogFiles: [], moveDialogTargetPath: '', moveDialogFolderSearch: '', moveDialogNewFolderPath: '',
-        openDropdown: null, fileDetailVisible: false, fileDetailHtml: '',
+        authChecked: false, openDropdown: null, fileDetailVisible: false, fileDetailHtml: '',
 
         // Admin management
         activeTab: 'files',
@@ -1351,6 +1351,24 @@
       },
       methods: {
         // ====== Admin Data Methods (KV-backed) ======
+        checkAuth: function(){
+          var self = this;
+          return fetch('./api/auth/check', { credentials: 'include' })
+            .then(function(r){ return r.json(); })
+            .then(function(res){
+              if (res.authRequired && !res.authenticated) {
+                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+                return false;
+              }
+              if (res.user) self.currentAdminUser = res.user;
+              return true;
+            })
+            .catch(function(e){
+              console.error('Auth check failed:', e);
+              window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+              return false;
+            });
+        },
         loadCurrentAdminUser: function(){
           var self = this;
           fetch('./api/auth/check', { credentials: 'include' })
@@ -2663,44 +2681,50 @@
       },
       mounted: function(){
         var self = this;
-        // Restore preferences
-        try {
-          var savedSort = localStorage.getItem('sortOption');
-          if (savedSort) self.sortOption = savedSort;
-          var savedFilter = localStorage.getItem('filterOption');
-          if (savedFilter) self.filterOption = savedFilter;
-          var savedViewMode = localStorage.getItem('adminViewMode');
-          if (savedViewMode) self.viewMode = savedViewMode;
-          var savedFolderPath = localStorage.getItem('adminFolderPath');
-          if (savedFolderPath) self.folderPath = savedFolderPath;
-          var savedWebsites = localStorage.getItem('quickWebsites');
-          if (savedWebsites) { var parsed = JSON.parse(savedWebsites); if (Array.isArray(parsed) && parsed.length) self.quickWebsites = parsed; }
-        } catch(e){}
 
-        // Restore revealed keys
-        try { var revealed = localStorage.getItem('revealedPreviewKeys'); if (revealed) self.revealedPreviewKeys = JSON.parse(revealed) || {}; } catch(e){}
+        // 认证检查 - 先确认已登录再加载数据
+        self.checkAuth().then(function(isAuth){
+          if (!isAuth) { self.authChecked = false; return; }
+          self.authChecked = true;
 
-        // Restore folder cache
-        self.restoreFolderCache();
+          // Restore preferences
+          try {
+            var savedSort = localStorage.getItem('sortOption');
+            if (savedSort) self.sortOption = savedSort;
+            var savedFilter = localStorage.getItem('filterOption');
+            if (savedFilter) self.filterOption = savedFilter;
+            var savedViewMode = localStorage.getItem('adminViewMode');
+            if (savedViewMode) self.viewMode = savedViewMode;
+            var savedFolderPath = localStorage.getItem('adminFolderPath');
+            if (savedFolderPath) self.folderPath = savedFolderPath;
+            var savedWebsites = localStorage.getItem('quickWebsites');
+            if (savedWebsites) { var parsed = JSON.parse(savedWebsites); if (Array.isArray(parsed) && parsed.length) self.quickWebsites = parsed; }
+          } catch(e){}
 
-        // Initial data load
-        self.updateViewportFlags();
-        self.calculatePageSize();
-        self.refreshFileList({ preferCache: true, syncFolders: true });
+          // Restore revealed keys
+          try { var revealed = localStorage.getItem('revealedPreviewKeys'); if (revealed) self.revealedPreviewKeys = JSON.parse(revealed) || {}; } catch(e){}
 
-        // Event listeners
-        window.addEventListener('resize', function(){ self.handleWindowResize(); });
-        window.addEventListener('keydown', function(e){ self.handleGlobalKeydown(e); });
+          // Restore folder cache
+          self.restoreFolderCache();
 
-        // Close dropdowns on outside click
-        document.addEventListener('click', function(e){
-          if (self.openDropdown && !e.target.closest('.admin-dropdown')) self.openDropdown = null;
-        });
+          // Initial data load
+          self.updateViewportFlags();
+          self.calculatePageSize();
+          self.refreshFileList({ preferCache: true, syncFolders: true });
 
-        // Load admin data & migrate localStorage if needed
-        self.loadCurrentAdminUser();
-        self.migrateLocalAdminData().then(function(){
-          self.loadAdminData();
+          // Event listeners
+          window.addEventListener('resize', function(){ self.handleWindowResize(); });
+          window.addEventListener('keydown', function(e){ self.handleGlobalKeydown(e); });
+
+          // Close dropdowns on outside click
+          document.addEventListener('click', function(e){
+            if (self.openDropdown && !e.target.closest('.admin-dropdown')) self.openDropdown = null;
+          });
+
+          // Load admin data & migrate localStorage if needed
+          self.migrateLocalAdminData().then(function(){
+            self.loadAdminData();
+          });
         });
       },
       beforeDestroy: function(){

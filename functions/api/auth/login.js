@@ -3,26 +3,34 @@
  * POST /api/auth/login
  * GET  /api/auth/login - 检查是否需要认证
  */
-import { 
-  createSession, 
+import {
+  createSession,
   createSessionCookieHeader,
-  isAuthRequired 
+  isAuthRequired
 } from '../../utils/auth.js';
-import { authenticateUser, ensureDefaultAdmin } from '../../utils/admin-data.js';
+import { authenticateUser, ensureDefaultAdmin, loadAdminData } from '../../utils/admin-data.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
-    // 如果没有配置认证且没有用户数据，返回成功
+    // 确保默认管理员已初始化
+    await ensureDefaultAdmin(env);
+
+    // 如果没有配置环境变量认证，检查 KV 是否有用户数据
     if (!isAuthRequired(env)) {
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: '无需登录',
-        authRequired: false 
-      }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const data = await loadAdminData(env);
+      if (data.users.length === 0) {
+        // 没有用户数据，无需登录
+        return new Response(JSON.stringify({
+          success: true,
+          message: '无需登录',
+          authRequired: false
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      // 有用户数据，需要登录（继续执行下面的认证流程）
     }
 
     const body = await request.json();
@@ -38,9 +46,6 @@ export async function onRequestPost(context) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-
-    // 确保默认管理员已初始化
-    await ensureDefaultAdmin(env);
 
     // 验证凭据（支持 env 变量和 KV 用户）
     const user = await authenticateUser(env, username, password);
@@ -81,12 +86,35 @@ export async function onRequestPost(context) {
   }
 }
 
-// 检查登录状态
+// 检查登录状态（login.html 可能用此接口判断是否显示登录表单）
 export async function onRequestGet(context) {
   const { env } = context;
   
+  // 如果已配置环境变量认证，必须登录
+  if (isAuthRequired(env)) {
+    return new Response(JSON.stringify({
+      authRequired: true
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // 检查 KV 是否有用户数据
+  try {
+    const data = await loadAdminData(env);
+    if (data.users.length > 0) {
+      return new Response(JSON.stringify({
+        authRequired: true
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  } catch (e) {
+    console.error('Login check error:', e);
+  }
+  
   return new Response(JSON.stringify({
-    authRequired: isAuthRequired(env)
+    authRequired: false
   }), {
     headers: { 'Content-Type': 'application/json' }
   });

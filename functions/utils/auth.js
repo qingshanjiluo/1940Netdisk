@@ -165,7 +165,7 @@ export function createLegacyClearSessionCookieHeader() {
 }
 
 /**
- * 检查是否需要认证
+ * 检查是否需要认证（基于环境变量）
  */
 export function isAuthRequired(env) {
   return env.BASIC_USER && env.BASIC_PASS;
@@ -173,14 +173,14 @@ export function isAuthRequired(env) {
 
 /**
  * 综合认证检查
+ *
+ * 无论环境变量是否设置，都会尝试检查 session / basic auth。
+ * 如果 env 变量未设置，由调用方（中间件 / check.js）决定是否需要认证。
+ * 这样设计使得 admin/manage 中间件可以：先判断 KV 有用户 → 再调用此函数
+ * → 如果未登录则正确返回 { authenticated: false }。
  */
 export async function checkAuthentication(context) {
   const { request, env } = context;
-  
-  // 如果没有配置认证，直接放行
-  if (!isAuthRequired(env)) {
-    return { authenticated: true, reason: 'no-auth-required' };
-  }
   
   // 检查 Cookie 会话
   const sessionToken = getSessionFromCookie(request);
@@ -194,5 +194,11 @@ export async function checkAuthentication(context) {
     return { authenticated: true, reason: 'basic-auth', user: basicAuth.user };
   }
   
-  return { authenticated: false };
+  // 如果环境变量设置了 BASIC_USER/BASIC_PASS，要求必须认证
+  if (isAuthRequired(env)) {
+    return { authenticated: false };
+  }
+  
+  // 没有配置环境变量认证 — 由调用方决定是否要求登录
+  return { authenticated: false, reason: 'no-env-auth' };
 }
