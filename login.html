@@ -507,47 +507,14 @@
     // ========== 数据管理 ==========
     var DB_KEY = '1940netdisk_data';
 
-    // 默认演示数据
+    // 安全的默认数据结构（不含任何密码）
     var DEFAULT_DATA = {
-      // 用户列表
-      users: [
-        { id: 'u1', username: 'admin',   nickname: '管理员',   password: 'admin123', role: 'admin',  avatar: '', createdAt: Date.now() - 86400000 * 30 },
-        { id: 'u2', username: 'demo',    nickname: '演示用户',  password: 'demo123',  role: 'user',   avatar: '', createdAt: Date.now() - 86400000 * 15 },
-        { id: 'u3', username: 'guest',   nickname: '访客',     password: 'guest123', role: 'guest',  avatar: '', createdAt: Date.now() - 86400000 * 7 }
-      ],
-      // 身份组
-      groups: [
-        { id: 'g1', name: '管理员组', description: '系统管理员', permissions: 'all', createdAt: Date.now() - 86400000 * 30 },
-        { id: 'g2', name: '普通用户组', description: '标准用户', permissions: 'write', createdAt: Date.now() - 86400000 * 15 },
-        { id: 'g3', name: '只读组', description: '仅可查看', permissions: 'read', createdAt: Date.now() - 86400000 * 7 }
-      ],
-      // 用户-身份组映射
-      userGroups: [
-        { userId: 'u1', groupId: 'g1' },
-        { userId: 'u2', groupId: 'g2' },
-        { userId: 'u3', groupId: 'g3' }
-      ],
-      // 版块
-      sections: [
-        { id: 's1', name: '公共区', description: '所有用户可访问', icon: 'fa-folder' },
-        { id: 's2', name: '内部资料', description: '仅内部用户', icon: 'fa-lock' },
-        { id: 's3', name: '开发资源', description: '开发相关', icon: 'fa-code' }
-      ],
-      // 版块-身份组 权限: 'write' | 'read' | 'none'
-      sectionPermissions: [
-        { sectionId: 's1', groupId: 'g1', permission: 'write' },
-        { sectionId: 's1', groupId: 'g2', permission: 'write' },
-        { sectionId: 's1', groupId: 'g3', permission: 'read' },
-        { sectionId: 's2', groupId: 'g1', permission: 'write' },
-        { sectionId: 's2', groupId: 'g2', permission: 'read' },
-        { sectionId: 's2', groupId: 'g3', permission: 'none' },
-        { sectionId: 's3', groupId: 'g1', permission: 'write' },
-        { sectionId: 's3', groupId: 'g2', permission: 'none' },
-        { sectionId: 's3', groupId: 'g3', permission: 'none' }
-      ],
-      // 文件记录 (现有功能保留)
+      users: [],
+      groups: [],
+      userGroups: [],
+      sections: [],
+      sectionPermissions: [],
       files: [],
-      // 当前登录用户
       currentUser: null
     };
 
@@ -556,7 +523,6 @@
         var raw = localStorage.getItem(DB_KEY);
         if (raw) {
           var data = JSON.parse(raw);
-          // 合并默认值（确保新字段存在）
           for (var key in DEFAULT_DATA) {
             if (!data.hasOwnProperty(key)) {
               data[key] = JSON.parse(JSON.stringify(DEFAULT_DATA[key]));
@@ -577,6 +543,32 @@
         console.error('Failed to save data', e);
       }
     }
+
+    // 清除遗留的硬编码演示数据
+    function migrateLegacyData() {
+      try {
+        var raw = localStorage.getItem(DB_KEY);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        if (!data.users || !Array.isArray(data.users)) return;
+        // 检测是否包含硬编码密码的演示用户
+        var hasLegacy = data.users.some(function(u) {
+          return ['admin123','demo123','guest123'].indexOf(u.password) !== -1;
+        });
+        if (hasLegacy) {
+          // 清除不安全的本地用户数据，强制走 API 认证
+          data.users = [];
+          data.groups = [];
+          data.userGroups = [];
+          data.sections = [];
+          data.sectionPermissions = [];
+          data.currentUser = null;
+          localStorage.setItem(DB_KEY, JSON.stringify(data));
+          console.info('已清除不安全的本地演示数据，将使用服务端认证');
+        }
+      } catch (e) {}
+    }
+    migrateLegacyData();
 
     // ========== 工具函数 ==========
     function getInitials(str) {
@@ -640,6 +632,40 @@
         return;
       }
 
+      var btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+
+      // 优先尝试 API 登录
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+          // API 登录成功
+          if (remember) {
+            try { localStorage.setItem('1940netdisk_remember_user', username); } catch(e){}
+          }
+          window.location.href = '/admin.html';
+        } else {
+          // API 登录失败，回退到 localStorage 模式
+          loginWithLocalStorage(username, password, remember);
+        }
+      })
+      .catch(function() {
+        // API 不可用，回退到 localStorage 模式
+        loginWithLocalStorage(username, password, remember);
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+      });
+    }
+
+    function loginWithLocalStorage(username, password, remember) {
       var data = loadData();
       var user = null;
 
@@ -651,7 +677,13 @@
       }
 
       if (!user) {
-        showMessage('用户名不存在');
+        showMessage('用户名不存在（本地模式需先通过API注册）');
+        return;
+      }
+
+      // 安全检查：拒绝已知的硬编码密码
+      if (['admin123','demo123','guest123'].indexOf(password) !== -1) {
+        showMessage('请使用安全的密码，不要使用默认密码');
         return;
       }
 
@@ -660,11 +692,9 @@
         return;
       }
 
-      // 登录成功
       data.currentUser = user.id;
       saveData(data);
 
-      // 记住我：存储到 sessionStorage 或 localStorage
       try {
         if (remember) {
           localStorage.setItem('1940netdisk_session', user.id);
@@ -673,8 +703,7 @@
         }
       } catch (e) { /* noop */ }
 
-      // 跳转到首页
-      window.location.href = '/';
+      window.location.href = '/admin.html';
     }
 
     // ========== 注册逻辑 ==========
@@ -687,7 +716,6 @@
       var password = document.getElementById('regPassword').value;
       var confirm = document.getElementById('regConfirm').value;
 
-      // 验证
       if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
         showMessage('用户名需为 3-16 位字母/数字/下划线');
         return;
@@ -703,50 +731,37 @@
         return;
       }
 
-      var data = loadData();
+      var btn = document.getElementById('regBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
 
-      // 检查重名
-      for (var i = 0; i < data.users.length; i++) {
-        if (data.users[i].username === username) {
-          showMessage('用户名已存在');
-          return;
+      // 尝试 API 注册
+      fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, nickname: nickname, password: password, role: 'user', enabled: true })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+          showMessage('注册成功！请登录', 'success');
+          setTimeout(function() { switchTab('login'); }, 1500);
+        } else {
+          // API 注册失败，回退到 localStorage 模式
+          registerWithLocalStorage(username, nickname, password);
         }
-      }
+      })
+      .catch(function() {
+        registerWithLocalStorage(username, nickname, password);
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+      });
+    }
 
-      // 创建新用户
-      var newUser = {
-        id: 'u' + Date.now(),
-        username: username,
-        nickname: nickname,
-        password: password,
-        role: 'user',  // 默认普通用户
-        avatar: '',
-        createdAt: Date.now()
-      };
-
-      data.users.push(newUser);
-
-      // 默认加入普通用户组 (g2)
-      if (data.userGroups) {
-        data.userGroups.push({
-          userId: newUser.id,
-          groupId: 'g2'
-        });
-      }
-
-      saveData(data);
-
-      showMessage('注册成功！请登录', 'success');
-
-      // 自动填入登录表单
-      document.getElementById('loginUsername').value = username;
-      document.getElementById('loginPassword').value = '';
-
-      // 切换到登录选项卡
-      setTimeout(function () {
-        switchTab('login');
-        document.getElementById('loginPassword').focus();
-      }, 500);
+    function registerWithLocalStorage(username, nickname, password) {
+      showMessage('本地注册不可用，请通过 API 注册或联系管理员');
     }
 
     // ========== 账号切换列表 ==========
@@ -755,8 +770,13 @@
       var list = document.getElementById('accountList');
       list.innerHTML = '';
 
+      // 过滤掉包含不安全密码的遗留用户
+      var safeUsers = (data.users || []).filter(function(u) {
+        return ['admin123','demo123','guest123'].indexOf(u.password) === -1;
+      });
+
       // 按角色排序：admin > user > guest
-      var sorted = data.users.slice().sort(function (a, b) {
+      var sorted = safeUsers.slice().sort(function (a, b) {
         var order = { admin: 0, user: 1, guest: 2 };
         return (order[a.role] || 3) - (order[b.role] || 3);
       });

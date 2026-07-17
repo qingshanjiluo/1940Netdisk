@@ -624,6 +624,27 @@
     font-size: 1.5rem;
   }
 
+  .upload-type-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .upload-type-buttons .btn {
+    justify-content: center;
+  }
+
+  .storage-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .storage-options button {
+    min-width: unset;
+    padding: 8px 6px;
+  }
+  .storage-btn-hint {
+    display: none;
+  }
+
   .badge {
     font-size: 0.625rem;
     padding: 1px 6px;

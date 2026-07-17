@@ -64,6 +64,10 @@ export async function onRequestPost(context) {
     const fileName = String(uploadFile.name || "upload.bin");
     const fileExtension = normalizeFileExtension(fileName);
     const folderPath = normalizeFolderPath(formData.get("folderPath"));
+    const storageMode = formData.get("storageMode");
+
+    // Get current uploader info
+    const uploadedBy = await getCurrentUploader(context);
 
     // API v1 token-authenticated requests should bypass guest limits.
     const isApiTokenRequest = Boolean(context?.data?.apiToken);
@@ -225,11 +229,26 @@ function randomId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
-function appendCommonMetadata(metadata, folderPath) {
-  if (!folderPath) return metadata;
+async function getCurrentUploader(context) {
+  try {
+    const { request, env } = context;
+    const cookieHeader = request.headers.get('Cookie');
+    if (!cookieHeader || !env.img_url) return null;
+    const cookies = cookieHeader.split(';').map(c => c.trim());
+    const sessionCookie = cookies.find(c => c.startsWith('k_vault_session=') || c.startsWith('katelya_session='));
+    if (!sessionCookie) return null;
+    const token = sessionCookie.split('=')[1];
+    const sessionData = await env.img_url.get(`session:${token}`, { type: 'json' });
+    if (sessionData && sessionData.user) return sessionData.user;
+  } catch (e) {}
+  return null;
+}
+
+function appendCommonMetadata(metadata, folderPath, uploadedBy) {
   return {
     ...metadata,
-    folderPath,
+    ...(folderPath ? { folderPath } : {}),
+    ...(uploadedBy ? { uploadedBy } : {}),
   };
 }
 
@@ -285,7 +304,7 @@ async function uploadToTelegramStorage(
           telegramMessageId: messageId || undefined,
           signedLink: shouldUseSignedTelegramLinks(env),
         },
-        folderPath
+        folderPath, uploadedBy
       ),
     });
   }
@@ -410,7 +429,7 @@ async function uploadToR2(file, fileName, fileExtension, env, folderPath = "") {
             storageType: "r2",
             r2Key: objectKey,
           },
-          folderPath
+          folderPath, uploadedBy
         ),
       });
     }
@@ -453,7 +472,7 @@ async function uploadToS3(file, fileName, fileExtension, env, folderPath = "") {
             storageType: "s3",
             s3Key: objectKey,
           },
-          folderPath
+          folderPath, uploadedBy
         ),
       });
     }
@@ -497,7 +516,7 @@ async function uploadToDiscordStorage(file, fileName, fileExtension, env, folder
             discordUploadMode: result.mode,
             discordSourceUrl: result.sourceUrl,
           },
-          folderPath
+          folderPath, uploadedBy
         ),
       });
     }
@@ -539,7 +558,7 @@ async function uploadToHFStorage(file, fileName, fileExtension, env, folderPath 
             storageType: "huggingface",
             hfPath,
           },
-          folderPath
+          folderPath, uploadedBy
         ),
       });
     }
@@ -578,7 +597,7 @@ async function uploadToWebDAVStorage(file, fileName, fileExtension, env, folderP
             webdavPath: normalizeWebDAVPath(result.path || webdavPath),
             webdavEtag: result.etag || undefined,
           },
-          folderPath
+          folderPath, uploadedBy
         ),
       });
     }
@@ -623,7 +642,7 @@ async function uploadToGitHubStorage(file, fileName, fileExtension, env, folderP
             githubStorageKey: normalizeGitHubStoragePath(result.storagePath || githubStorageKey),
             ...(result.metadata || {}),
           },
-          folderPath
+          folderPath, uploadedBy
         ),
       });
     }

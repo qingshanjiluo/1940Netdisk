@@ -45,6 +45,63 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    /* ===== 通用按钮 ===== */
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1px solid var(--steel);
+      border-radius: 3px;
+      background: transparent;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 0.85em;
+      font-family: inherit;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .nav-btn:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(212,175,55,0.05);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ===== 内容卡片（与背景异色垫底） ===== */
+    .content-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      padding: 16px 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    /* ===== 图库主体卡片（包裹网格/分页/状态） ===== */
+    .gallery-body-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(90,107,74,0.4);
+      border-radius: 3px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .gallery-body-card .loading-state,
+    .gallery-body-card .empty-state {
+      padding: 40px 20px;
+    }
+
+    .gallery-body-card .pagination {
+      margin-top: 0;
+      padding-top: 20px;
+    }
+
     /* ===== 顶部导航 ===== */
     .gallery-header {
       display: flex;
@@ -133,16 +190,17 @@
     }
 
     .stat-badge {
-      padding: 6px 14px;
+      padding: 7px 14px;
       background: var(--badge-bg);
       border: 1px solid var(--badge-border);
       border-radius: 20px;
-      font-size: 0.82em;
+      font-size: 0.85em;
       color: var(--text-secondary);
       font-weight: 500;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      line-height: 1;
     }
 
     .stat-badge strong {
@@ -665,6 +723,7 @@
       </div>
     </div>
 
+    <div class="gallery-body-card">
     <!-- 图片网格 -->
     <div class="image-grid" v-if="!loading || images.length > 0">
       <div class="image-card"
@@ -736,6 +795,7 @@
       <button class="page-btn" @click="currentPage = totalPages" :disabled="currentPage === totalPages">
         <i class="fas fa-angle-double-right"></i>
       </button>
+    </div>
     </div>
 
     <!-- 批量操作栏 -->

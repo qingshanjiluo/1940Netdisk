@@ -1,18 +1,20 @@
 /**
- * 登录 API
+ * 登录 API - 支持多用户认证
  * POST /api/auth/login
+ * GET  /api/auth/login - 检查是否需要认证
  */
 import { 
   createSession, 
   createSessionCookieHeader,
   isAuthRequired 
 } from '../../utils/auth.js';
+import { authenticateUser, ensureDefaultAdmin } from '../../utils/admin-data.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
-    // 如果没有配置认证，返回成功
+    // 如果没有配置认证且没有用户数据，返回成功
     if (!isAuthRequired(env)) {
       return new Response(JSON.stringify({ 
         success: true, 
@@ -30,21 +32,27 @@ export async function onRequestPost(context) {
     if (!username || password === '') {
       return new Response(JSON.stringify({
         success: false,
-        message: 'Missing username or password.'
+        message: '请输入用户名和密码'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // 验证凭据
-    if (username === env.BASIC_USER && password === env.BASIC_PASS) {
+    // 确保默认管理员已初始化
+    await ensureDefaultAdmin(env);
+
+    // 验证凭据（支持 env 变量和 KV 用户）
+    const user = await authenticateUser(env, username, password);
+    
+    if (user) {
       // 创建会话
       const sessionToken = await createSession(username, env);
       
       return new Response(JSON.stringify({ 
         success: true, 
-        message: '登录成功' 
+        message: '登录成功',
+        user: { username: user.username, role: user.role, nickname: user.nickname }
       }), {
         headers: { 
           'Content-Type': 'application/json',

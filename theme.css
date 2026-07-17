@@ -812,6 +812,12 @@ table tr:last-child td {
   letter-spacing: 0.04em;
   line-height: 1.4;
 }
+.badge-sm {
+  padding: 1px 6px;
+  font-size: 0.6rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
 .badge-default {
   background: rgba(107, 122, 138, 0.15);
   color: var(--steel-light);
@@ -936,21 +942,44 @@ table tr:last-child td {
   cursor: pointer;
   transition: all var(--transition-fast);
   color: var(--color-text-muted);
+  position: relative;
+  overflow: hidden;
+}
+.drop-zone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(90,107,74,0.03), rgba(212,175,55,0.03));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 .drop-zone:hover {
   border-color: var(--olive);
   background: rgba(90, 107, 74, 0.05);
   color: var(--khaki);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.drop-zone:hover::before {
+  opacity: 1;
 }
 .drop-zone.drag-over {
   border-color: var(--gold);
-  background: rgba(212, 175, 55, 0.05);
+  background: rgba(212, 175, 55, 0.08);
   color: var(--gold);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(212,175,55,0.15);
 }
 .drop-zone i {
-  font-size: 2rem;
+  font-size: 2.5rem;
   margin-bottom: var(--space-sm);
   display: block;
+  position: relative;
+  z-index: 1;
+}
+.drop-zone > div {
+  position: relative;
+  z-index: 1;
 }
 
 /* ========== 14. Toast 通知 ========== */
@@ -1707,13 +1736,37 @@ body.login-page {
 .storage-switcher {
   margin-bottom: var(--space-md);
 }
+.storage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+.storage-label {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.storage-label i {
+  color: var(--olive);
+}
+.storage-current {
+  font-size: 0.75rem;
+  color: var(--khaki);
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(90, 107, 74, 0.12);
+  border-radius: var(--radius-sm);
+}
 .storage-options {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
 .storage-options button {
-  padding: 6px 14px;
+  padding: 8px 12px;
   background: rgba(107, 122, 138, 0.06);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1722,15 +1775,99 @@ body.login-page {
   cursor: pointer;
   transition: all var(--transition-fast);
   font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 72px;
+}
+.storage-options button i {
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+.storage-btn-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+.storage-btn-hint {
+  font-size: 0.625rem;
+  opacity: 0.6;
 }
 .storage-options button:hover {
   border-color: var(--olive);
   color: var(--khaki);
+  background: rgba(90, 107, 74, 0.08);
 }
 .storage-options button.active {
   background: rgba(90, 107, 74, 0.15);
   border-color: var(--olive);
   color: var(--khaki);
+  box-shadow: 0 0 12px rgba(90, 107, 74, 0.2);
+}
+.storage-options button.active .storage-btn-hint {
+  opacity: 0.9;
+}
+.storage-limit-hint {
+  margin-top: var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.storage-limit-hint i {
+  color: var(--olive);
+  font-size: 0.7rem;
+}
+
+/* Upload Overall Progress */
+.upload-overall-progress {
+  background: rgba(90, 107, 74, 0.08);
+  border: 1px solid rgba(90, 107, 74, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.upload-overall-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(90, 107, 74, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.upload-overall-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--olive), var(--khaki));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.mt-xs { margin-top: var(--space-xs); }
+.mb-xs { margin-bottom: var(--space-xs); }
+.ml-sm { margin-left: var(--space-sm); }
+
+/* Upload Type Buttons */
+.upload-type-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.upload-type-buttons .btn {
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+.upload-type-buttons .btn:hover {
+  border-color: var(--olive);
+  color: var(--khaki);
+  border-style: solid;
+  background: rgba(90, 107, 74, 0.08);
+}
+.upload-type-buttons .btn i {
+  margin-right: 4px;
 }
 
 /* Upload Methods */
@@ -1762,16 +1899,55 @@ body.login-page {
 /* Upload List 现有结构兼容 */
 .upload-list {
   margin-top: var(--space-md);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.upload-list::-webkit-scrollbar {
+  width: 4px;
+}
+.upload-list::-webkit-scrollbar-thumb {
+  background: rgba(90,107,74,0.3);
+  border-radius: 2px;
 }
 .upload-item {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-sm) 0;
+  padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--color-border-light);
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+.upload-item:hover {
+  background: rgba(90,107,74,0.05);
 }
 .upload-item:last-child {
   border-bottom: none;
+}
+.upload-item.success {
+  opacity: 0.7;
+}
+.upload-item.error {
+  background: rgba(231,76,60,0.05);
+}
+.upload-item.uploading {
+  background: rgba(90,107,74,0.05);
+}
+
+/* Upload Item Progress */
+.upload-item-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(90,107,74,0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: var(--space-xs);
+}
+.upload-item-progress .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--olive), var(--khaki));
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 /* Result List 现有结构兼容 */
@@ -1779,15 +1955,39 @@ body.login-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.result-list::-webkit-scrollbar {
+  width: 4px;
+}
+.result-list::-webkit-scrollbar-thumb {
+  background: rgba(90,107,74,0.3);
+  border-radius: 2px;
 }
 .result-item {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   background: rgba(107, 122, 138, 0.04);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
+  transition: all var(--transition-fast);
+}
+.result-item:hover {
+  background: rgba(90,107,74,0.06);
+  border-color: rgba(90,107,74,0.3);
+}
+.result-item.selected {
+  background: rgba(90,107,74,0.08);
+  border-color: var(--olive);
+}
+.result-item-info {
+  min-width: 0;
+}
+.result-item-actions {
+  flex-shrink: 0;
 }
 
 /* Stats Bar */

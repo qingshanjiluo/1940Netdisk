@@ -565,6 +565,7 @@
         <div class="card-header">
           <div class="card-title">
             <i class="fas fa-cloud-upload-alt"></i> 上传文件
+            <span class="badge badge-success ml-sm" v-if="uploadingFiles.length > 0">{{ uploadingFiles.filter(f => f.status === 'success').length }}/{{ uploadingFiles.length }}</span>
           </div>
           <span class="text-xs text-muted">上限 {{ currentUploadLimitLabel }}</span>
         </div>
@@ -578,33 +579,63 @@
              @click="triggerUpload">
           <i class="fas fa-cloud-upload-alt"></i>
           <div>拖拽文件到此处，或点击选择文件</div>
+          <div class="upload-type-buttons mt-sm">
+            <button class="btn btn-sm btn-ghost" @click.stop="$refs.fileInput.click()">
+              <i class="fas fa-file"></i> 选择文件（支持多选）
+            </button>
+            <button class="btn btn-sm btn-ghost" @click.stop="$refs.folderInput.click()" title="选择文件夹上传，自动保留目录结构">
+              <i class="fas fa-folder-plus"></i> 上传文件夹
+            </button>
+          </div>
           <div class="text-xs text-muted mt-sm" v-if="!authChecking && isGuest && guestUploadConfig">
             访客模式 · {{formatSize(guestUploadConfig.maxFileSize)}} 上限
           </div>
         </div>
         <input type="file" ref="fileInput" @change="handleFileSelect" multiple style="display:none">
+        <input type="file" ref="folderInput" @change="handleFolderSelect" webkitdirectory directory multiple style="display:none">
 
         <!-- 存储切换 -->
         <div class="storage-switcher mt-md">
+          <div class="storage-header">
+            <span class="storage-label"><i class="fas fa-database"></i> 存储后端</span>
+            <span class="storage-current">{{ storageTarget }}</span>
+          </div>
           <div class="storage-options">
-            <button :class="{ active: storageMode === 'telegram' }" @click="setStorageMode('telegram')" title="Telegram 频道存储">
-              <i class="fab fa-telegram"></i> Telegram
+            <button :class="{ active: storageMode === 'telegram' }" @click="setStorageMode('telegram')" title="Telegram 频道存储 · 适合图片和小文件">
+              <i class="fab fa-telegram"></i>
+              <span class="storage-btn-label">Telegram</span>
+              <span class="storage-btn-hint">图片/文件</span>
             </button>
-            <button :class="{ active: storageMode === 'r2' }" @click="setStorageMode('r2')" v-if="r2Available" title="Cloudflare R2 存储">
-              <i class="fas fa-cloud"></i> R2
+            <button :class="{ active: storageMode === 'r2' }" @click="setStorageMode('r2')" v-if="r2Available" title="Cloudflare R2 存储 · 无出口费用，大文件友好">
+              <i class="fas fa-cloud"></i>
+              <span class="storage-btn-label">R2</span>
+              <span class="storage-btn-hint">大文件</span>
             </button>
-            <button :class="{ active: storageMode === 's3' }" @click="setStorageMode('s3')" v-if="s3Available" title="S3 兼容存储">
-              <i class="fas fa-database"></i> S3
+            <button :class="{ active: storageMode === 's3' }" @click="setStorageMode('s3')" v-if="s3Available" title="S3 兼容存储 · AWS/MinIO/etc">
+              <i class="fas fa-database"></i>
+              <span class="storage-btn-label">S3</span>
+              <span class="storage-btn-hint">通用</span>
             </button>
             <button :class="{ active: storageMode === 'discord' }" @click="setStorageMode('discord')" v-if="discordAvailable" title="Discord 频道存储">
-              <i class="fab fa-discord"></i> Discord
+              <i class="fab fa-discord"></i>
+              <span class="storage-btn-label">Discord</span>
+              <span class="storage-btn-hint">频道</span>
             </button>
-            <button :class="{ active: storageMode === 'huggingface' }" @click="setStorageMode('huggingface')" v-if="huggingfaceAvailable" title="HuggingFace 存储">
-              <i class="fas fa-hugging-face"></i> HuggingFace
+            <button :class="{ active: storageMode === 'huggingface' }" @click="setStorageMode('huggingface')" v-if="huggingfaceAvailable" title="HuggingFace 仓库存储">
+              <i class="fas fa-robot"></i>
+              <span class="storage-btn-label">HF</span>
+              <span class="storage-btn-hint">仓库</span>
             </button>
-            <button :class="{ active: storageMode === 'github' }" @click="setStorageMode('github')" v-if="githubAvailable" title="GitHub 存储">
-              <i class="fab fa-github"></i> GitHub
+            <button :class="{ active: storageMode === 'github' }" @click="setStorageMode('github')" v-if="githubAvailable" title="GitHub 仓库存储">
+              <i class="fab fa-github"></i>
+              <span class="storage-btn-label">GitHub</span>
+              <span class="storage-btn-hint">仓库</span>
             </button>
+          </div>
+          <div class="storage-limit-hint" v-if="uploadLimits[storageMode]">
+            <i class="fas fa-info-circle"></i>
+            单文件上限 {{ formatSize(uploadLimits[storageMode].maxFileSize || 0) }}
+            <span v-if="uploadLimits[storageMode].dailyLimit"> · 每日 {{ uploadLimits[storageMode].dailyLimit }} 次</span>
           </div>
         </div>
 
@@ -719,6 +750,24 @@
 
         <!-- 上传列表 -->
         <div class="upload-list" v-if="uploadingFiles.length > 0">
+          <!-- Overall progress -->
+          <div class="upload-overall-progress" v-if="uploadingFiles.length > 1">
+            <div class="flex-between mb-xs">
+              <span class="text-xs text-muted"><i class="fas fa-tasks"></i> 总进度</span>
+              <span class="text-xs text-secondary">{{ overallSuccessCount }}/{{ uploadingFiles.length }} 完成</span>
+            </div>
+            <div class="upload-overall-bar">
+              <div class="fill" :style="{ width: overallProgressPercent + '%' }"></div>
+            </div>
+            <div class="flex-between mt-xs">
+              <span class="text-xs text-muted">
+                <span v-if="overallUploadingCount > 0"><i class="fas fa-spinner fa-spin"></i> 上传中 {{ overallUploadingCount }}</span>
+                <span v-if="overallWaitingCount > 0" class="ml-sm">等待 {{ overallWaitingCount }}</span>
+                <span v-if="overallFailedCount > 0" class="ml-sm" style="color:var(--rust-light);">失败 {{ overallFailedCount }}</span>
+              </span>
+              <span class="text-xs text-muted">{{ overallProgressPercent }}%</span>
+            </div>
+          </div>
           <div class="flex-between mb-sm">
             <span class="text-sm text-secondary"><i class="fas fa-tasks"></i> 上传队列 ({{ uploadingFiles.length }})</span>
             <div class="flex-row gap-xs">
@@ -737,7 +786,10 @@
             <i v-else :class="getFileIcon(file.originalName)" style="font-size:1.25rem;color:var(--color-text-muted);width:40px;text-align:center;"></i>
             <div style="flex:1;min-width:0;">
               <div class="text-sm text-truncate">{{ file.name }}</div>
-              <div class="text-xs text-muted">{{ formatSize(file.size) }}</div>
+              <div class="flex-row gap-sm items-center">
+                <span class="text-xs text-muted">{{ formatSize(file.size) }}</span>
+                <span class="badge badge-sm" :style="{ background: getStorageColor(file.storageMode) + '20', color: getStorageColor(file.storageMode) }">{{ file.storageTarget }}</span>
+              </div>
               <div class="upload-item-progress" v-if="file.status === 'uploading' || file.status === 'processing'">
                 <div class="fill" :style="{ width: file.progress + '%' }"></div>
               </div>
@@ -745,6 +797,14 @@
               <div class="text-xs" v-if="file.error" style="color:var(--rust-light);">{{ file.error }}</div>
             </div>
             <div class="flex-row gap-xs">
+              <select v-if="file.status === 'waiting'" class="input-glass" style="font-size:.7rem;padding:2px 4px;width:auto;" :value="file.storageMode" @change="file.storageMode=$event.target.value; file.storageTarget=getStorageTargetLabel($event.target.value)">
+                <option value="telegram">Telegram</option>
+                <option value="r2" v-if="r2Available">R2</option>
+                <option value="s3" v-if="s3Available">S3</option>
+                <option value="discord" v-if="discordAvailable">Discord</option>
+                <option value="huggingface" v-if="huggingfaceAvailable">HF</option>
+                <option value="github" v-if="githubAvailable">GitHub</option>
+              </select>
               <span class="badge" :class="file.status === 'success' ? 'badge-success' : file.status === 'error' ? 'badge-danger' : 'badge-default'">
                 {{ getStatusText(file.status) }}
               </span>
@@ -798,7 +858,10 @@
             <i v-else :class="getFileIcon(file.fileName || file.name)" style="font-size:1.25rem;width:40px;text-align:center;color:var(--color-text-muted);flex-shrink:0;"></i>
             <div class="result-item-info" style="flex:1;min-width:0;">
               <div class="text-sm text-truncate">{{ getDisplayName(file) }}</div>
-              <div class="text-xs text-muted">{{ formatSize(file.size) }}</div>
+              <div class="flex-row gap-sm items-center">
+                <span class="text-xs text-muted">{{ formatSize(file.size) }}</span>
+                <span class="badge badge-sm" :style="{ background: getStorageColor(file.storageMode || storageMode) + '20', color: getStorageColor(file.storageMode || storageMode) }">{{ file.storageTarget || storageTarget }}</span>
+              </div>
             </div>
             <div class="result-item-actions flex-row gap-xs">
               <button class="btn btn-sm btn-ghost" @click="copyLink(file)" title="复制链接">
@@ -1162,6 +1225,26 @@
         failedCount() {
           return this.uploadingFiles.filter((f) => f.status === "error").length;
         },
+        overallSuccessCount() {
+          return this.uploadingFiles.filter((f) => f.status === "success").length;
+        },
+        overallUploadingCount() {
+          return this.uploadingFiles.filter((f) => f.status === "uploading" || f.status === "processing").length;
+        },
+        overallWaitingCount() {
+          return this.uploadingFiles.filter((f) => f.status === "waiting").length;
+        },
+        overallFailedCount() {
+          return this.uploadingFiles.filter((f) => f.status === "error").length;
+        },
+        overallProgressPercent() {
+          if (!this.uploadingFiles.length) return 0;
+          const total = this.uploadingFiles.length;
+          const done = this.overallSuccessCount + this.overallFailedCount;
+          const uploading = this.uploadingFiles.filter((f) => f.status === "uploading" || f.status === "processing");
+          const uploadProgress = uploading.reduce((sum, f) => sum + (f.progress || 0), 0) / (uploading.length || 1);
+          return Math.round(((done + uploadProgress / 100) / total) * 100);
+        },
         imageCompressFormats() {
           return [
             { value: "webp", label: "WebP", mime: "image/webp", ext: "webp", icon: "fas fa-image", tip: "兼容性好，通常比 JPEG/PNG 更省空间" },
@@ -1374,6 +1457,81 @@
           const files = Array.from(event.target.files || []);
           this.prepareFilesForUpload(files);
           event.target.value = "";
+        },
+        async handleFolderSelect(event) {
+          const files = Array.from(event.target.files || []);
+          if (!files.length) return;
+
+          // Extract unique folder paths from file.webkitRelativePath
+          const folderPaths = new Set();
+          const filesByFolder = {};
+
+          for (const file of files) {
+            const relPath = file.webkitRelativePath || file.name;
+            const parts = relPath.split('/');
+            // Remove the filename to get folder path
+            if (parts.length > 1) {
+              const folderPath = parts.slice(0, -1).join('/');
+              folderPaths.add(folderPath);
+              if (!filesByFolder[folderPath]) filesByFolder[folderPath] = [];
+              filesByFolder[folderPath].push(file);
+            } else {
+              // Root file
+              if (!filesByFolder['']) filesByFolder[''] = [];
+              filesByFolder[''].push(file);
+            }
+          }
+
+          // Show folder structure preview
+          const folderCount = folderPaths.size;
+          const fileCount = files.length;
+          this.showToast(`检测到 ${folderCount} 个文件夹，共 ${fileCount} 个文件，正在创建目录结构...`, 'info');
+
+          // Create virtual folders first, then upload files to each folder
+          const basePath = this.normalizeFolderPath(this.folderPath);
+          const createdFolders = new Set();
+
+          // Create folders in order (parent before child)
+          const sortedPaths = [...folderPaths].sort((a, b) => a.split('/').length - b.split('/').length);
+
+          for (const relFolder of sortedPaths) {
+            const fullPath = basePath ? `${basePath}/${relFolder}` : relFolder;
+            const normalized = this.normalizeFolderPath(fullPath);
+            if (!normalized || createdFolders.has(normalized)) continue;
+
+            try {
+              await fetch(`${this.baseURL}/api/manage/folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: normalized, storageMode: this.storageMode }),
+                credentials: 'include'
+              });
+              createdFolders.add(normalized);
+            } catch (err) {
+              console.warn('Failed to create folder:', normalized, err);
+            }
+          }
+
+          // Upload files to their respective folders
+          for (const [relFolder, folderFiles] of Object.entries(filesByFolder)) {
+            const targetPath = relFolder ? (basePath ? `${basePath}/${relFolder}` : relFolder) : basePath;
+            const normalizedPath = this.normalizeFolderPath(targetPath);
+
+            // Create upload context with specific folder path
+            const context = {
+              storageMode: this.storageMode,
+              storageTarget: this.storageTarget,
+              folderPath: normalizedPath
+            };
+
+            await this.processFiles(folderFiles, this.snapshotImageCompressOptions(this.imageCompress.enabled), context);
+          }
+
+          this.showToast(`已开始上传 ${fileCount} 个文件到 ${folderCount} 个文件夹`, 'success');
+          event.target.value = '';
+
+          // Refresh folder list
+          this.fetchUploadFolders(true);
         },
         onDragOver() { this.isDragging = true; },
         onDragLeave() { this.isDragging = false; },
@@ -1703,6 +1861,9 @@
           formData.append("file", item.file);
           formData.append("storageMode", this.getItemStorageMode(item));
           formData.append("folderPath", this.getItemFolderPath(item));
+          if (this.sessionUser && this.sessionUser.username) {
+            formData.append("uploadedBy", this.sessionUser.username);
+          }
           const response = await fetch(`${this.baseURL}/upload`, { method:"POST", body:formData, credentials:"include" });
           const data = await response.json();
           if (!response.ok || (Array.isArray(data) && data[0]?.error)) throw new Error((Array.isArray(data)?data[0]?.error:data?.error) || "上传失败");
@@ -1713,7 +1874,9 @@
         },
         async chunkedUpload(item) {
           const file = item.file, chunkSize = this.uploadConfig.chunkSize, totalChunks = Math.ceil(file.size / chunkSize);
-          const initRes = await fetch(`${this.baseURL}/api/chunked-upload/init`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ fileName:file.name, fileSize:file.size, fileType:file.type, totalChunks, storageMode:this.getItemStorageMode(item), folderPath:this.getItemFolderPath(item) }), credentials:"include" });
+          const initBody = { fileName:file.name, fileSize:file.size, fileType:file.type, totalChunks, storageMode:this.getItemStorageMode(item), folderPath:this.getItemFolderPath(item) };
+          if (this.sessionUser && this.sessionUser.username) initBody.uploadedBy = this.sessionUser.username;
+          const initRes = await fetch(`${this.baseURL}/api/chunked-upload/init`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(initBody), credentials:"include" });
           const initData = await initRes.json();
           if (!initRes.ok) throw new Error(initData.error || "初始化上传失败");
           const uploadId = initData.uploadId;
@@ -1868,6 +2031,14 @@
           return url;
         },
         formatSize(bytes) { if (!bytes) return "0 B"; const u=["B","KB","MB","GB"]; let i=0; while(bytes>=1024 && i<u.length-1) { bytes/=1024; i++; } return bytes.toFixed(i>0?2:0)+" "+u[i]; },
+        getStorageColor(mode) {
+          const colors = { telegram:'#67c23a', r2:'#409eff', s3:'#e6a23c', discord:'#7289da', huggingface:'#ff9d00', webdav:'#8f65ff', github:'#24292f' };
+          return colors[mode] || colors.telegram;
+        },
+        getStorageTargetLabel(mode) {
+          const labels = { telegram:'Telegram 频道', r2:'R2 存储桶', s3:'S3 存储', discord:'Discord 频道', huggingface:'HuggingFace 仓库', github:'GitHub 仓库' };
+          return labels[mode] || 'Telegram 频道';
+        },
         getStatusText(status) { return { waiting:"等待中", processing:"处理中", uploading:"上传中", success:"成功", error:"失败" }[status]||status; },
         async copyToClipboard(text) {
           try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return; } } catch(e) {}
@@ -2018,6 +2189,10 @@
             }
             this.isGuest = false; this.guestUploadConfig = null;
             this.isAuthenticated = data.authRequired && data.authenticated;
+            // Store user info from API
+            if (data.user) {
+              this.sessionUser = { username: data.user.username, nickname: data.user.nickname, role: data.user.role };
+            }
             return true;
           } catch(e) { console.error("Auth check failed:",e); this.isGuest=false; this.guestUploadConfig=null; return true; }
           finally { this.authChecking = false; }
