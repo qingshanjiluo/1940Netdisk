@@ -1085,7 +1085,7 @@
         sessionUserAvatar() {
           if (!this.sessionUser) return '?';
           if (this.sessionUser.avatar) {
-            return '<img src="' + String(this.sessionUser.avatar).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''') + '" alt="avatar">';
+            return '<img src="' + String(this.sessionUser.avatar).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') + '" alt="avatar">';
           }
           return this.getInitials(this.sessionUser.nickname || this.sessionUser.username);
         }
