@@ -44,7 +44,7 @@ export function generateSessionToken() {
 /**
  * 验证 Basic Auth 凭据
  */
-export function verifyBasicAuth(request, env) {
+export async function verifyBasicAuth(request, env) {
   const authorization = request.headers.get('Authorization');
   if (!authorization) return null;
 
@@ -189,7 +189,7 @@ export async function checkAuthentication(context) {
   }
   
   // 检查 Basic Auth
-  const basicAuth = verifyBasicAuth(request, env);
+  const basicAuth = await verifyBasicAuth(request, env);
   if (basicAuth) {
     return { authenticated: true, reason: 'basic-auth', user: basicAuth.user };
   }
