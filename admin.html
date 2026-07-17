@@ -204,6 +204,30 @@
     .perm-select { background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:4px 8px; font-size:.78em; cursor:pointer; }
     .perm-select:focus { border-color:var(--gold); outline:none; }
 
+    /* ── Native element styling ── */
+    select.input-glass,
+    .modal-form select,
+    .token-scope-group select {
+      background:var(--input-bg); border:1px solid var(--border); color:var(--text-primary);
+      border-radius:3px; padding:6px 10px; font-size:.85em; cursor:pointer;
+      appearance:auto; -webkit-appearance:auto; min-height:34px;
+    }
+    select.input-glass:focus,
+    .modal-form select:focus { border-color:var(--gold); outline:none; box-shadow:0 0 0 2px rgba(212,175,55,.15); }
+    .modal-form input[type="checkbox"],
+    .token-scope-group input[type="checkbox"] {
+      accent-color:var(--olive); width:16px; height:16px; cursor:pointer;
+      vertical-align:middle; margin-right:4px;
+    }
+    .modal-form input[type="checkbox"]:hover,
+    .token-scope-group input[type="checkbox"]:hover { filter:brightness(1.2); }
+    .checkbox-wrap input[type="checkbox"] {
+      accent-color:var(--olive); width:16px; height:16px; cursor:pointer;
+    }
+    input[type="file"] { color:var(--text-primary); font-size:.82em; }
+    .token-scope-group label { display:inline-flex; align-items:center; gap:4px; cursor:pointer; padding:4px 0; }
+    .modal-form .form-group label:has(input[type="checkbox"]) { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+
     .modal-inner { padding:var(--space-md); }
     .modal-form { display:flex; flex-direction:column; gap:var(--space-md); }
     .modal-form .form-row { display:flex; gap:var(--space-sm); align-items:flex-end; flex-wrap:wrap; }
@@ -912,7 +936,7 @@
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead><tr>
-                <th>组名</th><th>描述</th><th>成员数</th><th>版块权限</th><th>操作</th>
+                <th>组名</th><th>描述</th><th>成员数</th><th>内置权限</th><th>操作</th>
               </tr></thead>
               <tbody>
                 <tr v-for="g in adminList" :key="g.id">
@@ -920,11 +944,11 @@
                   <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.description || '-' }}</td>
                   <td>{{ getGroupMemberCount(g.id) }}</td>
                   <td>
-                    <div class="perm-cell" v-if="getGroupPermissions(g.id).length">
-                      <template v-for="p in getGroupPermissions(g.id).slice(0,3)">
-                        <span class="badge" :key="p.sectionId" :class="p.level === 'write' ? 'badge-success' : p.level === 'read' ? 'badge-info' : 'badge'">{{ getSectionName(p.sectionId) || p.sectionId }}:{{ p.level === 'write' ? '可写' : p.level === 'read' ? '只读' : '拒绝' }}</span>
+                    <div class="perm-cell" v-if="getGroupBuiltinPerms(g.id).length">
+                      <template v-for="p in getGroupBuiltinPerms(g.id).slice(0,4)">
+                        <span class="badge badge-info" :key="p" style="font-size:.72em;">{{ getBuiltinPermLabel(p) }}</span>
                       </template>
-                      <span v-if="getGroupPermissions(g.id).length > 3" style="font-size:.72em;opacity:.5;">+{{ getGroupPermissions(g.id).length - 3 }}</span>
+                      <span v-if="getGroupBuiltinPerms(g.id).length > 4" style="font-size:.72em;opacity:.5;">+{{ getGroupBuiltinPerms(g.id).length - 4 }}</span>
                     </div>
                     <span v-else style="opacity:.4;font-size:.82em;">无权限</span>
                   </td>
@@ -1161,16 +1185,13 @@
             <template v-if="adminModalType === 'group'">
               <div class="form-group"><label>组名</label><input class="input-glass" v-model="adminForm.name" placeholder="身份组名称"></div>
               <div class="form-group"><label>描述</label><input class="input-glass" v-model="adminForm.description" placeholder="身份组描述"></div>
-              <div class="form-group"><label>版块权限</label>
-                <div v-for="s in allSections" :key="s.id" style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.82em;">
-                  <span style="min-width:80px;">{{ s.name }}</span>
-                  <select class="perm-select" :value="getSectionPermissionForGroup(s.id, adminForm.id)" @change="setSectionPermissionForGroup(s.id, $event.target.value)">
-                    <option value="write">可写</option>
-                    <option value="read">只读</option>
-                    <option value="none">拒绝</option>
-                  </select>
+              <div class="form-group"><label>内置权限</label>
+                <div class="token-scope-group">
+                  <label v-for="perm in builtinPermOptions" :key="perm.key">
+                    <input type="checkbox" :value="perm.key" v-model="adminForm.builtinPerms">
+                    <i :class="perm.icon" style="margin:0 4px;opacity:.7;"></i> {{ perm.label }}
+                  </label>
                 </div>
-                <span v-if="!allSections.length" style="opacity:.4;font-size:.82em;">暂无版块</span>
               </div>
             </template>
             <!-- Section fields -->
@@ -1241,14 +1262,13 @@
     function showConfirm(message, title, options) {
       options = options || {};
       return new Promise(function(resolve, reject){
-        var container = document.getElementById('toastContainer');
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
-        overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+(title||'提示')+'</h3><p style="font-size:.88em;margin:0 0 20px;line-height:1.6;">'+message+'</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost" id="confirmCancel">'+(options.cancelButtonText||'取消')+'</button><button class="btn btn-primary" id="confirmOk">'+(options.confirmButtonText||'确定')+'</button></div></div>';
+        overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+(title||'提示')+'</h3><p style="font-size:.88em;margin:0 0 20px;line-height:1.6;">'+message+'</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost confirm-cancel">'+(options.cancelButtonText||'取消')+'</button><button class="btn btn-primary confirm-ok">'+(options.confirmButtonText||'确定')+'</button></div></div>';
         document.body.appendChild(overlay);
-        overlay.querySelector('#confirmOk').onclick = function(){ document.body.removeChild(overlay); resolve(); };
-        overlay.querySelector('#confirmCancel').onclick = function(){ document.body.removeChild(overlay); reject('cancel'); };
+        overlay.querySelector('.confirm-ok').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} resolve(); };
+        overlay.querySelector('.confirm-cancel').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} reject('cancel'); };
       });
     }
     function showPrompt(message, title, opts) {
@@ -1257,13 +1277,13 @@
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
-        overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><input class="input-glass" id="promptInput" value="'+(opts.inputValue||'')+'" style="width:100%;margin-bottom:12px;" placeholder="请输入"><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost" id="promptCancel">'+(opts.cancelButtonText||'取消')+'</button><button class="btn btn-primary" id="promptOk">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
+        overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><input class="input-glass prompt-input" value="'+(opts.inputValue||'')+'" style="width:100%;margin-bottom:12px;" placeholder="请输入"><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost prompt-cancel">'+(opts.cancelButtonText||'取消')+'</button><button class="btn btn-primary prompt-ok">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
         document.body.appendChild(overlay);
-        var input = overlay.querySelector('#promptInput');
+        var input = overlay.querySelector('.prompt-input');
         setTimeout(function(){ input.focus(); input.select(); }, 50);
-        overlay.querySelector('#promptOk').onclick = function(){ document.body.removeChild(overlay); resolve({ value: input.value }); };
-        overlay.querySelector('#promptCancel').onclick = function(){ document.body.removeChild(overlay); reject('cancel'); };
-        input.onkeydown = function(e){ if(e.key==='Enter'){ overlay.querySelector('#promptOk').click(); } };
+        overlay.querySelector('.prompt-ok').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} resolve({ value: input.value }); };
+        overlay.querySelector('.prompt-cancel').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} reject('cancel'); };
+        input.onkeydown = function(e){ if(e.key==='Enter'){ overlay.querySelector('.prompt-ok').click(); } };
       });
     }
     function showAlert(html, title, opts) {
@@ -1272,9 +1292,9 @@
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
-        overlay.innerHTML = '<div class="glass-card" style="max-width:480px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><div style="font-size:.85em;margin-bottom:20px;line-height:1.8;">'+html+'</div><div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" id="alertOk">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
+        overlay.innerHTML = '<div class="glass-card" style="max-width:480px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><div style="font-size:.85em;margin-bottom:20px;line-height:1.8;">'+html+'</div><div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary alert-ok">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
         document.body.appendChild(overlay);
-        overlay.querySelector('#alertOk').onclick = function(){ document.body.removeChild(overlay); resolve(); };
+        overlay.querySelector('.alert-ok').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} resolve(); };
       });
     }
 
@@ -1335,6 +1355,17 @@
         adminModalVisible: false, adminModalType: 'user', adminModalMode: 'create',
         adminForm: {}, adminEditingId: null,
         adminList: [], adminFormPerms: {},
+        builtinPermOptions: [
+          { key: 'upload', label: '上传', icon: 'fas fa-upload' },
+          { key: 'read', label: '读取文件', icon: 'fas fa-file-alt' },
+          { key: 'download', label: '下载文件', icon: 'fas fa-download' },
+          { key: 'manage', label: '管理文件', icon: 'fas fa-folder-open' },
+          { key: 'delete', label: '删除文件', icon: 'fas fa-trash-alt' },
+          { key: 'create_user', label: '新建一般用户', icon: 'fas fa-user-plus' },
+          { key: 'create_admin', label: '新建管理员', icon: 'fas fa-user-shield' },
+          { key: 'create_group', label: '新建身份组', icon: 'fas fa-users-cog' },
+          { key: 'modify_group', label: '修改他人身份组', icon: 'fas fa-user-edit' },
+        ],
         adminDataCache: { users: [], groups: [], userGroups: [], sections: [], sectionPermissions: [] },
         adminDataLoading: false,
         userSearchQuery: '',
@@ -1605,6 +1636,16 @@
           var data = this.loadAdminDataRaw();
           return (data.userGroups || []).filter(function(ug){ return ug.groupId === groupId; }).length;
         },
+        getGroupBuiltinPerms: function(groupId){
+          var data = this.loadAdminDataRaw();
+          var g = (data.groups || []).find(function(g){ return g.id === groupId; });
+          return Array.isArray(g && g.builtinPerms) ? g.builtinPerms : [];
+        },
+        getBuiltinPermLabel: function(key){
+          var map = {};
+          (this.builtinPermOptions || []).forEach(function(o){ map[o.key] = o.label; });
+          return map[key] || key;
+        },
         getGroupPermissions: function(groupId){
           var data = this.loadAdminDataRaw();
           return (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === groupId; });
@@ -1643,22 +1684,19 @@
             }
             this.adminModalVisible = true;
           } else if (type === 'group') {
-            // 确保版块数据已加载，避免"暂无版块"
             var showGroupModal = function() {
               var data = self.loadAdminDataRaw();
               if (item) {
-                self.adminForm = { id: item.id, name: item.name, description: item.description || '' };
-                var perms = (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === item.id; });
-                perms.forEach(function(p){ self.$set(self.adminFormPerms, p.sectionId + '_' + p.groupId, p.level); });
+                self.adminForm = { id: item.id, name: item.name, description: item.description || '', builtinPerms: Array.isArray(item.builtinPerms) ? item.builtinPerms.slice() : [] };
               } else {
                 var nextId = 'group_' + Date.now();
-                self.adminForm = { id: nextId, name: '', description: '' };
+                self.adminForm = { id: nextId, name: '', description: '', builtinPerms: [] };
               }
               self.adminModalVisible = true;
             };
             // 如果缓存为空则先加载
             var cached = this.loadAdminDataRaw();
-            if (cached.sections && cached.sections.length > 0 && cached.groups) {
+            if (cached.groups) {
               showGroupModal();
             } else {
               this.loadAdminData().then(showGroupModal).catch(showGroupModal);
@@ -1718,18 +1756,9 @@
           } else if (self.adminModalType === 'group') {
             if (!form.name) { showToast('请输入身份组名称', 'warning'); return; }
 
-            var perms = [];
-            var groupId = self.adminModalMode === 'create' ? form.id : self.adminEditingId;
-            Object.keys(self.adminFormPerms).forEach(function(key){
-              var parts = key.split('_');
-              var sid = parts.slice(0, -1).join('_');
-              var gid = parts[parts.length - 1];
-              if (gid !== groupId) return;
-              var level = self.adminFormPerms[key];
-              if (level && level !== 'none') perms.push({ sectionId: sid, level: level });
-            });
+            var builtinPerms = Array.isArray(form.builtinPerms) ? form.builtinPerms : [];
 
-            var groupPayload = { name: form.name, description: form.description || '', permissions: perms };
+            var groupPayload = { name: form.name, description: form.description || '', builtinPerms: builtinPerms };
 
             if (self.adminModalMode === 'create') {
               fetch('./api/admin/groups', {
@@ -2716,7 +2745,7 @@
         handleDelete: function(index, key){
           var self = this; var isR2 = key.startsWith('r2:'); var storageInfo = isR2 ? 'R2 存储和 KV 记录' : 'KV 记录';
           showConfirm('此操作将永久删除该文件的 ' + storageInfo + ', 是否继续?', '提示').then(function(){
-            fetch('./api/manage/delete/' + encodeURIComponent(key), { method: 'GET', credentials: 'include' }).then(function(r){
+            fetch('./api/manage/delete/' + encodeURIComponent(key), { method: 'POST', credentials: 'include' }).then(function(r){
               if (!r.ok) throw new Error('删除失败'); return r.json();
             }).then(function(result){
               if (result.success) { var fi = self.tableData.findIndex(function(f){ return f.name === key; }); if (fi !== -1) self.tableData.splice(fi,1); self.updateStats(); self.clearFolderCache(); showToast('删除成功！', 'success'); }
@@ -2765,7 +2794,7 @@
           msg += ', 是否继续?';
           showConfirm(msg, '提示').then(function(){
             var promises = self.selectedFiles.map(function(file){
-              return fetch('./api/manage/delete/' + encodeURIComponent(file.name), { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){ return { name: file.name, success: result.success }; }).catch(function(){ return { name: file.name, success: false }; });
+              return fetch('./api/manage/delete/' + encodeURIComponent(file.name), { method: 'POST', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){ return { name: file.name, success: result.success }; }).catch(function(){ return { name: file.name, success: false }; });
             });
             Promise.all(promises).then(function(results){
               var successCount = 0, failedCount = 0;

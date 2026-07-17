@@ -36,9 +36,9 @@ export async function onRequestGet(context) {
                 if (sessionData && sessionData.user) {
                   const user = await findUserByUsername(env, sessionData.user);
                   if (user) {
-                    userInfo = { username: user.username, nickname: user.nickname, role: user.role };
+                    userInfo = { id: user.id, username: user.username, nickname: user.nickname || '', avatar: user.avatar || '', role: user.role };
                   } else {
-                    userInfo = { username: sessionData.user, role: 'admin', nickname: '管理员' };
+                    userInfo = { id: 'env_admin', username: sessionData.user, role: 'admin', nickname: '管理员', avatar: '' };
                   }
                 }
               } catch (e) {
@@ -94,10 +94,10 @@ export async function onRequestGet(context) {
           if (sessionData && sessionData.user) {
             const user = await findUserByUsername(env, sessionData.user);
             if (user) {
-              userInfo = { username: user.username, nickname: user.nickname, role: user.role };
+              userInfo = { id: user.id, username: user.username, nickname: user.nickname || '', avatar: user.avatar || '', role: user.role };
             } else {
               // 可能是 env 变量用户
-              userInfo = { username: sessionData.user, role: 'admin', nickname: '管理员' };
+              userInfo = { id: 'env_admin', username: sessionData.user, role: 'admin', nickname: '管理员', avatar: '' };
             }
           }
         } catch (e) {

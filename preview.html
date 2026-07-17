@@ -452,48 +452,16 @@
 
   /* ── Enhanced Viewer ── */
   function tryEnhancedViewer() {
-    var src = 'https://cdn.jsdelivr.net/npm/flyfish-file-viewer@latest/dist/viewer.umd.min.js';
-    var loaded = document.querySelector('script[src*="flyfish-file-viewer"]');
-    if (loaded) {
-      mountEnhancedViewer();
-      return;
-    }
-    var script = document.createElement('script');
-    script.src = src;
-    script.crossOrigin = 'anonymous';
-    script.onload = mountEnhancedViewer;
-    script.onerror = function() {
-      console.warn('Enhanced viewer unavailable, falling back to native rendering.');
-      routePreview();
-    };
-    document.head.appendChild(script);
-    showStatus('正在加载增强预览引擎', '按需加载文件预览能力…');
+    // Enhanced viewer package no longer available on CDN (flyfish-file-viewer removed)
+    // Fall back directly to native rendering for all file types
+    console.warn('Enhanced viewer unavailable (package removed from CDN), falling back to native rendering.');
+    routePreview();
   }
 
   function mountEnhancedViewer() {
-    var container = document.getElementById('enhancedViewerContainer');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'enhancedViewerContainer';
-      container.className = 'enhanced-viewer-wrap';
-    }
-    clearViewer();
-    els.viewer.appendChild(container);
-
-    if (window.FlyfishFileViewer && FlyfishFileViewer.mount) {
-      try {
-        FlyfishFileViewer.mount(container, {
-          url: state.fileUrl,
-          fileName: state.fileName,
-          size: state.fileSize
-        });
-      } catch (e) {
-        console.warn('Enhanced viewer mount failed:', e);
-        container.innerHTML = '<div class="enhanced-loading"><div class="spinner"></div><strong>增强预览载入中…</strong><span>如果长时间无响应，请尝试<a href="'+state.fileUrl+'" download style="color:var(--gold)">下载文件</a></span></div>';
-      }
-    } else {
-      container.innerHTML = '<div class="enhanced-loading"><div class="spinner"></div><strong>增强预览启动中…</strong></div>';
-    }
+    // Enhanced viewer mount was dependent on flyfish-file-viewer which is no longer available
+    // Route to native rendering instead
+    routePreview();
   }
 
   /* ── Deferred gate for large files ── */

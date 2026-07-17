@@ -29,14 +29,9 @@ export async function onRequestPatch(context) {
     if (body.name !== undefined) group.name = body.name;
     if (body.description !== undefined) group.description = body.description;
 
-    // 更新权限
-    if (Array.isArray(body.permissions)) {
-      data.sectionPermissions = data.sectionPermissions.filter(sp => sp.groupId !== groupId);
-      for (const p of body.permissions) {
-        if (p.sectionId && p.level && p.level !== 'none') {
-          data.sectionPermissions.push({ sectionId: p.sectionId, groupId, level: p.level });
-        }
-      }
+    // 更新内置权限
+    if (Array.isArray(body.builtinPerms)) {
+      group.builtinPerms = body.builtinPerms;
     }
 
     await saveAdminData(env, data);

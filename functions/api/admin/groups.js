@@ -15,17 +15,10 @@ export async function onRequestGet(context) {
 
   const data = await loadAdminData(env);
   
-  // 附加成员数和权限信息
+  // 附加成员数信息
   const groups = data.groups.map(g => {
     const memberCount = data.userGroups.filter(ug => ug.groupId === g.id).length;
-    const permissions = data.sectionPermissions
-      .filter(sp => sp.groupId === g.id)
-      .map(sp => ({
-        sectionId: sp.sectionId,
-        sectionName: (data.sections.find(s => s.id === sp.sectionId) || {}).name || sp.sectionId,
-        level: sp.level
-      }));
-    return { ...g, memberCount, permissions };
+    return { ...g, memberCount };
   });
 
   return new Response(JSON.stringify({ success: true, groups }), {
@@ -43,7 +36,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { name, description, permissions } = body;
+    const { name, description, builtinPerms } = body;
 
     if (!name) {
       return new Response(JSON.stringify({ success: false, error: '请输入身份组名称' }), {
@@ -54,20 +47,11 @@ export async function onRequestPost(context) {
     const data = await loadAdminData(env);
     const groupId = 'group_' + Date.now();
     
-    data.groups.push({ id: groupId, name, description: description || '' });
-
-    // 保存权限
-    if (Array.isArray(permissions)) {
-      for (const p of permissions) {
-        if (p.sectionId && p.level && p.level !== 'none') {
-          data.sectionPermissions.push({ sectionId: p.sectionId, groupId, level: p.level });
-        }
-      }
-    }
+    data.groups.push({ id: groupId, name, description: description || '', builtinPerms: Array.isArray(builtinPerms) ? builtinPerms : [] });
 
     await saveAdminData(env, data);
 
-    return new Response(JSON.stringify({ success: true, group: { id: groupId, name, description } }), {
+    return new Response(JSON.stringify({ success: true, group: { id: groupId, name, description, builtinPerms: Array.isArray(builtinPerms) ? builtinPerms : [] } }), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (e) {

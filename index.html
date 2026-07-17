@@ -302,6 +302,24 @@
       accent-color: var(--olive);
     }
 
+    /* ========== 原生元素统一样式 ========== */
+    select.input-glass,
+    .modal-form select {
+      background:var(--input-bg); border:1px solid var(--border); color:var(--text-primary);
+      border-radius:3px; padding:6px 10px; font-size:.85em; cursor:pointer;
+      appearance:auto; -webkit-appearance:auto; min-height:34px;
+    }
+    select.input-glass:focus,
+    .modal-form select:focus { border-color:var(--gold); outline:none; box-shadow:0 0 0 2px rgba(212,175,55,.15); }
+    .modal-form input[type="checkbox"],
+    .checkbox-wrap input[type="checkbox"] {
+      accent-color:var(--olive); width:16px; height:16px; cursor:pointer;
+      vertical-align:middle; margin-right:4px;
+    }
+    .modal-form input[type="checkbox"]:hover,
+    .checkbox-wrap input[type="checkbox"]:hover { filter:brightness(1.2); }
+    input[type="file"] { color:var(--text-primary); font-size:.82em; }
+
     /* 粘贴通知 */
     .paste-notice-content {
       padding: var(--space-md);
@@ -519,9 +537,6 @@
         <img src="/favicon.png" alt="1940Netdisk">
         <span>1940Netdisk</span>
       </div>
-      <button type="button" class="theme-toggle-btn header-theme-toggle" data-theme-toggle aria-label="切换主题">
-        <i class="fas fa-moon"></i>
-      </button>
       <div class="nav-links">
         <a href="/" class="active"><i class="fas fa-upload"></i> <span>上传</span></a>
         <a href="/gallery.html"><i class="fas fa-images"></i> <span>图库</span></a>
@@ -529,13 +544,13 @@
         <a href="/webdav.html"><i class="fas fa-network-wired"></i> <span>WebDAV</span></a>
       </div>
       <!-- User Profile Dropdown -->
-      <div class="user-profile-dd" v-if="!authChecking && !isGuest && sessionUser" ref="userDropdown">
-        <button class="user-dd-toggle" @click="userDropdownOpen = !userDropdownOpen" @blur="handleUserDdBlur">
+      <div class="user-profile-dd" v-if="!authChecking && !isGuest && sessionUser" ref="userDropdown" @mouseenter="userDropdownOpen = true" @mouseleave="userDropdownOpen = false">
+        <button class="user-dd-toggle" @click.stop="userDropdownOpen = !userDropdownOpen">
           <span class="user-avatar-mini" v-html="sessionUserAvatar"></span>
           <span class="user-dd-name">{{ sessionUser.nickname || sessionUser.username }}</span>
           <i class="fas fa-chevron-down" :class="{ 'rotate-180': userDropdownOpen }"></i>
         </button>
-        <div class="user-dd-menu" :class="{ show: userDropdownOpen }">
+        <div class="user-dd-menu" :class="{ show: userDropdownOpen }" @click.stop>
           <div class="user-dd-header">
             <span class="user-dd-avatar" v-html="sessionUserAvatar"></span>
             <div>
@@ -2060,6 +2075,14 @@
           if (/[\u4e00-\u9fff]/.test(trimmed)) return trimmed.slice(0, 2);
           return trimmed.slice(0, 2).toUpperCase();
         },
+        handleDocumentClick: function(e) {
+          var self = this;
+          if (!self.userDropdownOpen) return;
+          var dd = self.$refs.userDropdown;
+          if (dd && !dd.contains(e.target)) {
+            self.userDropdownOpen = false;
+          }
+        },
         loadSessionUser: function() {
           try {
             var sessionId = localStorage.getItem('1940netdisk_session') || sessionStorage.getItem('1940netdisk_session');
@@ -2076,13 +2099,6 @@
             }
             this.sessionUser = null;
           } catch(e) { this.sessionUser = null; }
-        },
-        handleUserDdBlur: function(e) {
-          var self = this;
-          // 如果焦点移到了下拉菜单内部，不关闭
-          if (e && e.relatedTarget && e.relatedTarget.closest &&
-              e.relatedTarget.closest('.user-dd-menu,.user-dd-toggle')) return;
-          setTimeout(function() { self.userDropdownOpen = false; }, 200);
         },
         $escapeUrl: function(str) {
           if (!str) return '';
@@ -2112,7 +2128,7 @@
             this.profileForm.avatar = this.lastUploadedUrl;
           }
         },
-        saveProfile: function() {
+        saveProfile: async function() {
           var self = this;
           if (self.profileSaving) return;
           if (!self.profileForm.nickname || !self.profileForm.nickname.trim()) {
@@ -2136,34 +2152,35 @@
           }
           self.profileSaving = true;
           try {
-            var raw = localStorage.getItem('1940netdisk_data');
-            if (!raw) { self.showToast('无法读取用户数据', 'error'); self.profileSaving = false; return; }
-            var data = JSON.parse(raw);
-            var sessionId = localStorage.getItem('1940netdisk_session') || sessionStorage.getItem('1940netdisk_session');
-            if (!sessionId) { self.showToast('未登录', 'error'); self.profileSaving = false; return; }
-            var user = null;
-            for (var i = 0; i < data.users.length; i++) {
-              if (data.users[i].id === sessionId) {
-                user = data.users[i];
-                break;
-              }
-            }
-            if (!user) { self.showToast('用户不存在', 'error'); self.profileSaving = false; return; }
-            // Verify current password if changing password
+            var body = {
+              nickname: self.profileForm.nickname.trim(),
+              avatar: self.profileForm.avatar || ''
+            };
             if (self.profileForm.newPassword) {
-              if (user.password !== self.profileForm.currentPassword) {
-                self.showToast('当前密码错误', 'error');
-                self.profileSaving = false;
-                return;
-              }
-              user.password = self.profileForm.newPassword;
+              body.currentPassword = self.profileForm.currentPassword;
+              body.newPassword = self.profileForm.newPassword;
             }
-            // Update nickname and avatar
-            user.nickname = self.profileForm.nickname.trim();
-            user.avatar = self.profileForm.avatar || '';
-            localStorage.setItem('1940netdisk_data', JSON.stringify(data));
+            var res = await fetch('/api/profile', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+              credentials: 'include'
+            });
+            var result = await res.json();
+            if (!res.ok) throw new Error(result.error || '保存失败');
             // Update local session user
-            self.sessionUser = user;
+            if (result.user) {
+              self.sessionUser = {
+                id: result.user.id,
+                username: result.user.username,
+                nickname: result.user.nickname,
+                avatar: result.user.avatar || '',
+                role: result.user.role
+              };
+            }
+            self.profileForm.currentPassword = '';
+            self.profileForm.newPassword = '';
+            self.profileForm.confirmPassword = '';
             self.closeProfileModal();
             self.showToast('个人信息已保存', 'success');
           } catch(e) {
@@ -2193,9 +2210,15 @@
             }
             this.isGuest = false; this.guestUploadConfig = null;
             this.isAuthenticated = data.authRequired && data.authenticated;
-            // Store user info from API
+            // Store user info from API (include id and avatar)
             if (data.user) {
-              this.sessionUser = { username: data.user.username, nickname: data.user.nickname, role: data.user.role };
+              this.sessionUser = {
+                id: data.user.id || '',
+                username: data.user.username || '',
+                nickname: data.user.nickname || '',
+                avatar: data.user.avatar || '',
+                role: data.user.role || 'user'
+              };
             }
             return true;
           } catch(e) { console.error("Auth check failed:",e); this.isGuest=false; this.guestUploadConfig=null; return true; }
@@ -2257,10 +2280,13 @@
         document.addEventListener("paste", this.globalPasteHandler);
         this.globalKeydownHandler = (e) => { if (e.key==="Escape" && this.previewData) this.closePreview(); };
         document.addEventListener("keydown", this.globalKeydownHandler);
+        this._onDocumentClick = this.handleDocumentClick.bind(this);
+        document.addEventListener("click", this._onDocumentClick);
       },
       beforeDestroy() {
         if (this.globalPasteHandler) document.removeEventListener("paste", this.globalPasteHandler);
         if (this.globalKeydownHandler) document.removeEventListener("keydown", this.globalKeydownHandler);
+        if (this._onDocumentClick) document.removeEventListener("click", this._onDocumentClick);
         if (this.pasteUploadNoticeTimer) clearTimeout(this.pasteUploadNoticeTimer);
       },
         });
