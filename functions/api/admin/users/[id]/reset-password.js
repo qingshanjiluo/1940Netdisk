@@ -2,7 +2,7 @@
  * 用户密码重置 API
  * POST /api/admin/users/[id]/reset-password
  */
-import { loadAdminData, saveAdminData, hashPassword } from '../../../utils/admin-data.js';
+import { loadAdminData, saveAdminData, hashPassword } from '../../../../utils/admin-data.js';
 
 export async function onRequestPost(context) {
   const { request, env, params } = context;
