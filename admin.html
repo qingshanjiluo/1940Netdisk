@@ -283,6 +283,135 @@
       font-size:.9em;
     }
 
+    /* ===== User Profile Dropdown ===== */
+    .user-profile-dd {
+      position: relative;
+      margin-left: var(--space-md);
+    }
+    .user-dd-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 4px;
+      border: 1.5px solid var(--khaki);
+      border-radius: 3px;
+      background: var(--olive);
+      cursor: pointer;
+      font-size: .82em;
+      color: var(--khaki-light);
+      transition: all var(--transition-fast);
+    }
+    .user-dd-toggle:hover {
+      background: var(--olive-light);
+      border-color: var(--gold);
+      color: var(--gold-light);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+    .user-avatar-mini,
+    .user-dd-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--khaki), var(--steel));
+      color: #fff;
+      font-size: .72em;
+      font-weight: 700;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .user-dd-avatar {
+      width: 40px;
+      height: 40px;
+      font-size: .85em;
+    }
+    .user-avatar-mini img,
+    .user-dd-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .user-dd-name {
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .user-dd-toggle .fa-chevron-down {
+      font-size: .7em;
+      transition: transform var(--transition-fast);
+    }
+    .user-dd-toggle .fa-chevron-down.rotate-180 {
+      transform: rotate(180deg);
+    }
+    .user-dd-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 200px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 2px solid var(--olive);
+      border-radius: 3px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all var(--transition-fast);
+      z-index: 1100;
+    }
+    .user-dd-menu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    .user-dd-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+    }
+    .user-dd-nickname {
+      font-weight: 600;
+      font-size: .88em;
+    }
+    .user-dd-username {
+      font-size: .75em;
+      opacity: .6;
+    }
+    .user-dd-divider {
+      height: 1px;
+      background: var(--olive);
+      margin: 0 8px;
+    }
+    .user-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      background: none;
+      color: var(--text-primary);
+      font-size: .85em;
+      cursor: pointer;
+      text-align: left;
+      transition: background var(--transition-fast);
+    }
+    .user-dd-item:hover {
+      background: var(--glass-bg-hover);
+    }
+    .user-dd-item i {
+      width: 16px;
+      text-align: center;
+      font-size: .85em;
+      color: var(--khaki);
+    }
+
     .admin-table td {
       vertical-align:middle;
     }
@@ -471,7 +600,27 @@
           </div>
         </div>
         <button class="action-btn" title="前端 UI 设计" @click="showUiDesignSettingsPanel"><i class="fas fa-sliders-h"></i></button>
-        <button class="action-btn" title="退出登录" @click="handleLogout"><i class="fas fa-sign-out-alt"></i></button>
+        <!-- User Profile Dropdown -->
+        <div class="user-profile-dd" v-if="currentAdminUser" ref="userDropdown">
+          <button class="user-dd-toggle" @click="userDropdownOpen = !userDropdownOpen" @blur="handleUserDdBlur">
+            <span class="user-avatar-mini" v-html="sessionUserAvatar"></span>
+            <span class="user-dd-name">{{ currentAdminUser.nickname || currentAdminUser.username }}</span>
+            <i class="fas fa-chevron-down" :class="{ 'rotate-180': userDropdownOpen }"></i>
+          </button>
+          <div class="user-dd-menu" :class="{ show: userDropdownOpen }">
+            <div class="user-dd-header">
+              <span class="user-dd-avatar" v-html="sessionUserAvatar"></span>
+              <div>
+                <div class="user-dd-nickname">{{ currentAdminUser.nickname || currentAdminUser.username }}</div>
+                <div class="user-dd-username">@{{ currentAdminUser.username }}</div>
+              </div>
+            </div>
+            <div class="user-dd-divider"></div>
+            <button class="user-dd-item" @click="handleLogout">
+              <i class="fas fa-sign-out-alt"></i> 退出登录
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1189,6 +1338,7 @@
         adminDataLoading: false,
         userSearchQuery: '',
         currentAdminUser: null,
+        userDropdownOpen: false,
       },
       computed: {
         filteredTableData: function() {
@@ -1329,6 +1479,13 @@
             return (u.username || '').toLowerCase().indexOf(query) !== -1 ||
                    (u.nickname || '').toLowerCase().indexOf(query) !== -1;
           });
+        },
+        sessionUserAvatar: function(){
+          if (!this.currentAdminUser) return '?';
+          if (this.currentAdminUser.avatar) {
+            return '<img src="' + String(this.currentAdminUser.avatar).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''') + '" alt="avatar">';
+          }
+          return this.getInitials(this.currentAdminUser.nickname || this.currentAdminUser.username);
         },
       },
       watch: {
@@ -2342,6 +2499,16 @@
         isPreviewGated: function(item, type){ return this.safeMode && (item.metadata||{}).Label === 'adult'; },
         getPreviewGateTitle: function(item, type){ return 'NSFW 内容'; },
         getPreviewGateSubtitle: function(item, type){ return '点击以查看'; },
+        getInitials: function(str){
+          if (!str) return '?';
+          var trimmed = String(str).trim();
+          if (/[\u4e00-\u9fff]/.test(trimmed)) return trimmed.slice(0, 2);
+          return trimmed.slice(0, 2).toUpperCase();
+        },
+        handleUserDdBlur: function(){
+          var self = this;
+          setTimeout(function(){ self.userDropdownOpen = false; }, 200);
+        },
         handleLogout: function(){
           var self = this;
           fetch('./api/auth/logout', { method: 'POST', credentials: 'include' }).then(function(){
