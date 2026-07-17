@@ -1,5 +1,14 @@
 ﻿const { run, get } = require('../../db');
 
+/**
+ * 获取客户端真实 IP 地址。
+ *
+ * 安全注意：X-Forwarded-For 头可被客户端伪造。
+ * 必须在可信反向代理（如 nginx）后使用，并在 nginx 配置中：
+ *   proxy_set_header X-Forwarded-For $remote_addr;
+ * 这样 nginx 会用真实 IP 覆盖客户端传入的值。
+ * 同时不要设置 proxy_set_header X-Forwarded-For $http_x_forwarded_for;（这会透传客户端值）。
+ */
 function getClientIp(request) {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {

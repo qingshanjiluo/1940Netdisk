@@ -27,7 +27,20 @@ export async function onRequestPost(context) {
   const expectedSecret = env.TG_WEBHOOK_SECRET || env.TELEGRAM_WEBHOOK_SECRET;
   if (expectedSecret) {
     const headerSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
-    if (headerSecret !== expectedSecret) {
+    // 使用 HMAC + 常量时间比较防止时序攻击
+    try {
+      const encoder = new TextEncoder();
+      const hmacKey = await crypto.subtle.importKey(
+        'raw', encoder.encode('tg-webhook'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      );
+      const headerSig = new Uint8Array(await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(headerSecret)));
+      const expectedSig = new Uint8Array(await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(expectedSecret)));
+      let mismatch = 0;
+      for (let i = 0; i < headerSig.length; i++) mismatch |= headerSig[i] ^ expectedSig[i];
+      if (mismatch !== 0) {
+        return jsonResponse({ ok: false, error: 'Invalid webhook secret.' }, 401);
+      }
+    } catch {
       return jsonResponse({ ok: false, error: 'Invalid webhook secret.' }, 401);
     }
   }

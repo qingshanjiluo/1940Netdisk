@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { run, get, all } = require('../../db');
 const { normalizeFolderPath } = require('../repos/file-repo');
 
@@ -21,7 +22,8 @@ class ChunkUploadService {
   }
 
   initTask({ fileName, fileSize, fileType, totalChunks, storageMode, storageId, folderPath }) {
-    const uploadId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    // 使用 crypto.randomUUID() 生成不可预测的上传 ID
+    const uploadId = crypto.randomUUID();
     const now = Date.now();
     const expiresAt = now + 60 * 60 * 1000;
     const normalizedFolderPath = normalizeFolderPath(folderPath);

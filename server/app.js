@@ -2774,7 +2774,17 @@ function createApp() {
     const expectedSecret = env.TG_WEBHOOK_SECRET || env.TELEGRAM_WEBHOOK_SECRET;
     if (expectedSecret) {
       const headerSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token') || '';
-      if (headerSecret !== expectedSecret) {
+      // 使用常量时间比较防止时序攻击
+      try {
+        const headerBuf = Buffer.from(headerSecret, 'utf8');
+        const expectedBuf = Buffer.from(expectedSecret, 'utf8');
+        // HMAC 确保两个 Buffer 长度相同（HMAC-SHA256 输出固定 32 字节）
+        const headerHmac = crypto.createHmac('sha256', 'tg-webhook').update(headerBuf).digest();
+        const expectedHmac = crypto.createHmac('sha256', 'tg-webhook').update(expectedBuf).digest();
+        if (!crypto.timingSafeEqual(headerHmac, expectedHmac)) {
+          return c.json({ ok: false, error: 'Invalid webhook secret.' }, 401);
+        }
+      } catch {
         return c.json({ ok: false, error: 'Invalid webhook secret.' }, 401);
       }
     }

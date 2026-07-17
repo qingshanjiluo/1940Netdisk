@@ -42,7 +42,18 @@ class AuthService {
       const user = decoded.slice(0, separator);
       const pass = decoded.slice(separator + 1);
 
-      if (user === this.config.basicUser && pass === this.config.basicPass) {
+      // 使用 HMAC + timingSafeEqual 防止时序攻击（HMAC 输出固定长度，确保 timingSafeEqual 安全）
+      const hmacSecret = this.config.sessionCookieName || 'k-vault';
+      
+      const userHmac = crypto.createHmac('sha256', hmacSecret).update(user).digest();
+      const configUserHmac = crypto.createHmac('sha256', hmacSecret).update(this.config.basicUser || '').digest();
+      const userMatch = crypto.timingSafeEqual(userHmac, configUserHmac);
+      
+      const passHmac = crypto.createHmac('sha256', hmacSecret).update(pass).digest();
+      const configPassHmac = crypto.createHmac('sha256', hmacSecret).update(this.config.basicPass || '').digest();
+      const passMatch = crypto.timingSafeEqual(passHmac, configPassHmac);
+      
+      if (userMatch && passMatch) {
         return { authenticated: true, user, reason: 'basic-auth' };
       }
     } catch (error) {
@@ -88,15 +99,25 @@ class AuthService {
     return cookies[this.config.sessionCookieName] || cookies[LEGACY_COOKIE_NAME] || null;
   }
 
+  /** 判断是否应设置 Cookie 的 Secure 标志（基于 publicBaseUrl 协议或 NODE_ENV） */
+  _shouldUseSecureCookies() {
+    const baseUrl = this.config.publicBaseUrl || '';
+    if (baseUrl.toLowerCase().startsWith('https://')) return true;
+    if (this.config.nodeEnv === 'production') return true;
+    return false;
+  }
+
   createSessionCookie(token) {
     const maxAge = Math.floor(this.config.sessionDurationMs / 1000);
-    return `${this.config.sessionCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`;
+    const secure = this._shouldUseSecureCookies() ? '; Secure' : '';
+    return `${this.config.sessionCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
   }
 
   createClearSessionCookies() {
+    const secure = this._shouldUseSecureCookies() ? '; Secure' : '';
     return [
-      `${this.config.sessionCookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`,
-      `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`,
+      `${this.config.sessionCookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`,
+      `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`,
     ];
   }
 
