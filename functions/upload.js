@@ -64,7 +64,6 @@ export async function onRequestPost(context) {
     const fileName = String(uploadFile.name || "upload.bin");
     const fileExtension = normalizeFileExtension(fileName);
     const folderPath = normalizeFolderPath(formData.get("folderPath"));
-    const storageMode = formData.get("storageMode");
 
     // Get current uploader info
     const uploadedBy = await getCurrentUploader(context);
