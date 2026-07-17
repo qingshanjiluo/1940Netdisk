@@ -19,6 +19,16 @@ export async function onRequest(context) {
   // 确保默认管理员已初始化
   await ensureDefaultAdmin(context.env);
 
+  // 放行 POST /api/admin/users 用于开放注册（非管理员角色创建由 users.js 内部安全校验）
+  if (context.request.method === 'POST') {
+    try {
+      const url = new URL(context.request.url);
+      if (url.pathname.endsWith('/api/admin/users')) {
+        return context.next();
+      }
+    } catch (_) {}
+  }
+
   // 如果没有配置认证（无 env 变量），检查是否有 KV 用户
   if (!isAuthRequired(context.env)) {
     const data = await loadAdminData(context.env);

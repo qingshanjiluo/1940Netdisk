@@ -1572,7 +1572,7 @@
         loadAdminData: function(){
           var self = this;
           self.adminDataLoading = true;
-          fetch('./api/admin/data', { credentials: 'include' })
+          return fetch('./api/admin/data', { credentials: 'include' })
             .then(function(r){ return r.json(); })
             .then(function(payload){
               if (payload && payload.success && payload.data) {
@@ -1640,16 +1640,27 @@
             } else {
               self.adminForm = { username: '', nickname: '', role: 'user', password: '', enabled: true, groupIds: [] };
             }
+            this.adminModalVisible = true;
           } else if (type === 'group') {
-            if (item) {
-              var data = this.loadAdminDataRaw();
-              self.adminForm = { id: item.id, name: item.name, description: item.description || '' };
-              // Load permissions
-              var perms = (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === item.id; });
-              perms.forEach(function(p){ self.$set(self.adminFormPerms, p.sectionId + '_' + p.groupId, p.level); });
+            // 确保版块数据已加载，避免"暂无版块"
+            var showGroupModal = function() {
+              var data = self.loadAdminDataRaw();
+              if (item) {
+                self.adminForm = { id: item.id, name: item.name, description: item.description || '' };
+                var perms = (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === item.id; });
+                perms.forEach(function(p){ self.$set(self.adminFormPerms, p.sectionId + '_' + p.groupId, p.level); });
+              } else {
+                var nextId = 'group_' + Date.now();
+                self.adminForm = { id: nextId, name: '', description: '' };
+              }
+              self.adminModalVisible = true;
+            };
+            // 如果缓存为空则先加载
+            var cached = this.loadAdminDataRaw();
+            if (cached.sections && cached.sections.length > 0 && cached.groups) {
+              showGroupModal();
             } else {
-              var nextId = 'group_' + Date.now();
-              self.adminForm = { id: nextId, name: '', description: '' };
+              this.loadAdminData().then(showGroupModal).catch(showGroupModal);
             }
           } else if (type === 'section') {
             if (item) {
@@ -1657,8 +1668,8 @@
             } else {
               self.adminForm = { id: 'section_' + Date.now(), name: '', slug: '', description: '' };
             }
+            this.adminModalVisible = true;
           }
-          this.adminModalVisible = true;
         },
         closeAdminModal: function(){
           this.adminModalVisible = false;
