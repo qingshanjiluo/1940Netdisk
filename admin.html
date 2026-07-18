@@ -1260,21 +1260,15 @@
       }, duration);
     }
     function showConfirm(message, title, options) {
-      console.log('[SHOWCONFIRM] Called', { message: message, title: title });
       options = options || {};
       return new Promise(function(resolve, reject){
-        console.log('[SHOWCONFIRM] Creating overlay');
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);opacity:1;visibility:visible;';
         overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+(title||'提示')+'</h3><p style="font-size:.88em;margin:0 0 20px;line-height:1.6;">'+message+'</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost confirm-cancel">'+(options.cancelButtonText||'取消')+'</button><button class="btn btn-primary confirm-ok">'+(options.confirmButtonText||'确定')+'</button></div></div>';
         document.body.appendChild(overlay);
-        console.log('[SHOWCONFIRM] Overlay appended to body, child count:', document.body.children.length);
-        var okBtn = overlay.querySelector('.confirm-ok');
-        var cancelBtn = overlay.querySelector('.confirm-cancel');
-        console.log('[SHOWCONFIRM] OK button found:', !!okBtn, 'Cancel button found:', !!cancelBtn);
-        if (okBtn) okBtn.onclick = function(){ console.log('[SHOWCONFIRM] OK clicked'); try { document.body.removeChild(overlay); } catch(e) {} resolve(); };
-        if (cancelBtn) cancelBtn.onclick = function(){ console.log('[SHOWCONFIRM] Cancel clicked'); try { document.body.removeChild(overlay); } catch(e) {} reject('cancel'); };
+        overlay.querySelector('.confirm-ok').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} resolve(); };
+        overlay.querySelector('.confirm-cancel').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} reject('cancel'); };
       });
     }
     function showPrompt(message, title, opts) {
@@ -1282,7 +1276,7 @@
       return new Promise(function(resolve, reject){
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);opacity:1;visibility:visible;';
         overlay.innerHTML = '<div class="glass-card" style="max-width:420px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><input class="input-glass prompt-input" value="'+(opts.inputValue||'')+'" style="width:100%;margin-bottom:12px;" placeholder="请输入"><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-ghost prompt-cancel">'+(opts.cancelButtonText||'取消')+'</button><button class="btn btn-primary prompt-ok">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
         document.body.appendChild(overlay);
         var input = overlay.querySelector('.prompt-input');
@@ -1297,7 +1291,7 @@
       return new Promise(function(resolve){
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);opacity:1;visibility:visible;';
         overlay.innerHTML = '<div class="glass-card" style="max-width:480px;width:90%;padding:24px;"><h3 style="margin:0 0 12px;font-size:1em;">'+title+'</h3><div style="font-size:.85em;margin-bottom:20px;line-height:1.8;">'+html+'</div><div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary alert-ok">'+(opts.confirmButtonText||'确定')+'</button></div></div>';
         document.body.appendChild(overlay);
         overlay.querySelector('.alert-ok').onclick = function(){ try { document.body.removeChild(overlay); } catch(e) {} resolve(); };
