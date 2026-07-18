@@ -2232,29 +2232,24 @@
           }).catch(function(){});
         },
         deleteCurrentFolder: function(){
-          console.log('[DELETE-FOLDER] deleteCurrentFolder called');
+          if (this._deletingFolder) return;
+          this._deletingFolder = true;
           var self = this;
-          if (!self.folderPath) { console.warn('[DELETE-FOLDER] folderPath is empty, aborting'); return; }
-          if (self.folderMutating) { console.warn('[DELETE-FOLDER] folderMutating is true, aborting'); return; }
-          console.log('[DELETE-FOLDER] folderPath:', self.folderPath);
+          if (!self.folderPath) { self._deletingFolder = false; return; }
           showConfirm('确认删除该目录标记并将目录内文件移回根目录？文件直链不会失效。', '删除目录').then(function(){
             var target = self.folderPath; var parent = target.split('/').slice(0,-1).join('/');
             var previousFolders = self.cloneFoldersSnapshot(); var previousFolderPath = self.folderPath;
             self.folderMutating = true; self.folderMutatingAction = 'delete';
             self.removeFolderBranchLocal(target); self.folderPath = self.normalizeFolderPath(parent); self.currentPage = 1; self.tableData = []; self.nextCursor = null;
-            console.log('[DELETE-FOLDER] Sending DELETE request for folder:', target);
             fetch('./api/manage/folders?path=' + encodeURIComponent(target) + '&recursive=1', { method: 'DELETE', credentials: 'include' }).then(function(r){
-              console.log('[DELETE-FOLDER] Response status:', r.status);
               return r.json();
             }).then(function(response){
-              console.log('[DELETE-FOLDER] API response:', response);
               if (!response.success) throw new Error(response.error || '删除目录失败');
               self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]); showToast('目录删除成功', 'success');
             }).catch(function(err){
-              console.error('[DELETE-FOLDER] Error:', err);
               self.folders = previousFolders; self.folderPath = previousFolderPath; self.refreshFileList(); showToast(err.message || '目录删除失败', 'error');
-            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; });
-          }).catch(function(){ console.log('[DELETE-FOLDER] User cancelled'); });
+            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; self._deletingFolder = false; });
+          }).catch(function(){ self._deletingFolder = false; });
         },
         moveSelectedToFolder: function(){ this.openMoveDialog(this.selectedFiles); },
         openMoveDialog: function(files){
@@ -2749,19 +2744,19 @@
           }).catch(function(){});
         },
         handleDelete: function(index, key){
-          console.log('[DELETE] handleDelete called', { index: index, key: key });
+          if (this._deletingKeys && this._deletingKeys[key]) return;
+          this._deletingKeys = this._deletingKeys || {};
           var self = this; var isR2 = key.startsWith('r2:'); var storageInfo = isR2 ? 'R2 存储和 KV 记录' : 'KV 记录';
           showConfirm('此操作将永久删除该文件的 ' + storageInfo + ', 是否继续?', '提示').then(function(){
-            console.log('[DELETE] Confirm resolved, sending DELETE request for', key);
+            self._deletingKeys[key] = true;
             fetch('./api/manage/delete/' + encodeURIComponent(key), { method: 'POST', credentials: 'include' }).then(function(r){
-              console.log('[DELETE] Response status:', r.status, r.statusText);
               if (!r.ok) throw new Error('删除失败 (HTTP ' + r.status + ')'); return r.json();
             }).then(function(result){
-              console.log('[DELETE] API response:', result);
               if (result.success) { var fi = self.tableData.findIndex(function(f){ return f.name === key; }); if (fi !== -1) self.tableData.splice(fi,1); self.updateStats(); self.clearFolderCache(); showToast('删除成功！', 'success'); }
               else throw new Error(result.error||'删除失败');
-            }).catch(function(err){ console.error('[DELETE] Error:', err); showToast('删除失败: ' + err.message, 'error'); });
-          }).catch(function(){ console.log('[DELETE] User cancelled'); showToast('已取消删除', 'info'); });
+            }).catch(function(err){ showToast('删除失败: ' + err.message, 'error'); })
+            .finally(function(){ delete self._deletingKeys[key]; });
+          }).catch(function(){ showToast('已取消删除', 'info'); });
         },
         copyToClipboardFallback: function(text){
           var textarea = document.createElement('textarea'); document.body.appendChild(textarea);
