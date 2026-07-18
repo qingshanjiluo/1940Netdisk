@@ -15,6 +15,22 @@
        * 钢铁玻璃风格 — 军工业色板 + 毛玻璃卡片 + 噪声纹理
        * 复用 theme.css CSS 变量体系
        */
+      /* 桥接变量别名 — webdav 使用 --text-primary 等旧命名，theme.css 使用 --color-text */
+      :root {
+        --text-primary:   var(--color-text);
+        --text-secondary: var(--color-text-secondary);
+        --text-muted:     var(--color-text-muted);
+        --bg-primary:     var(--color-bg);
+        --bg-secondary:   var(--color-bg-alt);
+        --border-subtle:  var(--color-border-light);
+        --surface-elevated: var(--color-surface);
+        --hover-bg:       rgba(107, 122, 138, 0.1);
+        --danger:         var(--rust);
+        --badge-bg:       rgba(107, 122, 138, 0.1);
+        --badge-border:   rgba(107, 122, 138, 0.2);
+        --input-bg:       var(--glass-bg);
+        --border:         var(--glass-border);
+      }
       * { box-sizing: border-box; }
 
       body {
