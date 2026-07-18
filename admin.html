@@ -63,7 +63,11 @@
     .folder-current { font-size:.78em; opacity:.6; padding:2px 0; word-break:break-all; }
     .folder-drop-hint { padding:8px 10px; background:rgba(212,175,55,.1); border:1px dashed var(--gold); border-radius:var(--radius-sm); font-size:.78em; }
     .folder-tree { display:flex; flex-direction:column; gap:2px; }
-    .folder-node { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; border-radius:var(--radius-sm); cursor:pointer; border:none; background:transparent; color:var(--text); font-size:.82em; text-align:left; transition:all .15s; width:100%; }
+    .folder-node { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; border-radius:var(--radius-sm); cursor:pointer; border:none; background:transparent; color:var(--color-text); font-size:.82em; text-align:left; transition:all .15s; width:100%; }
+    .folder-chevron { width:12px; font-size:.65em; opacity:.45; transition:transform .2s; flex-shrink:0; cursor:pointer; }
+    .folder-chevron:hover { opacity:.9; }
+    .folder-chevron.is-rotated { transform:rotate(90deg); }
+    .fa-blank { visibility:hidden; }
     .folder-node:hover { background:var(--glass-hover); transform:translateX(2px); }
     .folder-node.is-active { background:rgba(90,107,74,.2); color:var(--gold); box-shadow:inset 3px 0 0 var(--gold); }
     .folder-node.is-drop-target { background:rgba(212,175,55,.15); border:1px dashed var(--gold); }
@@ -686,6 +690,9 @@
                   @dragenter.prevent="handleFolderDragEnter(folder.path)" @dragleave="handleFolderDragLeave(folder.path,$event)"
                   @drop.prevent="handleFolderDrop(folder.path,$event)">
                   <span class="folder-node-main" :style="{ paddingLeft: (folder.depth * 14 + 6) + 'px' }">
+                    <i class="fas folder-chevron"
+                      :class="[folder.hasChildren ? 'fa-chevron-right' : 'fa-blank', { 'is-rotated': expandedFolders[folder.path] }]"
+                      @click.stop="toggleFolder(folder.path)"></i>
                     <i class="fas" :class="folder.path === folderPath ? 'fa-folder-open' : 'fa-folder'"></i>
                     <span>{{ folder.name }}</span>
                   </span>
@@ -1283,7 +1290,7 @@
         currentPage: 1, pageSize: 24, selectedFiles: [], sortOption: 'dateDesc',
         filterOption: 'all', fileType: 'all', storageFilter: 'all', viewMode: 'grid',
         folders: [], folderPath: '', folderLoading: false, folderMutating: false,
-        folderMutatingAction: '', listRequestSeq: 0, isMobileViewport: false,
+        folderMutatingAction: '', expandedFolders: {}, listRequestSeq: 0, isMobileViewport: false,
         mobileNavMetricsRaf: 0, headerResizeObserver: null,
         folderListCache: {}, folderCacheTTL: 3*60*1000, folderCacheMaxEntries: 12,
         dragState: { active: false, fileIds: [], targetPath: null, leaveTimer: null, rafId: null },
@@ -1407,16 +1414,60 @@
         },
         folderTreeNodes: function(){
           var self = this;
-          var list = [{ path: '', name: '根目录', depth: 0, fileCount: self.folderPath ? '-' : self.Number }];
-          var nodes = (self.folders || []).map(function(folder){
-            var path = self.normalizeFolderPath(folder.path || folder.folderPath || '');
-            var depth = Number.isFinite(folder.depth) ? folder.depth : (path ? path.split('/').length : 0);
-            return { path: path, name: folder.name || (path.split('/').pop() || path || '未命名目录'), depth: depth, fileCount: Number(folder.fileCount || 0) };
+          // Build a map of path -> { path, name, depth, fileCount, parentPath, children[] }
+          var map = {};
+          var roots = [];
+          var allFolders = (self.folders || []).map(function(f){
+            var path = self.normalizeFolderPath(f.path || f.folderPath || '');
+            var depth = Number.isFinite(f.depth) ? f.depth : (path ? path.split('/').length : 0);
+            return { path: path, name: f.name || (path.split('/').pop() || path || '未命名目录'), depth: depth, fileCount: Number(f.fileCount || 0) };
           }).sort(function(a,b){
             if (a.depth !== b.depth) return a.depth - b.depth;
             return a.path.localeCompare(b.path, 'zh-CN');
           });
-          return list.concat(nodes);
+          allFolders.forEach(function(f){
+            map[f.path] = f;
+            f.children = [];
+            f.hasChildren = false;
+            var slashIdx = f.path.lastIndexOf('/');
+            f.parentPath = slashIdx > 0 ? f.path.slice(0, slashIdx) : '';
+            if (f.parentPath) {
+              if (!map[f.parentPath]) {
+                map[f.parentPath] = { path: f.parentPath, name: f.parentPath.split('/').pop(), depth: f.parentPath.split('/').length, fileCount: 0, children: [], hasChildren: false, parentPath: f.parentPath.indexOf('/') > 0 ? f.parentPath.slice(0, f.parentPath.lastIndexOf('/')) : '' };
+                allFolders.push(map[f.parentPath]);
+              }
+              map[f.parentPath].children.push(f);
+              map[f.parentPath].hasChildren = true;
+            } else {
+              roots.push(f);
+            }
+          });
+          // Re-sort children
+          function sortChildren(nodes){
+            nodes.sort(function(a,b){
+              if (a.depth !== b.depth) return a.depth - b.depth;
+              return a.path.localeCompare(b.path, 'zh-CN');
+            });
+            nodes.forEach(function(n){ sortChildren(n.children); });
+          }
+          sortChildren(roots);
+
+          // Flatten tree based on expanded state
+          var result = [];
+          var rootNode = { path: '', name: '根目录', depth: 0, fileCount: self.folderPath ? '-' : self.Number, hasChildren: roots.length > 0 };
+          result.push(rootNode);
+          // Always expand root
+          if (roots.length > 0) {
+            roots.forEach(function(child){ flattenNode(child, result, self); });
+          }
+          return result;
+
+          function flattenNode(node, output, vm){
+            output.push(node);
+            if (vm.expandedFolders[node.path]) {
+              (node.children || []).forEach(function(child){ flattenNode(child, output, vm); });
+            }
+          }
         },
         dragTargetLabel: function(){
           if (!this.dragState.active) return '未选择目录';
@@ -2090,9 +2141,29 @@
           });
           self.sortFoldersLocal();
         },
+        toggleFolder: function(path){
+          if (path === '') return;
+          if (this.expandedFolders[path]) {
+            this.$set(this.expandedFolders, path, false);
+          } else {
+            this.$set(this.expandedFolders, path, true);
+          }
+        },
+        expandFolderChainForPath: function(path){
+          if (!path) return;
+          var parts = path.split('/'); var current = '';
+          var self = this;
+          parts.forEach(function(part){
+            current = current ? current + '/' + part : part;
+            if (current !== path) {
+              self.$set(self.expandedFolders, current, true);
+            }
+          });
+        },
         selectFolder: function(path){
           var self = this; var normalized = self.normalizeFolderPath(path);
           if (normalized === self.folderPath && self.tableData.length > 0) return;
+          self.expandFolderChainForPath(normalized);
           self.folderPath = normalized; self.currentPage = 1; self.refreshFileList({ preferCache: true });
         },
         fetchFolders: function(){
