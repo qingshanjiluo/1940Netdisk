@@ -1314,7 +1314,16 @@
           audio: { name: '音频', exts: ['mp3','mpeg','wav','ogg','oga','flac','aac','m4a','wma','ape','opus','weba','midi','mid','aif','aiff'], icon: 'fas fa-music', count: 0 },
           document: { name: '文件', exts: ['pdf','ofd','typ','typst','doc','dot','docx','docm','dotx','dotm','rtf','odt','xls','xlsb','xlsx','xlsm','xlt','xltx','xltm','ods','fods','numbers','ppt','pptx','pptm','ppsx','ppsm','potx','potm','odp','txt','md','markdown','zip','zipx','jar','war','ear','rar','7z','tar','tgz','gz','gzip','bz2','bzip2','tbz','tbz2','xz','txz','lzma','zst','cab','iso','exe','apk','dmg','msi','deb','rpm','json','jsonc','json5','xml','csv','tsv','sql','html','css','js','ts','tsx','jsx','vue','py','java','go','rs','cpp','c','h','ttf','otf','woff','woff2','eml','msg','mbox','psd','ai','eps','sqlite','sqlite3','db','parquet','avro','wasm','webarchive','dwg','dxf','dwf','dwfx','xps','xmind','drawio','dio','excalidraw','mermaid','mmd','plantuml','puml','epub','umd','geojson','kml','gpx','shp','glb','gltf','obj','stl','ply','fbx','dae','3ds','3mf','usd','usdz','kmz','step','stp','iges','igs','ifc','olb','dra','gds','oas','oasis'], icon: 'fas fa-folder-open', count: 0 }
         },
-        uploadConfig: { maxSize: 20 * 1024 * 1024, maxConcurrent: 3 },
+        uploadConfig: { maxSize: 100 * 1024 * 1024, maxConcurrent: 3 },
+        uploadLimits: {
+          telegram: 50 * 1024 * 1024,
+          r2: 0,
+          s3: 0,
+          discord: 25 * 1024 * 1024,
+          huggingface: 35 * 1024 * 1024,
+          webdav: 0,
+          github: 0
+        },
         tableData: [], nextCursor: null, isLoadingMore: false, search: '',
         currentPage: 1, pageSize: 24, selectedFiles: [], sortOption: 'dateDesc',
         filterOption: 'all', fileType: 'all', storageFilter: 'all', viewMode: 'grid',
@@ -1458,6 +1467,18 @@
         },
         uploadQueueActive: function(){
           return this.uploadQueueProcessing || this.uploadQueue.length > 0;
+        },
+        effectiveUploadLimit: function(){
+          var storageType = this.storageFilter !== 'all' ? this.storageFilter : 'telegram';
+          var limit = this.uploadLimits[storageType];
+          if (!limit || limit <= 0) limit = this.uploadConfig.maxSize;
+          return limit;
+        },
+        uploadLimitLabel: function(){
+          var bytes = this.effectiveUploadLimit;
+          return bytes >= 1024 * 1024 * 1024 ? (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB' :
+                 bytes >= 1024 * 1024 ? (bytes / 1024 / 1024) + ' MB' :
+                 bytes >= 1024 ? (bytes / 1024) + ' KB' : bytes + ' B';
         },
         folderTreeNodes: function(){
           var self = this;
@@ -1890,11 +1911,16 @@
             });
           });
 
-          // Step 2: Upload all files
+          // Step 2: Upload all files (check size against smart limits)
+          var skippedFiles = [];
           Object.keys(filesByFolder).forEach(function(relFolder) {
             var targetPath = relFolder ? (basePath ? basePath + '/' + relFolder : relFolder) : basePath;
             var normalizedPath = self.normalizeFolderPath(targetPath);
             filesByFolder[relFolder].forEach(function(file) {
+              if (file.size > self.effectiveUploadLimit) {
+                skippedFiles.push(file.name);
+                return;
+              }
               queue.push({
                 type: 'upload',
                 file: file,
@@ -1909,10 +1935,15 @@
           self.uploadQueuePaused = false;
           self.uploadQueueTotal = queue.length;
           self.uploadQueueCompleted = 0;
-          self.uploadQueueFailed = 0;
+          self.uploadQueueFailed = skippedFiles.length;
           self.uploadQueueProcessing = true;
 
-          showToast('已将 ' + totalFiles + ' 个文件加入上传队列', 'info');
+          var msg = '已将 ' + totalFiles + ' 个文件加入上传队列';
+          if (skippedFiles.length) {
+            msg += '，跳过 ' + skippedFiles.length + ' 个超过大小限制的文件';
+            showToast('跳过了 ' + skippedFiles.length + ' 个超过 ' + self.uploadLimitLabel + ' 的文件: ' + skippedFiles.join(', '), 'warning');
+          }
+          showToast(msg, 'info');
 
           // Start processing
           self._processUploadQueue();
@@ -2762,9 +2793,12 @@
         uploadFiles: function(event){
           var self = this; var files = Array.from((event.target||{}).files||[]);
           if (!files.length) return;
-          var config = self.uploadConfig; var valid = [], invalid = [];
-          files.forEach(function(file){ (file.size <= config.maxSize ? valid : invalid).push(file); });
-          if (invalid.length) showToast('文件超过' + (config.maxSize/1024/1024) + 'MB: ' + invalid.map(function(f){ return f.name; }).join(', '), 'error');
+          var config = self.uploadConfig;
+          var maxBytes = self.effectiveUploadLimit;
+          var maxLabel = self.uploadLimitLabel;
+          var valid = [], invalid = [];
+          files.forEach(function(file){ (file.size <= maxBytes ? valid : invalid).push(file); });
+          if (invalid.length) showToast('文件超过 ' + maxLabel + ' 限制: ' + invalid.map(function(f){ return f.name; }).join(', '), 'error');
           if (!valid.length) { event.target.value = ''; return; }
           var storageTarget = self.systemStatus.r2.connected && self.systemStatus.r2.enabled ? 'R2 存储桶' : 'Telegram 频道';
           var folderText = self.folderPath ? ' / ' + self.folderPath : ' / 根目录';
