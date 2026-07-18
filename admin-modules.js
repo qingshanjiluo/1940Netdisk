@@ -543,7 +543,7 @@
   adminComputed.sessionUserAvatar = function() {
     if (!this.currentAdminUser) return '?';
     if (this.currentAdminUser.avatar) {
-      return '<img src="' + String(this.currentAdminUser.avatar).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,''') + '" alt="avatar">';
+      return '<img src="' + String(this.currentAdminUser.avatar).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,'&#39;') + '" alt="avatar">';
     }
     return this.getInitials(this.currentAdminUser.nickname || this.currentAdminUser.username);
   };

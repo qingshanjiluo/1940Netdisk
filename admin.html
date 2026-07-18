@@ -737,7 +737,7 @@
       <button class="preview-close" @click.stop="closePreview"><i class="fas fa-times"></i></button>
       <img v-if="previewData.type === 'native-image'" :src="previewData.url" @click.stop>
       <div v-else-if="previewData.type === 'iframe'" class="iframe-container" @click.stop>
-        <iframe ref="previewIframe" :src="previewData.iframeUrl" allow="clipboard-write;autoplay;fullscreen;encrypted-media" allowfullscreen></iframe>
+        <iframe ref="previewIframe" :src="previewData.iframeUrl" allow="clipboard-write;autoplay;fullscreen;encrypted-media"></iframe>
       </div>
       <div class="preview-toolbar-bar" @click.stop>
         <span class="preview-filename">{{ previewData.fileName }}</span>
