@@ -218,7 +218,7 @@ export async function onRequest(context) {
   if (!env.img_url) {
     return new Response(JSON.stringify({ error: 'KV binding img_url is not configured.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' },
     });
   }
 
@@ -274,6 +274,6 @@ export async function onRequest(context) {
   }
 
   return new Response(JSON.stringify(payload), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' },
   });
 }

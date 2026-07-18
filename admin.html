@@ -2179,7 +2179,7 @@
           var params = new URLSearchParams();
           if (self.storageFilter && self.storageFilter !== 'all') params.set('storage', self.storageFilter);
           var query = params.toString();
-          return fetch('./api/manage/folders' + (query ? '?' + query : ''), { method: 'GET', credentials: 'include' })
+          return fetch('./api/manage/folders' + (query ? '?' + query + '&_=' : '?_=') + Date.now(), { method: 'GET', credentials: 'include', cache: 'no-cache' })
             .then(function(r){ return r.json(); }).then(function(data){
               self.folders = Array.isArray(data.folders) ? data.folders : []; return true;
             }).catch(function(){ self.folders = []; showToast('目录列表加载失败', 'error'); return false;
@@ -2189,6 +2189,7 @@
           showMessage = showMessage !== false;
           var self = this;
           self.clearFolderCache();
+          self.pruneFolderCache();
           Promise.all([self.fetchFolders(), self.refreshFileList({ force: true })]).then(function(){
             if (showMessage) showToast('目录与文件已刷新', 'success');
           }).catch(function(err){
@@ -2196,23 +2197,25 @@
           });
         },
         createFolder: function(){
-          var self = this; if (self.folderMutating) return;
+          if (this._creatingFolder) return;
+          this._creatingFolder = true;
+          var self = this; if (self.folderMutating) { self._creatingFolder = false; return; }
           var seed = self.folderPath ? self.folderPath + '/新目录' : '新目录';
           showPrompt('请输入目录路径（例如：项目A/一月）', '新建目录', { inputValue: seed, confirmButtonText: '创建', cancelButtonText: '取消' }).then(function(result){
             var path = self.normalizeFolderPath(result.value);
-            if (!path) return;
+            if (!path) { self._creatingFolder = false; return; }
             var existed = (self.folders||[]).some(function(folder){ return self.normalizeFolderPath(folder.path||folder.folderPath||'') === path; });
-            if (existed) { self.selectFolder(path); showToast('目录已存在，已切换到该目录', 'info'); return; }
+            if (existed) { self.selectFolder(path); showToast('目录已存在，已切换到该目录', 'info'); self._creatingFolder = false; return; }
             var previousFolders = self.cloneFoldersSnapshot(); var previousFolderPath = self.folderPath;
             self.folderMutating = true; self.folderMutatingAction = 'create';
-            self.ensureFolderBranchLocal(path); self.folderPath = path; self.currentPage = 1; self.tableData = []; self.nextCursor = null;
             fetch('./api/manage/folders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: path }) }).then(function(r){ return r.json(); }).then(function(response){
               if (!response.success) throw new Error(response.error || '目录创建失败');
+              self.ensureFolderBranchLocal(path); self.folderPath = path; self.currentPage = 1; self.tableData = []; self.nextCursor = null;
               showToast('目录创建成功', 'success'); self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]);
             }).catch(function(err){
               self.folders = previousFolders; self.folderPath = previousFolderPath; self.refreshFileList(); showToast(err.message || '目录创建失败', 'error');
-            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; });
-          }).catch(function(){});
+            }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; self._creatingFolder = false; });
+          }).catch(function(){ self._creatingFolder = false; });
         },
         renameCurrentFolder: function(){
           var self = this; if (!self.folderPath || self.folderMutating) return;
@@ -2222,9 +2225,9 @@
             if (!targetPath || targetPath === self.folderPath) return;
             var sourcePath = self.folderPath; var previousFolders = self.cloneFoldersSnapshot();
             self.folderMutating = true; self.folderMutatingAction = 'rename';
-            self.renameFolderBranchLocal(sourcePath, targetPath); self.folderPath = targetPath;
             fetch('./api/manage/folders', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourcePath: sourcePath, targetPath: targetPath }) }).then(function(r){ return r.json(); }).then(function(res){
               if (!res.success) throw new Error(res.error || '重命名失败');
+              self.renameFolderBranchLocal(sourcePath, targetPath); self.folderPath = targetPath;
               showToast('目录重命名成功', 'success'); self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]);
             }).catch(function(err){
               self.folders = previousFolders; self.folderPath = sourcePath; self.refreshFileList(); showToast(err.message || '目录重命名失败', 'error');
@@ -2240,11 +2243,11 @@
             var target = self.folderPath; var parent = target.split('/').slice(0,-1).join('/');
             var previousFolders = self.cloneFoldersSnapshot(); var previousFolderPath = self.folderPath;
             self.folderMutating = true; self.folderMutatingAction = 'delete';
-            self.removeFolderBranchLocal(target); self.folderPath = self.normalizeFolderPath(parent); self.currentPage = 1; self.tableData = []; self.nextCursor = null;
             fetch('./api/manage/folders?path=' + encodeURIComponent(target) + '&recursive=1', { method: 'DELETE', credentials: 'include' }).then(function(r){
               return r.json();
             }).then(function(response){
               if (!response.success) throw new Error(response.error || '删除目录失败');
+              self.removeFolderBranchLocal(target); self.folderPath = self.normalizeFolderPath(parent); self.currentPage = 1; self.tableData = []; self.nextCursor = null;
               self.clearFolderCache(); Promise.all([self.fetchFolders(), self.refreshFileList()]); showToast('目录删除成功', 'success');
             }).catch(function(err){
               self.folders = previousFolders; self.folderPath = previousFolderPath; self.refreshFileList(); showToast(err.message || '目录删除失败', 'error');
@@ -2591,7 +2594,7 @@
           var self = this; if (self.isLoadingMore || !self.nextCursor) return;
           self.isLoadingMore = true; var startCount = self.tableData.length;
           var params = self.buildListQueryParams({ cursor: self.nextCursor, limit: self.getListRequestLimit(true), includeStats: true });
-          fetch('./api/manage/list?' + params.toString(), { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
+          fetch('./api/manage/list?' + params.toString() + '&_=' + Date.now(), { method: 'GET', credentials: 'include', cache: 'no-cache' }).then(function(r){ return r.json(); }).then(function(result){
             var mapped = (result.keys||[]).map(function(file){ return self.normalizeListItem(file); });
             self.mergeListData(mapped); self.nextCursor = result.list_complete ? null : result.cursor;
             if (Number.isFinite((result.stats||{}).total)) self.totalCount = result.stats.total;
@@ -2704,7 +2707,7 @@
           }
           var requestSeq = ++self.listRequestSeq;
           var params = self.buildListQueryParams({ limit: self.getListRequestLimit(false), includeStats: true });
-          fetch('./api/manage/list?' + params.toString(), { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(result){
+          fetch('./api/manage/list?' + params.toString() + '&_=' + Date.now(), { method: 'GET', credentials: 'include', cache: 'no-cache' }).then(function(r){ return r.json(); }).then(function(result){
             if (requestSeq !== self.listRequestSeq) return;
             var mapped = (result.keys||[]).map(function(file){ return self.normalizeListItem(file); });
             self.tableData = mapped; self.nextCursor = result.list_complete ? null : result.cursor;
