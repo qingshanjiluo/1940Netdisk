@@ -77,6 +77,17 @@
     .folder-node-main i.fa-folder-open { color:var(--gold); }
     .folder-node-main span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .folder-node-count { font-size:.7em; opacity:.5; background:rgba(90,107,74,.1); padding:1px 6px; border-radius:10px; min-width:20px; text-align:center; }
+
+    .upload-queue-bar { background:rgba(90,107,74,.1); border:1px solid rgba(90,107,74,.35); border-radius:4px; padding:8px 10px; display:flex; flex-direction:column; gap:6px; font-size:.78em; }
+    .upload-queue-header { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .upload-queue-title { font-weight:600; display:flex; align-items:center; gap:4px; }
+    .upload-queue-title i { color:var(--khaki); font-size:.9em; }
+    .upload-queue-stats { opacity:.8; font-size:.92em; }
+    .upload-queue-progress-track { height:4px; background:rgba(255,255,255,.08); border-radius:2px; overflow:hidden; }
+    .upload-queue-progress-fill { height:100%; background:var(--khaki); border-radius:2px; transition:width .3s ease; }
+    .upload-queue-controls { display:flex; gap:4px; justify-content:flex-end; }
+    .btn-xs { width:24px; height:24px; font-size:.75em; padding:0; display:flex; align-items:center; justify-content:center; background:transparent; border:1px solid rgba(90,107,74,.3); border-radius:3px; color:var(--color-text-secondary); cursor:pointer; transition:all .15s; }
+    .btn-xs:hover { border-color:var(--gold); color:var(--gold); }
     .folder-breadcrumb { display:flex; align-items:center; gap:6px; font-size:.85em; flex-wrap:wrap; padding:var(--space-xs) 0; border-bottom:1px solid rgba(90,107,74,.15); margin-bottom:var(--space-sm); }
     .folder-crumb { cursor:pointer; opacity:.7; transition:all .15s; padding:3px 8px; border-radius:4px; font-size:.82em; }
     .folder-crumb:hover { opacity:1; color:var(--gold); background:var(--glass-hover); }
@@ -679,6 +690,24 @@
                 </span>
               </div>
               <div class="folder-current">当前位置：/{{ folderPath || '' }}</div>
+              <div class="upload-queue-bar" v-if="uploadQueueActive">
+                <div class="upload-queue-header">
+                  <span class="upload-queue-title"><i class="fas fa-cloud-upload-alt"></i> 上传队列</span>
+                  <span class="upload-queue-stats">{{ uploadQueueCompleted }}/{{ uploadQueueTotal }} 完成<span v-if="uploadQueueFailed">，{{ uploadQueueFailed }} 失败</span></span>
+                </div>
+                <div class="upload-queue-progress-track">
+                  <div class="upload-queue-progress-fill" :style="{ width: uploadQueueProgress + '%' }"></div>
+                </div>
+                <div class="upload-queue-controls">
+                  <template v-if="!uploadQueuePaused">
+                    <button class="btn btn-ghost btn-icon btn-xs" title="暂停" @click="pauseUploadQueue"><i class="fas fa-pause"></i></button>
+                  </template>
+                  <template v-else>
+                    <button class="btn btn-ghost btn-icon btn-xs" title="继续" @click="resumeUploadQueue"><i class="fas fa-play"></i></button>
+                  </template>
+                  <button class="btn btn-ghost btn-icon btn-xs" title="取消所有" @click="cancelUploadQueue"><i class="fas fa-stop"></i></button>
+                </div>
+              </div>
               <div class="folder-drop-hint" v-if="dragState.active">
                 <strong>{{ dragState.fileIds.length || selectedFiles.length || 1 }} 个文件待移动</strong><br>
                 <span>拖到下方任意目录后松开</span>
@@ -1293,6 +1322,13 @@
         folderMutatingAction: '', expandedFolders: {}, listRequestSeq: 0, isMobileViewport: false,
         mobileNavMetricsRaf: 0, headerResizeObserver: null,
         folderListCache: {}, folderCacheTTL: 3*60*1000, folderCacheMaxEntries: 12,
+        uploadQueue: [],
+        uploadQueuePaused: false,
+        uploadQueueConcurrency: 3,
+        uploadQueueProcessing: false,
+        uploadQueueTotal: 0,
+        uploadQueueCompleted: 0,
+        uploadQueueFailed: 0,
         dragState: { active: false, fileIds: [], targetPath: null, leaveTimer: null, rafId: null },
         loadMode: 'normal', safeMode: true,
         systemStatus: {
@@ -1411,6 +1447,17 @@
           var result = [];
           for (var i = 0; i < parts.length; i++) result.push({ name: parts[i], path: parts.slice(0,i+1).join('/') });
           return result;
+        },
+        uploadQueueProgress: function(){
+          var total = this.uploadQueueTotal;
+          if (!total) return 0;
+          return Math.min(100, Math.round((this.uploadQueueCompleted + this.uploadQueueFailed) / total * 100));
+        },
+        uploadQueuePending: function(){
+          return this.uploadQueue.length;
+        },
+        uploadQueueActive: function(){
+          return this.uploadQueueProcessing || this.uploadQueue.length > 0;
         },
         folderTreeNodes: function(){
           var self = this;
@@ -1800,15 +1847,16 @@
           }).catch(function(){});
         },
         handleAdminFolderUpload: function(event) {
-          var files = Array.from(event.target.files || []);
-          if (!files.length) return;
+          var rawFiles = Array.from(event.target.files || []);
+          event.target.value = '';
+          if (!rawFiles.length) return;
           var self = this;
 
           // Extract folder structure
           var folderPaths = new Set();
           var filesByFolder = {};
 
-          files.forEach(function(file) {
+          rawFiles.forEach(function(file) {
             var relPath = file.webkitRelativePath || file.name;
             var parts = relPath.split('/');
             if (parts.length > 1) {
@@ -1823,79 +1871,144 @@
           });
 
           var basePath = self.normalizeFolderPath(self.folderPath);
-          var folderCount = folderPaths.size;
-          var fileCount = files.length;
-
-          showToast('检测到 ' + folderCount + ' 个文件夹，共 ' + fileCount + ' 个文件', 'info');
-
-          // Create folders sequentially
           var sortedPaths = Array.from(folderPaths).sort(function(a, b) {
             return a.split('/').length - b.split('/').length;
           });
+          var totalFiles = rawFiles.length;
 
-          var createdFolders = new Set();
-          var chain = Promise.resolve();
+          // Build queue entries: first create folders, then upload files
+          var queue = [];
 
+          // Step 1: Create all folders
           sortedPaths.forEach(function(relFolder) {
-            chain = chain.then(function() {
-              var fullPath = basePath ? basePath + '/' + relFolder : relFolder;
-              var normalized = self.normalizeFolderPath(fullPath);
-              if (!normalized || createdFolders.has(normalized)) return;
-              return fetch('./api/manage/folders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: normalized })
-              }).then(function() {
-                createdFolders.add(normalized);
-              }).catch(function(err) {
-                console.warn('Failed to create folder:', normalized, err);
+            var fullPath = basePath ? basePath + '/' + relFolder : relFolder;
+            var normalized = self.normalizeFolderPath(fullPath);
+            queue.push({
+              type: 'createFolder',
+              path: normalized,
+              label: '创建目录 ' + normalized
+            });
+          });
+
+          // Step 2: Upload all files
+          Object.keys(filesByFolder).forEach(function(relFolder) {
+            var targetPath = relFolder ? (basePath ? basePath + '/' + relFolder : relFolder) : basePath;
+            var normalizedPath = self.normalizeFolderPath(targetPath);
+            filesByFolder[relFolder].forEach(function(file) {
+              queue.push({
+                type: 'upload',
+                file: file,
+                folderPath: normalizedPath,
+                label: file.name
               });
             });
           });
 
-          chain.then(function() {
-            // Upload files to each folder
-            var uploadChain = Promise.resolve();
-            Object.keys(filesByFolder).forEach(function(relFolder) {
-              uploadChain = uploadChain.then(function() {
-                var targetPath = relFolder ? (basePath ? basePath + '/' + relFolder : relFolder) : basePath;
-                var normalizedPath = self.normalizeFolderPath(targetPath);
-                var folderFiles = filesByFolder[relFolder];
+          // Reset queue state
+          self.uploadQueue = queue.slice();
+          self.uploadQueuePaused = false;
+          self.uploadQueueTotal = queue.length;
+          self.uploadQueueCompleted = 0;
+          self.uploadQueueFailed = 0;
+          self.uploadQueueProcessing = true;
 
-                // Upload each file
-                var fileChain = Promise.resolve();
-                folderFiles.forEach(function(file) {
-                  fileChain = fileChain.then(function() {
-                    var formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('folderPath', normalizedPath);
-                    if (self.currentAdminUser && self.currentAdminUser.username) {
-                      formData.append('uploadedBy', self.currentAdminUser.username);
-                    }
-                    return fetch('./upload', {
-                      method: 'POST',
-                      body: formData,
-                      credentials: 'include'
-                    }).then(function(r) { return r.json(); }).then(function(data) {
-                      if (Array.isArray(data) && data[0] && data[0].src) {
-                        showToast('已上传: ' + file.name, 'success');
-                      }
-                    }).catch(function(err) {
-                      showToast('上传失败: ' + file.name + ' - ' + err.message, 'error');
-                    });
-                  });
-                });
-                return fileChain;
-              });
-            });
+          showToast('已将 ' + totalFiles + ' 个文件加入上传队列', 'info');
 
-            return uploadChain;
-          }).then(function() {
-            showToast('文件夹上传完成！', 'success');
+          // Start processing
+          self._processUploadQueue();
+        },
+
+        // ====== Upload Queue Methods ======
+        _processUploadQueue: function() {
+          var self = this;
+          if (!self.uploadQueueProcessing) return;
+          if (self.uploadQueuePaused) return;
+          if (self.uploadQueue.length === 0) {
+            self.uploadQueueProcessing = false;
+            showToast('上传队列已完成！共 ' + self.uploadQueueCompleted + ' 个成功' + (self.uploadQueueFailed ? '，' + self.uploadQueueFailed + ' 个失败' : ''), self.uploadQueueFailed > 0 ? 'warning' : 'success');
             self.refreshFileList({ preferCache: false, syncFolders: true });
+            return;
+          }
+
+          // Process up to concurrency limit
+          var batchSize = Math.min(self.uploadQueueConcurrency, self.uploadQueue.length);
+          var batch = self.uploadQueue.splice(0, batchSize);
+
+          var promises = batch.map(function(entry) {
+            return self._executeQueueEntry(entry).then(function(success) {
+              if (success) {
+                self.uploadQueueCompleted++;
+              } else {
+                self.uploadQueueFailed++;
+              }
+            }).catch(function() {
+              self.uploadQueueFailed++;
+            });
           });
 
-          event.target.value = '';
+          Promise.all(promises).then(function() {
+            // Continue processing next batch
+            self._processUploadQueue();
+          });
+        },
+
+        _executeQueueEntry: function(entry) {
+          var self = this;
+          if (!self.uploadQueueProcessing) return Promise.resolve(false);
+
+          if (entry.type === 'createFolder') {
+            return fetch('./api/manage/folders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: entry.path })
+            }).then(function(r){ return r.json(); }).then(function(res){
+              return true;
+            }).catch(function(err) {
+              console.warn('创建目录失败:', entry.path, err);
+              return false;
+            });
+          }
+
+          if (entry.type === 'upload') {
+            var formData = new FormData();
+            formData.append('file', entry.file);
+            formData.append('folderPath', entry.folderPath);
+            if (self.currentAdminUser && self.currentAdminUser.username) {
+              formData.append('uploadedBy', self.currentAdminUser.username);
+            }
+            return fetch('./upload', {
+              method: 'POST',
+              body: formData,
+              credentials: 'include'
+            }).then(function(r){ return r.json(); }).then(function(data) {
+              var ok = Array.isArray(data) && data[0] && data[0].src;
+              return ok;
+            }).catch(function(err) {
+              return false;
+            });
+          }
+
+          return Promise.resolve(false);
+        },
+
+        pauseUploadQueue: function() {
+          this.uploadQueuePaused = true;
+          showToast('上传队列已暂停', 'info');
+        },
+
+        resumeUploadQueue: function() {
+          if (!this.uploadQueuePaused) return;
+          this.uploadQueuePaused = false;
+          showToast('上传队列已继续', 'info');
+          this._processUploadQueue();
+        },
+
+        cancelUploadQueue: function() {
+          this.uploadQueueProcessing = false;
+          this.uploadQueuePaused = false;
+          var remaining = this.uploadQueue.length;
+          this.uploadQueue = [];
+          showToast('上传队列已取消，剩余 ' + remaining + ' 个未上传', 'warning');
         },
         resetUserPassword: function(user){
           var self = this;
