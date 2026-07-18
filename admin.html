@@ -1010,7 +1010,7 @@
 
     <div class="footer">
       <div>Powered By 1940Netdisk</div>
-      <a href="https://github.com/katelya77/K-Vault" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github"></i> GitHub</a>
+      <a href="https://github.com/K-Vault" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github"></i> 1940Netdisk</a>
     </div>
 
     <!-- File Detail Modal -->
@@ -2800,7 +2800,7 @@
           files.forEach(function(file){ (file.size <= maxBytes ? valid : invalid).push(file); });
           if (invalid.length) showToast('文件超过 ' + maxLabel + ' 限制: ' + invalid.map(function(f){ return f.name; }).join(', '), 'error');
           if (!valid.length) { event.target.value = ''; return; }
-          var storageTarget = self.systemStatus.r2.connected && self.systemStatus.r2.enabled ? 'R2 存储桶' : 'Telegram 频道';
+          var storageTarget = self.getStorageLabel(self.storageFilter || 'telegram') + (self.storageFilter !== 'all' ? '' : '(Telegram)');
           var folderText = self.folderPath ? ' / ' + self.folderPath : ' / 根目录';
           showConfirm('确定要上传这 ' + valid.length + ' 个文件到 ' + storageTarget + ' 的目录 ' + folderText + ' 吗？', '上传确认').then(function(){
             var successCount = 0, failedList = [];
