@@ -600,7 +600,7 @@ new Vue({
       audio: { name:'音频', exts:['mp3','wav','ogg','flac','aac','m4a','wma','ape','opus'], icon:'fas fa-music', count:0 },
       document: { name:'文件', exts:['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','md','zip','rar','7z','tar','gz','exe','apk','dmg','iso','msi','deb','rpm','json','xml','csv','sql','html','css','js','py','java','go','rs','cpp','c','h'], icon:'fas fa-folder-open', count:0 }
     },
-    uploadConfig: { maxSize: 20 * 1024 * 1024, maxConcurrent: 3 },
+    uploadConfig: { maxSize: 100 * 1024 * 1024, maxConcurrent: 3 },
     tableData: [],
     nextCursor: null,
     isLoadingMore: false,

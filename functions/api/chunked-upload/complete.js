@@ -280,12 +280,12 @@ function getMissingChunks(uploaded, total) {
 }
 
 function validateCompletionTarget(storageMode, fileSize) {
-  if (storageMode === 'telegram' && fileSize > 20 * MB) {
+  if (storageMode === 'telegram' && fileSize > 50 * MB) {
     return {
       ok: false,
       status: 400,
       code: 'TELEGRAM_CHUNK_UNSUPPORTED',
-      message: 'Cloudflare Pages 上的 Telegram 网页上传仅适合 20MB 以内文件。更大的文件请切换到 R2/S3/WebDAV/GitHub，或把文件直接发到 Telegram 后使用 Webhook 回链。',
+      message: 'Telegram Bot API 网页上传上限约 50MB。更大的文件请切换到 R2/S3/WebDAV/GitHub，或直接把文件发到 Telegram 后使用 Webhook 回链。',
     };
   }
   if (storageMode === 'discord' && fileSize > 25 * MB) {

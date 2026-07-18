@@ -169,9 +169,9 @@ function errorResponse(message, status = 500) {
 function validateDirectUpload(storageMode, fileSize) {
   const limits = {
     telegram: {
-      maxBytes: 20 * MB,
+      maxBytes: 50 * MB,
       status: 413,
-      message: "Cloudflare Pages 上的 Telegram 网页上传限制为 20MB。较大的浏览器上传请使用 R2、S3、WebDAV 或 GitHub，或直接把文件发到 Telegram 后使用 Webhook 回链。",
+      message: "Telegram Bot API 网页上传上限约 50MB。较大的文件请使用 R2、S3、WebDAV 或 GitHub，或直接把文件发到 Telegram 后使用 Webhook 回链。",
     },
     discord: {
       maxBytes: 25 * MB,

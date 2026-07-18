@@ -1672,7 +1672,7 @@
         storageEnabledFromStatus(statusItem) { return !!(statusItem && (statusItem.connected || statusItem.configured) && statusItem.enabled !== false); },
         getUploadLimit(storageMode) {
           const fallback = {
-            telegram: { maxBytes: 20*1024*1024, directThreshold: 20*1024*1024, supportsChunkUpload: false },
+            telegram: { maxBytes: 50*1024*1024, directThreshold: 20*1024*1024, supportsChunkUpload: false },
             r2: { maxBytes: this.uploadConfig.maxSize, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
             s3: { maxBytes: this.uploadConfig.maxSize, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },
             discord: { maxBytes: 25*1024*1024, directThreshold: this.uploadConfig.smallFileThreshold, supportsChunkUpload: true },

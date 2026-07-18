@@ -7,7 +7,7 @@ import { checkGuestUpload } from '../../utils/guest.js';
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
-const TELEGRAM_WEB_UPLOAD_LIMIT = 20 * 1024 * 1024;
+const TELEGRAM_WEB_UPLOAD_LIMIT = 50 * 1024 * 1024;
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -146,7 +146,7 @@ function validateChunkUpload(storageMode, fileSize) {
       ok: false,
       status: 400,
       code: 'TELEGRAM_CHUNK_UNSUPPORTED',
-      message: 'Cloudflare Pages 上的 Telegram 网页上传仅适合 20MB 以内文件。更大的文件请切换到 R2/S3/WebDAV/GitHub，或把文件直接发到 Telegram 后使用 Webhook 回链。',
+      message: 'Telegram Bot API 网页上传上限约 50MB。更大的文件请切换到 R2/S3/WebDAV/GitHub，或直接把文件发到 Telegram 后使用 Webhook 回链。',
     };
   }
 

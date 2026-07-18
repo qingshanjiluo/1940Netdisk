@@ -174,9 +174,9 @@ function jsonResponse(data, status = 200) {
 function validateStorageSize(storageMode, fileSize) {
   const limits = {
     telegram: {
-      maxBytes: 20 * MB,
+      maxBytes: 50 * MB,
       status: 413,
-      message: "Cloudflare Pages 上的 Telegram URL 上传限制为 20MB。较大的文件请使用 R2、S3、WebDAV 或 GitHub。",
+      message: "Telegram Bot API 网页上传上限约 50MB。较大的文件请使用 R2、S3、WebDAV 或 GitHub。",
     },
     discord: {
       maxBytes: 25 * MB,

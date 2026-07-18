@@ -305,10 +305,10 @@ export async function onRequestGet(context) {
 function getUploadLimits() {
   return {
     telegram: {
-      maxBytes: DIRECT_UPLOAD_THRESHOLD,
+      maxBytes: 50 * MB,
       directThreshold: DIRECT_UPLOAD_THRESHOLD,
       supportsChunkUpload: false,
-      message: 'Cloudflare Pages 上的 Telegram 网页上传限制为 20MB。较大的浏览器上传请使用 R2、S3、WebDAV 或 GitHub，或直接把文件发到 Telegram 后使用 Webhook 回链。',
+      message: 'Telegram Bot API 网页上传上限约 50MB。较大的浏览器上传请使用 R2、S3、WebDAV 或 GitHub，或直接把文件发到 Telegram 后使用 Webhook 回链。',
     },
     r2: {
       maxBytes: CHUNK_UPLOAD_LIMIT,
