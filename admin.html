@@ -11,7 +11,484 @@
   <script src="/theme.js?v=20260305"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
   <script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/admin.css">
+  <style>
+    /* Admin-specific overrides */
+    .admin-header { display:flex; align-items:center; gap:var(--space-md); padding:var(--space-sm) var(--space-md); background:var(--glass-bg); border-bottom:2px solid var(--olive); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); position:sticky; top:0; z-index:100; flex-wrap:wrap; }
+    .admin-header .breadcrumb { display:flex; align-items:center; gap:6px; font-family:var(--font-display); }
+    .admin-header .breadcrumb-item { cursor:pointer; font-size:1.05em; letter-spacing:.04em; opacity:.7; transition:all .2s; white-space:nowrap; }
+    .admin-header .breadcrumb-item:hover { opacity:1; color:var(--gold); }
+    .admin-header .breadcrumb-item.is-active { opacity:1; color:var(--khaki); cursor:pointer; font-size:1.2em; }
+    .admin-header .breadcrumb-sep { font-size:.55em; opacity:.35; display:flex; align-items:center; }
+    .admin-header .search-card { flex:1; min-width:140px; max-width:280px; }
+    .admin-header .stats { font-size:.82em; opacity:.8; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+    .admin-header .stats-text { font-weight:600; }
+    .admin-header .stats-loaded { opacity:.6; }
+    .admin-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+    .admin-actions .action-btn { background:transparent; border:1px solid var(--steel); color:var(--color-text-secondary); width:34px; height:34px; border-radius:3px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; font-size:.9em; position:relative; }
+    .admin-actions .action-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.05); }
+    .admin-actions .action-btn .badge-dot { position:absolute; top:-2px; right:-2px; width:8px; height:8px; border-radius:50%; background:var(--rust); }
+    .status-panel {
+      display:flex;
+      gap:3px;
+      cursor:pointer;
+      padding:6px 12px;
+      border-radius:var(--radius-sm);
+      transition:background .2s;
+      border:1px solid rgba(90,107,74,0.3);
+      background:rgba(255,255,255,0.02);
+    }
+    .status-panel:hover { background:var(--glass-hover); border-color:var(--gold); }
+    .status-item { display:flex; align-items:center; gap:3px; font-size:.72em; }
+    .status-item i { font-size:.6em; }
+    .admin-dropdown { position:relative; display:inline-flex; }
+    .admin-dropdown-menu { position:absolute; top:calc(100% + 4px); right:0; min-width:180px; background:var(--glass-bg); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--steel); border-radius:3px; padding:4px 0; z-index:200; display:none; box-shadow:var(--shadow-lg); }
+    .admin-dropdown-menu.show { display:block; }
+    .admin-dropdown-item { display:flex; align-items:center; gap:8px; padding:8px 14px; cursor:pointer; font-size:.85em; transition:background .15s; white-space:nowrap; }
+    .admin-dropdown-item:hover { background:var(--glass-hover); }
+    .admin-dropdown-item i { width:18px; text-align:center; }
+    .admin-dropdown-item.is-disabled { opacity:.4; cursor:not-allowed; }
+    .admin-dropdown-item.is-selected { background:rgba(90,107,74,.15); color:var(--gold); }
+    .admin-dropdown-divider { height:1px; background:var(--border); margin:4px 0; }
+
+    .main-layout { display:flex; gap:var(--space-md); padding:var(--space-md); min-height:calc(100vh - 70px); }
+    .disk-layout { display:flex; gap:var(--space-md); flex-wrap:wrap; }
+    .folder-sidebar { width:240px; min-width:240px; background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:6px; padding:var(--space-sm); display:flex; flex-direction:column; gap:var(--space-sm); max-height:calc(100vh - 100px); overflow-y:auto; transition:border-color .2s, width .2s, min-width .2s, flex .2s, box-shadow .2s; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .folder-sidebar::-webkit-scrollbar { width:4px; }
+    .folder-sidebar::-webkit-scrollbar-thumb { background:rgba(90,107,74,0.3); border-radius:2px; }
+    .disk-content { flex:1 1 320px; min-width:0; display:flex; flex-direction:column; gap:var(--space-md); }
+    .folder-sidebar.is-drag-active { border-color:var(--gold); box-shadow:0 0 20px rgba(212,175,55,.15); }
+    .folder-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-xs); }
+    .folder-head-title { display:flex; align-items:center; gap:6px; font-size:.85em; font-weight:600; }
+    .folder-head-actions { display:flex; gap:2px; }
+    .folder-current { font-size:.78em; opacity:.6; padding:2px 0; word-break:break-all; }
+    .folder-drop-hint { padding:8px 10px; background:rgba(212,175,55,.1); border:1px dashed var(--gold); border-radius:var(--radius-sm); font-size:.78em; }
+    .folder-tree { display:flex; flex-direction:column; gap:2px; }
+    .folder-node { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; border-radius:var(--radius-sm); cursor:pointer; border:none; background:transparent; color:var(--text); font-size:.82em; text-align:left; transition:all .15s; width:100%; }
+    .folder-node:hover { background:var(--glass-hover); transform:translateX(2px); }
+    .folder-node.is-active { background:rgba(90,107,74,.2); color:var(--gold); box-shadow:inset 3px 0 0 var(--gold); }
+    .folder-node.is-drop-target { background:rgba(212,175,55,.15); border:1px dashed var(--gold); }
+    .folder-node-main { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+    .folder-node-main i { width:16px; text-align:center; font-size:.9em; }
+    .folder-node-main i.fa-folder { color:var(--khaki); }
+    .folder-node-main i.fa-folder-open { color:var(--gold); }
+    .folder-node-main span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .folder-node-count { font-size:.7em; opacity:.5; background:rgba(90,107,74,.1); padding:1px 6px; border-radius:10px; min-width:20px; text-align:center; }
+    .folder-breadcrumb { display:flex; align-items:center; gap:6px; font-size:.85em; flex-wrap:wrap; padding:var(--space-xs) 0; border-bottom:1px solid rgba(90,107,74,.15); margin-bottom:var(--space-sm); }
+    .folder-crumb { cursor:pointer; opacity:.7; transition:all .15s; padding:3px 8px; border-radius:4px; font-size:.82em; }
+    .folder-crumb:hover { opacity:1; color:var(--gold); background:var(--glass-hover); }
+    .folder-crumb:last-child { opacity:1; color:var(--gold); cursor:default; background:rgba(90,107,74,.12); font-weight:600; }
+    .content-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:var(--space-md); }
+
+    /* File cards */
+    .file-card { background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; overflow:hidden; transition:all .2s; cursor:default; position:relative; }
+    .file-card:hover { border-color:var(--gold); box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .file-card.selected { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold), 0 4px 20px rgba(0,0,0,0.4); }
+    .file-card.dragging-file-card { opacity:.5; }
+    .file-card .collect-icon { position:absolute; top:8px; right:8px; z-index:5; cursor:pointer; font-size:.9em; opacity:.6; transition:opacity .2s; }
+    .file-card .collect-icon:hover { opacity:1; }
+    .file-card .collect-icon .liked { color:var(--gold); }
+    .preview-stage { position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; background:#0a0e17; cursor:pointer; }
+    .preview-stage img { width:100%; height:100%; object-fit:cover; }
+    .preview-stage video { width:100%; height:100%; object-fit:cover; }
+    .preview-stage audio { width:100%; }
+    .preview-skeleton { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:2.5em; opacity:.3; }
+    .preview-gate { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; border:none; background:rgba(0,0,0,.5); color:#fff; cursor:pointer; transition:background .2s; }
+    .preview-gate:hover { background:rgba(0,0,0,.7); }
+    .preview-gate-icon { font-size:1.5em; }
+    .preview-gate-title { font-size:.85em; font-weight:600; }
+    .preview-gate-subtitle { font-size:.72em; opacity:.7; }
+    .overlay-buttons { position:absolute; bottom:0; left:0; right:0; display:flex; gap:4px; padding:6px; background:linear-gradient(transparent,rgba(0,0,0,.7)); opacity:0; transition:opacity .2s; }
+    .file-card:hover .overlay-buttons { opacity:1; }
+    .card-footer { padding:8px 10px; font-size:.78em; }
+    .card-footer span { cursor:pointer; }
+    .card-footer span:hover { color:var(--gold); }
+    .card-header-actions { display:flex; align-items:center; gap:4px; }
+
+    /* Video/Audio card */
+    .video-card .video-content, .audio-card .audio-content, .file-card .file-content { display:flex; flex-direction:column; }
+    .video-title, .audio-header, .file-header { padding:8px 10px; }
+    .audio-avatar, .file-avatar { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:var(--radius-sm); background:var(--glass-hover); }
+    .audio-avatar img { width:32px; height:32px; }
+    .audio-info, .file-info { flex:1; }
+    .audio-subtitle, .file-subtitle { font-size:.72em; opacity:.5; }
+    .video-controls, .audio-controls, .file-controls { display:flex; gap:2px; padding:6px 8px; }
+    .control-btn { background:transparent; border:none; color:var(--text); width:30px; height:30px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; font-size:.85em; }
+    .control-btn:hover { background:var(--glass-hover); color:var(--gold); }
+    .control-btn .liked, .control-btn .selected { color:var(--gold); }
+
+    /* List view */
+    .list-view-card { background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .table-wrap { overflow-x:auto; }
+    .table-wrap table { width:100%; border-collapse:collapse; font-size:.82em; }
+    .table-wrap th, .table-wrap td { padding:8px 12px; text-align:left; border-bottom:1px solid rgba(90,107,74,0.3); white-space:nowrap; }
+    .table-wrap th { background:rgba(90,107,74,.15); font-family:var(--font-display); font-weight:400; font-size:.7rem; text-transform:uppercase; letter-spacing:0.1em; position:sticky; top:0; z-index:2; }
+    .table-wrap tr:hover td { background:var(--glass-hover); }
+    .table-wrap .list-actions { display:flex; gap:4px; flex-wrap:wrap; }
+    .table-wrap .row-drag-handle { cursor:grab; padding:0 4px; opacity:.4; }
+    .table-wrap .row-drag-handle:hover { opacity:1; }
+
+    .pagination-bar { display:flex; align-items:center; justify-content:center; gap:4px; padding:var(--space-md) 0; }
+    .page-btn { min-width:34px; height:34px; border:1px solid var(--steel); background:transparent; color:var(--color-text-secondary); border-radius:3px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; font-size:.82em; }
+    .page-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.05); }
+    .page-btn.is-active { background:rgba(90,107,74,.25); border-color:var(--gold); color:var(--gold); }
+    .page-btn[disabled] { opacity:.3; cursor:not-allowed; }
+    .page-total { font-size:.78em; opacity:.6; margin:0 8px; }
+
+    /* Admin tabs */
+    .admin-tabs {
+      display:flex;
+      gap:2px;
+      border-bottom:1px solid var(--border);
+      margin-bottom:var(--space-md);
+      background:rgba(255,255,255,0.02);
+      border:1px solid rgba(90,107,74,0.4);
+      border-bottom:1px solid var(--border);
+      border-radius:3px 3px 0 0;
+      padding:0 4px;
+    }
+    .admin-tab {
+      padding:10px 18px;
+      cursor:pointer;
+      font-size:.85em;
+      border-bottom:2px solid transparent;
+      transition:all .2s;
+      font-weight:500;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      border-right:1px solid transparent;
+    }
+    .admin-tab:hover {
+      color:var(--gold);
+      background:rgba(212,175,55,0.04);
+    }
+    .admin-tab.is-active {
+      color:var(--gold);
+      border-bottom-color:var(--gold);
+      background:rgba(90,107,74,0.08);
+    }
+    .admin-tab:not(.is-active) {
+      border-right-color:rgba(90,107,74,0.15);
+    }
+    .admin-tab:last-child {
+      border-right-color:transparent;
+    }
+
+    /* Admin management panels */
+    .admin-panel {
+      display:flex;
+      flex-direction:column;
+      gap:var(--space-md);
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(90,107,74,0.4);
+      border-radius:3px;
+      padding:16px;
+      box-shadow:0 4px 20px rgba(0,0,0,0.4);
+    }
+    .admin-toolbar {
+      display:flex;
+      align-items:center;
+      gap:var(--space-sm);
+      flex-wrap:wrap;
+      background:rgba(255,255,255,0.02);
+      border:1px solid rgba(90,107,74,0.25);
+      border-radius:3px;
+      padding:10px 14px;
+    }
+    .admin-table-wrap { overflow-x:auto; background:rgba(255,255,255,0.03); border:1px solid rgba(90,107,74,0.4); border-radius:3px; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+    .admin-table { width:100%; border-collapse:collapse; font-size:.82em; }
+    .admin-table th, .admin-table td { padding:8px 12px; text-align:left; border-bottom:1px solid rgba(90,107,74,0.3); }
+    .admin-table th { background:rgba(90,107,74,.15); font-family:var(--font-display); font-weight:400; font-size:.7rem; text-transform:uppercase; letter-spacing:0.1em; position:sticky; top:0; }
+    .admin-table tr:hover td { background:var(--glass-hover); }
+    .admin-table .perm-cell { display:flex; gap:6px; align-items:center; }
+    .perm-select { background:var(--input-bg); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:4px 8px; font-size:.78em; cursor:pointer; }
+    .perm-select:focus { border-color:var(--gold); outline:none; }
+
+    /* ── Native element styling ── */
+    select.input-glass,
+    .modal-form select,
+    .token-scope-group select {
+      background:var(--input-bg); border:1px solid var(--border); color:var(--text-primary);
+      border-radius:3px; padding:6px 10px; font-size:.85em; cursor:pointer;
+      appearance:auto; -webkit-appearance:auto; min-height:34px;
+    }
+    select.input-glass:focus,
+    .modal-form select:focus { border-color:var(--gold); outline:none; box-shadow:0 0 0 2px rgba(212,175,55,.15); }
+    .modal-form input[type="checkbox"],
+    .token-scope-group input[type="checkbox"] {
+      accent-color:var(--olive); width:16px; height:16px; cursor:pointer;
+      vertical-align:middle; margin-right:4px;
+    }
+    .modal-form input[type="checkbox"]:hover,
+    .token-scope-group input[type="checkbox"]:hover { filter:brightness(1.2); }
+    .checkbox-wrap input[type="checkbox"] {
+      accent-color:var(--olive); width:16px; height:16px; cursor:pointer;
+    }
+    input[type="file"] { color:var(--text-primary); font-size:.82em; }
+    .token-scope-group label { display:inline-flex; align-items:center; gap:4px; cursor:pointer; padding:4px 0; }
+    .modal-form .form-group label:has(input[type="checkbox"]) { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+
+    .modal-inner { padding:var(--space-md); }
+    .modal-form { display:flex; flex-direction:column; gap:var(--space-md); }
+    .modal-form .form-row { display:flex; gap:var(--space-sm); align-items:flex-end; flex-wrap:wrap; }
+    .modal-form .form-group { display:flex; flex-direction:column; gap:6px; }
+    .modal-form label { font-size:.82em; opacity:.8; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:var(--space-sm); padding:var(--space-md); border-top:1px solid var(--border); }
+
+    .batch-toolbar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; align-items:center; gap:var(--space-sm); padding:10px 18px; background:var(--glass-bg); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(90,107,74,0.4); border-radius:3px; box-shadow:0 4px 20px rgba(0,0,0,0.4); cursor:grab; }
+    .batch-toolbar.is-dragging { cursor:grabbing; }
+    .batch-count { font-size:.82em; font-weight:600; white-space:nowrap; }
+    .batch-shortcuts { font-size:.7em; opacity:.5; white-space:nowrap; display:none; }
+    @media(min-width:768px){ .batch-shortcuts { display:inline; } }
+
+    .footer { text-align:center; padding:var(--space-md); font-size:.78em; opacity:.5; display:flex; justify-content:center; gap:var(--space-md); }
+    .footer a { color:var(--text); text-decoration:none; }
+    .footer a:hover { color:var(--gold); }
+
+    .load-more-end { text-align:center; font-size:.82em; opacity:.5; padding:var(--space-md); }
+
+    .move-folder-panel { display:flex; flex-direction:column; gap:var(--space-md); }
+    .move-folder-summary { display:flex; justify-content:space-between; align-items:center; font-size:.85em; }
+    .move-folder-toolbar { display:flex; gap:var(--space-sm); }
+    .move-folder-list { display:flex; flex-direction:column; gap:4px; max-height:300px; overflow-y:auto; }
+    .move-folder-option { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; border:none; background:transparent; color:var(--text); font-size:.82em; text-align:left; transition:all .15s; width:100%; }
+    .move-folder-option:hover { background:var(--glass-hover); }
+    .move-folder-option.is-active { background:rgba(90,107,74,.2); color:var(--gold); }
+    .move-folder-option-name { flex:1; }
+    .move-folder-option-meta { font-size:.75em; opacity:.5; }
+    .move-folder-empty { text-align:center; padding:20px; font-size:.82em; opacity:.6; }
+    .move-folder-create { display:flex; flex-direction:column; gap:var(--space-sm); }
+    .move-folder-create-row { display:flex; gap:var(--space-sm); }
+    .move-folder-target { font-size:.78em; opacity:.6; }
+    .move-folder-footer { display:flex; justify-content:space-between; align-items:center; }
+
+    /* Token dialog */
+    .token-toolbar { display:flex; gap:var(--space-sm); margin-bottom:var(--space-md); }
+    .token-loading, .token-empty { text-align:center; padding:40px 20px; font-size:.85em; opacity:.6; }
+    .token-empty i { font-size:2em; display:block; margin-bottom:10px; }
+    .token-scope-group { display:flex; flex-wrap:wrap; gap:8px; }
+    .token-scope-group label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:.82em; }
+    .token-scope-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.72em; background:rgba(90,107,74,.2); margin:2px; }
+    .token-time-hint { font-size:.72em; opacity:.5; }
+    .token-status-text { margin-left:6px; font-size:.78em; }
+    .token-status-text.is-enabled { color:#67c23a; }
+    .token-once-warning { display:flex; align-items:center; gap:8px; padding:10px 14px; background:rgba(212,175,55,.1); border:1px solid var(--gold); border-radius:var(--radius-sm); font-size:.82em; margin-bottom:var(--space-md); }
+    .token-created-actions { margin-top:var(--space-sm); }
+
+    .btn-icon-sm { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+
+    /* ===== 表内操作按钮统一对齐 ===== */
+    .btn-ghost-danger {
+      background:transparent;
+      border:1px solid transparent;
+      color:var(--rust);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+      padding:4px 10px;
+      border-radius:3px;
+      cursor:pointer;
+      transition:all .15s;
+      font-size:.82em;
+      font-family:inherit;
+      line-height:1;
+    }
+    .btn-ghost-danger:hover {
+      background:rgba(185,28,28,0.1);
+      border-color:rgba(185,28,28,0.3);
+      color:#ef4444;
+    }
+    .btn-ghost-danger:disabled {
+      opacity:.4;
+      cursor:not-allowed;
+    }
+    .btn-ghost-danger i {
+      font-size:.9em;
+    }
+
+    /* ===== User Profile Dropdown ===== */
+    .user-profile-dd {
+      position: relative;
+      margin-left: var(--space-md);
+    }
+    .user-dd-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 4px;
+      border: 1.5px solid var(--khaki);
+      border-radius: 3px;
+      background: var(--olive);
+      cursor: pointer;
+      font-size: .82em;
+      color: var(--khaki-light);
+      transition: all var(--transition-fast);
+    }
+    .user-dd-toggle:hover {
+      background: var(--olive-light);
+      border-color: var(--gold);
+      color: var(--gold-light);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+    .user-avatar-mini,
+    .user-dd-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--khaki), var(--steel));
+      color: #fff;
+      font-size: .72em;
+      font-weight: 700;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .user-dd-avatar {
+      width: 40px;
+      height: 40px;
+      font-size: .85em;
+    }
+    .user-avatar-mini img,
+    .user-dd-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .user-dd-name {
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .user-dd-toggle .fa-chevron-down {
+      font-size: .7em;
+      transition: transform var(--transition-fast);
+    }
+    .user-dd-toggle .fa-chevron-down.rotate-180 {
+      transform: rotate(180deg);
+    }
+    .user-dd-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 200px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 2px solid var(--olive);
+      border-radius: 3px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all var(--transition-fast);
+      z-index: 1100;
+    }
+    .user-dd-menu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    .user-dd-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+    }
+    .user-dd-nickname {
+      font-weight: 600;
+      font-size: .88em;
+    }
+    .user-dd-username {
+      font-size: .75em;
+      opacity: .6;
+    }
+    .user-dd-divider {
+      height: 1px;
+      background: var(--olive);
+      margin: 0 8px;
+    }
+    .user-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      background: none;
+      color: var(--text-primary);
+      font-size: .85em;
+      cursor: pointer;
+      text-align: left;
+      transition: background var(--transition-fast);
+    }
+    .user-dd-item:hover {
+      background: var(--glass-bg-hover);
+    }
+    .user-dd-item i {
+      width: 16px;
+      text-align: center;
+      font-size: .85em;
+      color: var(--khaki);
+    }
+
+    .admin-table td {
+      vertical-align:middle;
+    }
+    .admin-table td button {
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      line-height:1;
+    }
+
+    /* ===== admin-actions 图标文字对齐 ===== */
+    .admin-actions .action-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .empty-tip { text-align:center; padding:60px 20px; font-size:.88em; opacity:.6; }
+
+    /* Preview modal */
+    .preview-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:linear-gradient(180deg,rgba(5,10,18,.94),rgba(8,13,22,.98)); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10000; padding:24px; }
+    .preview-modal img { max-width:min(92vw,1280px); max-height:78vh; border-radius:8px; object-fit:contain; background:#070b12; box-shadow:0 28px 90px rgba(0,0,0,.46); }
+    .preview-modal .iframe-container { width:min(92vw,1280px); height:min(78vh,820px); position:relative; border-radius:8px; overflow:hidden; background:#070b12; border:1px solid rgba(255,255,255,.12); box-shadow:0 28px 90px rgba(0,0,0,.46); }
+    .preview-modal .iframe-container iframe { width:100%; height:100%; border:none; }
+    .preview-close { position:absolute; top:20px; right:20px; width:44px; height:44px; border:none; border-radius:8px; background:rgba(255,255,255,.12); color:#fff; font-size:1.2em; cursor:pointer; z-index:10001; transition:background .2s; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+    .preview-close:hover { background:rgba(255,255,255,.35); }
+    .preview-toolbar-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; width:min(92vw,1280px); padding:10px 12px 10px 16px; background:rgba(15,23,42,.72); border:1px solid rgba(255,255,255,.12); border-radius:8px; margin-top:16px; backdrop-filter:blur(16px); }
+    .preview-filename { font-size:.85em; opacity:.8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    /* Preview modal 高于普通弹窗 */
+    .preview-modal { z-index:5000 !important; }
+
+    @media(max-width:1024px){
+      .disk-layout { flex-wrap:wrap; }
+      .folder-sidebar { width:180px; min-width:180px; }
+    }
+    @media(max-width:768px){
+      .admin-header { padding:var(--space-xs) var(--space-sm); }
+      .admin-header .stats-loaded { display:none; }
+      .status-panel .status-item span { display:none; }
+      .disk-layout { flex-direction:column; }
+      .folder-sidebar { width:100%; min-width:100%; max-height:200px; order:2; }
+      .disk-content { flex:1 1 auto; min-width:100%; order:1; }
+      .main-layout { padding:var(--space-sm); }
+      .content-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:var(--space-sm); }
+      .folder-breadcrumb { font-size:.78em; }
+      .folder-crumb { padding:2px 6px; }
+    }
+    @media(max-width:560px){
+      .admin-header .search-card { max-width:120px; }
+      .admin-actions .action-btn { width:30px; height:30px; font-size:.82em; }
+      .content-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+    }
+  </style>
 </head>
 <body>
   <div id="app" v-cloak>
@@ -766,8 +1243,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
-  <script src="/admin-utils.js"></script>
-  <script src="/admin-modules.js"></script>
   <script>
     // Toast utility
     function showToast(message, type, duration) {
@@ -823,7 +1298,7 @@
       });
     }
 
-    var adminApp = mergeAdminModules({
+    new Vue({
       el: '#app',
       data: {
         baseURL: document.location.origin,
@@ -1018,6 +1493,32 @@
           pages.push(total);
           return pages;
         },
+        // Admin computed
+        allGroups: function(){
+          var data = this.loadAdminDataRaw();
+          return data.groups || [];
+        },
+        allSections: function(){
+          var data = this.loadAdminDataRaw();
+          return data.sections || [];
+        },
+        filteredUserList: function(){
+          var query = (this.userSearchQuery || '').toLowerCase().trim();
+          var list = this.adminList || [];
+          if (!query) return list;
+          if (this.activeTab !== 'users') return list;
+          return list.filter(function(u) {
+            return (u.username || '').toLowerCase().indexOf(query) !== -1 ||
+                   (u.nickname || '').toLowerCase().indexOf(query) !== -1;
+          });
+        },
+        sessionUserAvatar: function(){
+          if (!this.currentAdminUser) return '?';
+          if (this.currentAdminUser.avatar) {
+            return '<img src="' + String(this.currentAdminUser.avatar).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') + '" alt="avatar">';
+          }
+          return this.getInitials(this.currentAdminUser.nickname || this.currentAdminUser.username);
+        },
       },
       watch: {
         tableData: {
@@ -1097,6 +1598,54 @@
               .catch(function(){ /* ignore migration errors */ });
           } catch(e){ return Promise.resolve(); }
         },
+        loadAdminDataRaw: function(){
+          return this.adminDataCache || { users: [], groups: [], userGroups: [], sections: [], sectionPermissions: [] };
+        },
+        loadAdminData: function(){
+          var self = this;
+          self.adminDataLoading = true;
+          return fetch('./api/admin/data', { credentials: 'include' })
+            .then(function(r){ return r.json(); })
+            .then(function(payload){
+              if (payload && payload.success && payload.data) {
+                self.adminDataCache = payload.data;
+              }
+              if (self.activeTab === 'users') self.adminList = self.adminDataCache.users || [];
+              else if (self.activeTab === 'groups') self.adminList = self.adminDataCache.groups || [];
+              else if (self.activeTab === 'sections') self.adminList = self.adminDataCache.sections || [];
+            })
+            .catch(function(err){
+              showToast('加载管理数据失败: ' + (err.message || err), 'error');
+            })
+            .finally(function(){ self.adminDataLoading = false; });
+        },
+        saveAdminData: function(){
+          // 通过各 API 端点单独保存，此方法仅刷新缓存
+          this.loadAdminData();
+        },
+        getUserGroups: function(userId){
+          var data = this.loadAdminDataRaw();
+          return (data.userGroups || []).filter(function(ug){ return ug.userId === userId; }).map(function(ug){ return ug.groupId; });
+        },
+        getGroupName: function(groupId){
+          var data = this.loadAdminDataRaw();
+          var g = (data.groups || []).find(function(g){ return g.id === groupId; });
+          return g ? g.name : groupId;
+        },
+        getGroupMemberCount: function(groupId){
+          var data = this.loadAdminDataRaw();
+          return (data.userGroups || []).filter(function(ug){ return ug.groupId === groupId; }).length;
+        },
+        getGroupBuiltinPerms: function(groupId){
+          var data = this.loadAdminDataRaw();
+          var g = (data.groups || []).find(function(g){ return g.id === groupId; });
+          return Array.isArray(g && g.builtinPerms) ? g.builtinPerms : [];
+        },
+        getBuiltinPermLabel: function(key){
+          var map = {};
+          (this.builtinPermOptions || []).forEach(function(o){ map[o.key] = o.label; });
+          return map[key] || key;
+        },
         getGroupPermissions: function(groupId){
           var data = this.loadAdminDataRaw();
           return (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === groupId; });
@@ -1118,6 +1667,280 @@
           var self = this;
           self.$set(self.adminFormPerms, sectionId + '_' + (self.adminForm.id || ''), value);
         },
+        showAdminModal: function(type, item){
+          this.adminModalType = type;
+          this.adminModalMode = item ? 'edit' : 'create';
+          this.adminEditingId = item ? item.id : null;
+          this.adminFormPerms = {};
+          var self = this;
+
+          if (type === 'user') {
+            if (item) {
+              var data = this.loadAdminDataRaw();
+              var ug = (data.userGroups || []).filter(function(ug){ return ug.userId === item.id; }).map(function(ug){ return ug.groupId; });
+              self.adminForm = { username: item.username, nickname: item.nickname || '', role: item.role || 'user', enabled: item.enabled !== false, groupIds: ug.slice() };
+            } else {
+              self.adminForm = { username: '', nickname: '', role: 'user', password: '', enabled: true, groupIds: [] };
+            }
+            this.adminModalVisible = true;
+          } else if (type === 'group') {
+            var showGroupModal = function() {
+              var data = self.loadAdminDataRaw();
+              if (item) {
+                self.adminForm = { id: item.id, name: item.name, description: item.description || '', builtinPerms: Array.isArray(item.builtinPerms) ? item.builtinPerms.slice() : [] };
+              } else {
+                var nextId = 'group_' + Date.now();
+                self.adminForm = { id: nextId, name: '', description: '', builtinPerms: [] };
+              }
+              self.adminModalVisible = true;
+            };
+            // 如果缓存为空则先加载
+            var cached = this.loadAdminDataRaw();
+            if (cached.groups) {
+              showGroupModal();
+            } else {
+              this.loadAdminData().then(showGroupModal).catch(showGroupModal);
+            }
+          } else if (type === 'section') {
+            if (item) {
+              self.adminForm = { id: item.id, name: item.name, slug: item.slug, description: item.description || '' };
+            } else {
+              self.adminForm = { id: 'section_' + Date.now(), name: '', slug: '', description: '' };
+            }
+            this.adminModalVisible = true;
+          }
+        },
+        closeAdminModal: function(){
+          this.adminModalVisible = false;
+          this.adminForm = {};
+          this.adminFormPerms = {};
+          this.adminEditingId = null;
+        },
+        saveAdminModal: function(){
+          var self = this;
+          var form = self.adminForm;
+
+          if (self.adminModalType === 'user') {
+            if (!form.username || form.username.length < 3) { showToast('用户名至少3个字符', 'warning'); return; }
+            if (self.adminModalMode === 'create' && (!form.password || form.password.length < 6)) { showToast('密码至少6个字符', 'warning'); return; }
+
+            var payload = {
+              username: form.username,
+              nickname: form.nickname || form.username,
+              role: form.role || 'user',
+              enabled: form.enabled !== false,
+              groupIds: form.groupIds || []
+            };
+            if (self.adminModalMode === 'create') {
+              payload.password = form.password;
+              fetch('./api/admin/users', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              }).then(function(r){ return r.json(); }).then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast('用户创建成功', 'success');
+                self.closeAdminModal(); self.loadAdminData();
+              }).catch(function(err){ showToast(err.message || '创建失败', 'error'); });
+            } else {
+              fetch('./api/admin/users/' + encodeURIComponent(self.adminEditingId), {
+                method: 'PATCH', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              }).then(function(r){ return r.json(); }).then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast('保存成功', 'success');
+                self.closeAdminModal(); self.loadAdminData();
+              }).catch(function(err){ showToast(err.message || '保存失败', 'error'); });
+            }
+          } else if (self.adminModalType === 'group') {
+            if (!form.name) { showToast('请输入身份组名称', 'warning'); return; }
+
+            var builtinPerms = Array.isArray(form.builtinPerms) ? form.builtinPerms : [];
+
+            var groupPayload = { name: form.name, description: form.description || '', builtinPerms: builtinPerms };
+
+            if (self.adminModalMode === 'create') {
+              fetch('./api/admin/groups', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(groupPayload)
+              }).then(function(r){ return r.json(); }).then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast('身份组创建成功', 'success');
+                self.closeAdminModal(); self.loadAdminData();
+              }).catch(function(err){ showToast(err.message || '创建失败', 'error'); });
+            } else {
+              fetch('./api/admin/groups/' + encodeURIComponent(self.adminEditingId), {
+                method: 'PATCH', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(groupPayload)
+              }).then(function(r){ return r.json(); }).then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast('保存成功', 'success');
+                self.closeAdminModal(); self.loadAdminData();
+              }).catch(function(err){ showToast(err.message || '保存失败', 'error'); });
+            }
+          } else if (self.adminModalType === 'section') {
+            if (!form.name) { showToast('请输入版块名称', 'warning'); return; }
+            if (!form.slug) { showToast('请输入版块标识', 'warning'); return; }
+
+            var sectionPayload = { name: form.name, slug: form.slug, description: form.description || '' };
+
+            if (self.adminModalMode === 'create') {
+              fetch('./api/admin/sections', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(sectionPayload)
+              }).then(function(r){ return r.json(); }).then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast('版块创建成功', 'success');
+                self.closeAdminModal(); self.loadAdminData();
+              }).catch(function(err){ showToast(err.message || '创建失败', 'error'); });
+            } else {
+              fetch('./api/admin/sections/' + encodeURIComponent(self.adminEditingId), {
+                method: 'PATCH', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(sectionPayload)
+              }).then(function(r){ return r.json(); }).then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast('保存成功', 'success');
+                self.closeAdminModal(); self.loadAdminData();
+              }).catch(function(err){ showToast(err.message || '保存失败', 'error'); });
+            }
+          }
+        },
+        deleteAdminItem: function(type, id){
+          var self = this;
+          var typeName = type === 'user' ? '用户' : type === 'group' ? '身份组' : '版块';
+          showConfirm('确认删除此' + typeName + '吗？', '确认删除').then(function(){
+            var url = type === 'user' ? './api/admin/users/' + encodeURIComponent(id)
+                    : type === 'group' ? './api/admin/groups/' + encodeURIComponent(id)
+                    : './api/admin/sections/' + encodeURIComponent(id);
+            fetch(url, { method: 'DELETE', credentials: 'include' })
+              .then(function(r){ return r.json(); })
+              .then(function(res){
+                if (!res.success) throw new Error(res.error);
+                showToast(typeName + '已删除', 'success');
+                self.loadAdminData();
+              })
+              .catch(function(err){ showToast(err.message || '删除失败', 'error'); });
+          }).catch(function(){});
+        },
+        handleAdminFolderUpload: function(event) {
+          var files = Array.from(event.target.files || []);
+          if (!files.length) return;
+          var self = this;
+
+          // Extract folder structure
+          var folderPaths = new Set();
+          var filesByFolder = {};
+
+          files.forEach(function(file) {
+            var relPath = file.webkitRelativePath || file.name;
+            var parts = relPath.split('/');
+            if (parts.length > 1) {
+              var folderPath = parts.slice(0, -1).join('/');
+              folderPaths.add(folderPath);
+              if (!filesByFolder[folderPath]) filesByFolder[folderPath] = [];
+              filesByFolder[folderPath].push(file);
+            } else {
+              if (!filesByFolder['']) filesByFolder[''] = [];
+              filesByFolder[''].push(file);
+            }
+          });
+
+          var basePath = self.normalizeFolderPath(self.folderPath);
+          var folderCount = folderPaths.size;
+          var fileCount = files.length;
+
+          showToast('检测到 ' + folderCount + ' 个文件夹，共 ' + fileCount + ' 个文件', 'info');
+
+          // Create folders sequentially
+          var sortedPaths = Array.from(folderPaths).sort(function(a, b) {
+            return a.split('/').length - b.split('/').length;
+          });
+
+          var createdFolders = new Set();
+          var chain = Promise.resolve();
+
+          sortedPaths.forEach(function(relFolder) {
+            chain = chain.then(function() {
+              var fullPath = basePath ? basePath + '/' + relFolder : relFolder;
+              var normalized = self.normalizeFolderPath(fullPath);
+              if (!normalized || createdFolders.has(normalized)) return;
+              return fetch('./api/manage/folders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: normalized })
+              }).then(function() {
+                createdFolders.add(normalized);
+              }).catch(function(err) {
+                console.warn('Failed to create folder:', normalized, err);
+              });
+            });
+          });
+
+          chain.then(function() {
+            // Upload files to each folder
+            var uploadChain = Promise.resolve();
+            Object.keys(filesByFolder).forEach(function(relFolder) {
+              uploadChain = uploadChain.then(function() {
+                var targetPath = relFolder ? (basePath ? basePath + '/' + relFolder : relFolder) : basePath;
+                var normalizedPath = self.normalizeFolderPath(targetPath);
+                var folderFiles = filesByFolder[relFolder];
+
+                // Upload each file
+                var fileChain = Promise.resolve();
+                folderFiles.forEach(function(file) {
+                  fileChain = fileChain.then(function() {
+                    var formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('folderPath', normalizedPath);
+                    if (self.currentAdminUser && self.currentAdminUser.username) {
+                      formData.append('uploadedBy', self.currentAdminUser.username);
+                    }
+                    return fetch('./upload', {
+                      method: 'POST',
+                      body: formData,
+                      credentials: 'include'
+                    }).then(function(r) { return r.json(); }).then(function(data) {
+                      if (Array.isArray(data) && data[0] && data[0].src) {
+                        showToast('已上传: ' + file.name, 'success');
+                      }
+                    }).catch(function(err) {
+                      showToast('上传失败: ' + file.name + ' - ' + err.message, 'error');
+                    });
+                  });
+                });
+                return fileChain;
+              });
+            });
+
+            return uploadChain;
+          }).then(function() {
+            showToast('文件夹上传完成！', 'success');
+            self.refreshFileList({ preferCache: false, syncFolders: true });
+          });
+
+          event.target.value = '';
+        },
+        resetUserPassword: function(user){
+          var self = this;
+          showPrompt('为用户 "' + user.username + '" 设置新密码', '重置密码', { inputValue: '123456' }).then(function(result){
+            if (!result.value || result.value.length < 6) { showToast('密码至少6个字符', 'warning'); return; }
+            fetch('./api/admin/users/' + encodeURIComponent(user.id) + '/reset-password', {
+              method: 'POST', credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: result.value })
+            }).then(function(r){ return r.json(); }).then(function(res){
+              if (!res.success) throw new Error(res.error);
+              showToast('密码已重置为: ' + result.value, 'success');
+            }).catch(function(err){ showToast(err.message || '重置失败', 'error'); });
+          }).catch(function(){});
+        },
+
+        // ====== Original Admin Methods ======
         toggleDropdown: function(name){
           if (this.openDropdown === name) { this.openDropdown = null; return; }
           this.openDropdown = name;
@@ -1154,6 +1977,82 @@
           if (diff < day * 30) return Math.floor(diff / day) + ' 天前';
           return this.formatDateTime(value);
         },
+        openApiTokenDialog: function(){ this.tokenDialogVisible = true; this.loadApiTokens(); },
+        openCreateTokenDialog: function(){
+          this.tokenForm = { name: '', scopes: ['upload','read'], expiryPreset: 'never', customExpiresAt: '' };
+          this.createTokenDialogVisible = true;
+        },
+        resolveTokenExpiresAt: function(){
+          var preset = String(this.tokenForm.expiryPreset || 'never');
+          if (preset === '7d') return Date.now() + 7*24*3600*1000;
+          if (preset === '30d') return Date.now() + 30*24*3600*1000;
+          if (preset === '90d') return Date.now() + 90*24*3600*1000;
+          if (preset === 'custom') {
+            var custom = Number(new Date(this.tokenForm.customExpiresAt).getTime());
+            return Number.isFinite(custom) && custom > Date.now() ? custom : null;
+          }
+          return null;
+        },
+        loadApiTokens: function(){
+          var self = this; self.tokenLoading = true;
+          fetch('./api/admin/tokens', { method: 'GET', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(payload){
+            if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '加载失败');
+            self.apiTokens = Array.isArray(payload.tokens) ? payload.tokens : [];
+          }).catch(function(err){
+            showToast(err.message || '加载 API Token 失败', 'error');
+          }).finally(function(){ self.tokenLoading = false; });
+        },
+        createApiToken: function(){
+          var self = this; var name = String(self.tokenForm.name || '').trim();
+          var scopes = Array.isArray(self.tokenForm.scopes) ? self.tokenForm.scopes : [];
+          if (!name) { showToast('请输入 Token 名称', 'warning'); return; }
+          if (scopes.length === 0) { showToast('请至少选择一个权限', 'warning'); return; }
+          var expiresAt = self.resolveTokenExpiresAt();
+          if (String(self.tokenForm.expiryPreset) === 'custom' && !expiresAt) { showToast('请选择有效的未来过期时间', 'warning'); return; }
+          self.tokenCreateLoading = true;
+          fetch('./api/admin/tokens', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, scopes: scopes, expiresAt: expiresAt }) })
+            .then(function(r){ return r.json(); }).then(function(payload){
+              if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '创建失败');
+              self.createTokenDialogVisible = false;
+              self.createdTokenValue = String(payload.token || '');
+              self.createdTokenCopied = false;
+              self.createdTokenDialogVisible = true;
+              self.loadApiTokens();
+            }).catch(function(err){ showToast(err.message || '创建 Token 失败', 'error');
+            }).finally(function(){ self.tokenCreateLoading = false; });
+        },
+        copyCreatedTokenValue: function(){
+          var token = String(this.createdTokenValue || '');
+          if (!token) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(token).then(function(){ this.createdTokenCopied = true; }.bind(this)).catch(function(){ this.copyToClipboardFallback(token); this.createdTokenCopied = true; }.bind(this));
+          } else { this.copyToClipboardFallback(token); this.createdTokenCopied = true; }
+        },
+        toggleApiTokenEnabled: function(token){
+          var self = this; var tokenId = (token||{}).id; if (!tokenId) return;
+          var nextEnabled = Boolean(token.enabled);
+          self.$set(self.tokenMutatingMap, tokenId, true);
+          fetch('./api/admin/tokens/' + encodeURIComponent(tokenId), { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: nextEnabled }) })
+            .then(function(r){ return r.json(); }).then(function(payload){
+              if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '更新失败');
+              showToast(nextEnabled ? 'Token 已启用' : 'Token 已禁用', 'success');
+            }).catch(function(err){
+              token.enabled = !nextEnabled; showToast(err.message || '更新 Token 状态失败', 'error');
+            }).finally(function(){ self.$delete(self.tokenMutatingMap, tokenId); });
+        },
+        removeApiToken: function(token){
+          var self = this; var tokenId = (token||{}).id; if (!tokenId) return;
+          showConfirm('确认删除 Token「' + token.name + '」吗？', '删除确认').then(function(){
+            self.$set(self.tokenMutatingMap, tokenId, true);
+            fetch('./api/admin/tokens/' + encodeURIComponent(tokenId), { method: 'DELETE', credentials: 'include' }).then(function(r){ return r.json(); }).then(function(payload){
+              if (!payload || !payload.success) throw new Error((payload||{}).error || (payload||{}).message || '删除失败');
+              self.apiTokens = self.apiTokens.filter(function(item){ return item.id !== tokenId; });
+              showToast('Token 已删除', 'success');
+            }).catch(function(err){ showToast(err.message || '删除 Token 失败', 'error');
+            }).finally(function(){ self.$delete(self.tokenMutatingMap, tokenId); });
+          }).catch(function(){});
+        },
+        // Viewport/Mobile
         updateViewportFlags: function(){
           this.isMobileViewport = window.matchMedia('(max-width: 900px)').matches;
           if (this.isMobileViewport) { this.batchToolbarPosition.left = null; this.batchToolbarPosition.top = null; this.batchDragState.dragging = false; }
@@ -1346,6 +2245,47 @@
               self.folders = previousFolders; self.folderPath = previousFolderPath; self.refreshFileList(); showToast(err.message || '目录删除失败', 'error');
             }).finally(function(){ self.folderMutating = false; self.folderMutatingAction = ''; });
           }).catch(function(){});
+        },
+        moveSelectedToFolder: function(){ this.openMoveDialog(this.selectedFiles); },
+        openMoveDialog: function(files){
+          var candidates = Array.isArray(files) ? files.filter(Boolean) : [];
+          if (candidates.length === 0) { showToast('请先选择文件', 'warning'); return; }
+          this.moveDialogFiles = candidates.slice();
+          this.moveDialogTargetPath = this.normalizeFolderPath(this.folderPath||'');
+          this.moveDialogFolderSearch = '';
+          this.moveDialogNewFolderPath = this.moveDialogTargetPath ? this.moveDialogTargetPath + '/新目录' : '新目录';
+          this.moveDialogVisible = true;
+        },
+        refreshMoveDialogFolders: function(showMsg){
+          var self = this; if (self.moveDialogFoldersLoading) return; self.moveDialogFoldersLoading = true;
+          self.fetchFolders().then(function(refreshed){
+            if (showMsg && refreshed) showToast('已获取最新后端目录', 'success');
+            if (showMsg && !refreshed) showToast('目录刷新失败，请稍后重试', 'error');
+          }).catch(function(err){ if (showMsg) showToast((err||{}).message || '目录刷新失败', 'error');
+          }).finally(function(){ self.moveDialogFoldersLoading = false; });
+        },
+        selectMoveDialogFolder: function(path){ this.moveDialogTargetPath = this.normalizeFolderPath(path); },
+        createFolderAndMoveSelected: function(){
+          var self = this; var path = self.normalizeFolderPath(self.moveDialogNewFolderPath);
+          if (!path) { showToast('请输入要新建的目录路径', 'warning'); return; }
+          self.moveDialogLoading = true; var previousFolders = self.cloneFoldersSnapshot(); var folderCreated = false;
+          self.ensureFolderBranchLocal(path);
+          fetch('./api/manage/folders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: path }) }).then(function(r){ return r.json(); }).then(function(response){
+            if (!response.success) throw new Error(response.error || '目录创建失败');
+            folderCreated = true; self.moveDialogTargetPath = path;
+            return self.moveFilesToFolder(self.moveDialogFiles, path);
+          }).then(function(moved){ if (moved) self.moveDialogVisible = false;
+          }).catch(function(err){
+            if (!folderCreated) { self.folders = previousFolders; self.sortFoldersLocal(); }
+            showToast(err.message || '新建并移动失败', 'error');
+          }).finally(function(){ self.moveDialogLoading = false; });
+        },
+        confirmMoveDialog: function(){
+          var self = this; self.moveDialogLoading = true;
+          self.moveFilesToFolder(self.moveDialogFiles, self.moveDialogTargetPath).then(function(moved){
+            if (moved) self.moveDialogVisible = false;
+          }).catch(function(err){ showToast(err.message || '移动文件失败', 'error');
+          }).finally(function(){ self.moveDialogLoading = false; });
         },
         moveFilesToFolder: function(files, targetFolderPathValue){
           var self = this; var selected = Array.isArray(files) ? files.filter(Boolean) : [];
