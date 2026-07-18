@@ -135,9 +135,9 @@
       if (item) {
         var data = this.loadAdminDataRaw();
         var ug = (data.userGroups || []).filter(function(ug) { return ug.userId === item.id; }).map(function(ug) { return ug.groupId; });
-        self.adminForm = { username: item.username, nickname: item.nickname || '', role: item.role || 'user', enabled: item.enabled !== false, groupIds: ug.slice() };
+        self.adminForm = { username: item.username, nickname: item.nickname || '', role: item.role || 'guest', enabled: item.enabled !== false, groupIds: ug.slice() };
       } else {
-        self.adminForm = { username: '', nickname: '', role: 'user', password: '', enabled: true, groupIds: [] };
+        self.adminForm = { username: '', nickname: '', role: 'guest', password: '', enabled: true, groupIds: [] };
       }
       this.adminModalVisible = true;
     } else if (type === 'group') {
@@ -178,7 +178,7 @@
       var payload = {
         username: form.username,
         nickname: form.nickname || form.username,
-        role: form.role || 'user',
+        role: form.role || 'guest',
         enabled: form.enabled !== false,
         groupIds: form.groupIds || []
       };

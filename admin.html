@@ -656,7 +656,6 @@
           <div class="admin-tab" :class="{ 'is-active': activeTab === 'files' }" @click="activeTab = 'files'"><i class="fas fa-file"></i> 文件管理</div>
           <div class="admin-tab" :class="{ 'is-active': activeTab === 'users' }" @click="activeTab = 'users'; loadAdminData()"><i class="fas fa-users"></i> 用户管理</div>
           <div class="admin-tab" :class="{ 'is-active': activeTab === 'groups' }" @click="activeTab = 'groups'; loadAdminData()"><i class="fas fa-user-tag"></i> 身份组管理</div>
-          <div class="admin-tab" :class="{ 'is-active': activeTab === 'sections' }" @click="activeTab = 'sections'; loadAdminData()"><i class="fas fa-layer-group"></i> 版块管理</div>
         </div>
 
         <!-- === FILE MANAGEMENT TAB === -->
@@ -896,12 +895,18 @@
               <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:.78em;opacity:.4;"></i>
               <input class="input-glass" v-model="userSearchQuery" placeholder="搜索用户名、昵称..." style="width:100%;padding-left:30px;font-size:.82em;">
             </div>
+            <select class="input-glass" v-model="userRoleFilter" style="width:auto;font-size:.82em;padding:4px 10px;">
+              <option value="">全部角色</option>
+              <option value="admin">管理员</option>
+              <option value="user">用户</option>
+              <option value="guest">访客</option>
+            </select>
             <span style="font-size:.78em;opacity:.5;">共 {{ filteredUserList.length }} 个用户</span>
           </div>
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead><tr>
-                <th>用户名</th><th>昵称</th><th>角色</th><th>身份组</th><th>状态</th><th>操作</th>
+                <th>用户名</th><th>昵称</th><th>角色</th><th>身份组</th><th>创建时间</th><th>状态</th><th>操作</th>
               </tr></thead>
               <tbody>
                 <tr v-for="u in filteredUserList" :key="u.id">
@@ -914,6 +919,7 @@
                     </template>
                     <span v-else style="opacity:.4;font-size:.82em;">无</span>
                   </td>
+                  <td style="font-size:.82em;white-space:nowrap;">{{ u.createdAt ? formatRelativeTime(u.createdAt) : '-' }}</td>
                   <td><span class="badge" :class="u.enabled !== false ? 'badge-success' : 'badge-danger'">{{ u.enabled !== false ? '正常' : '禁用' }}</span></td>
                   <td>
                     <button class="btn btn-ghost btn-sm" @click="showAdminModal('user', u)" title="编辑"><i class="fas fa-edit"></i></button>
@@ -942,7 +948,9 @@
                 <tr v-for="g in adminList" :key="g.id">
                   <td><strong>{{ g.name }}</strong></td>
                   <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.description || '-' }}</td>
-                  <td>{{ getGroupMemberCount(g.id) }}</td>
+                  <td>
+                    <span class="member-count-link" @click="showGroupMembers(g)" :title="getGroupMembers(g.id).map(function(u){ return u.nickname || u.username; }).join('\n')" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,.3);">{{ getGroupMemberCount(g.id) }}</span>
+                  </td>
                   <td>
                     <div class="perm-cell" v-if="getGroupBuiltinPerms(g.id).length">
                       <template v-for="p in getGroupBuiltinPerms(g.id).slice(0,4)">
@@ -963,41 +971,6 @@
           </div>
         </div>
 
-        <!-- === SECTION MANAGEMENT TAB === -->
-        <div class="admin-panel" v-show="activeTab === 'sections'">
-          <div class="admin-toolbar">
-            <button class="btn btn-primary btn-sm" @click="showAdminModal('section', null)"><i class="fas fa-plus"></i> 新建版块</button>
-            <span style="font-size:.78em;opacity:.5;">共 {{ adminList.length }} 个版块</span>
-          </div>
-          <div class="admin-table-wrap">
-            <table class="admin-table">
-              <thead><tr>
-                <th>版块名称</th><th>标识</th><th>描述</th><th>访问身份组</th><th>操作</th>
-              </tr></thead>
-              <tbody>
-                <tr v-for="s in adminList" :key="s.id">
-                  <td><strong>{{ s.name }}</strong></td>
-                  <td><code>{{ s.slug }}</code></td>
-                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.description || '-' }}</td>
-                  <td>
-                    <template v-if="getSectionGroups(s.id).length">
-                      <span class="badge badge-info" v-for="g in getSectionGroups(s.id)" :key="g" style="margin:2px;">{{ getGroupName(g.groupId) || g.groupId }}({{ g.level === 'write' ? '可写' : g.level === 'read' ? '只读' : '拒绝' }})</span>
-                    </template>
-                    <span v-else style="opacity:.4;font-size:.82em;">无限制</span>
-                  </td>
-                  <td>
-                    <button class="btn btn-ghost btn-sm" @click="showAdminModal('section', s)"><i class="fas fa-edit"></i></button>
-                    <button class="btn-ghost-danger btn-sm" @click="deleteAdminItem('section', s.id)"><i class="fas fa-trash-alt"></i> 删除</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-if="!adminList.length" class="empty-tip">暂无版块数据</div>
-          </div>
-        </div>
-
-      </div>
-    </div>
 
     <div class="footer">
       <div>Powered By 1940Netdisk</div>
@@ -1153,7 +1126,7 @@
     <!-- Admin CRUD Modal -->
     <div class="modal-overlay" :class="{ active: adminModalVisible }" v-if="adminModalVisible" @click.self="closeAdminModal">
       <div class="modal-dialog" style="max-width:560px;">
-        <div class="modal-header"><span class="modal-title">{{ adminModalMode === 'edit' ? '编辑' : '新建' }} {{ adminModalType === 'user' ? '用户' : adminModalType === 'group' ? '身份组' : '版块' }}</span><button class="modal-close" @click="closeAdminModal">&times;</button></div>
+        <div class="modal-header"><span class="modal-title">{{ adminModalMode === 'edit' ? '编辑' : '新建' }} {{ adminModalType === 'user' ? '用户' : '身份组' }}</span><button class="modal-close" @click="closeAdminModal">&times;</button></div>
         <div class="modal-inner">
           <div class="modal-form">
             <!-- User fields -->
@@ -1193,12 +1166,6 @@
                   </label>
                 </div>
               </div>
-            </template>
-            <!-- Section fields -->
-            <template v-if="adminModalType === 'section'">
-              <div class="form-group"><label>版块名称</label><input class="input-glass" v-model="adminForm.name" placeholder="版块名称"></div>
-              <div class="form-group"><label>标识 (slug)</label><input class="input-glass" v-model="adminForm.slug" placeholder="唯一标识，如 forum"></div>
-              <div class="form-group"><label>描述</label><input class="input-glass" v-model="adminForm.description" placeholder="版块描述"></div>
             </template>
           </div>
         </div>
@@ -1366,9 +1333,10 @@
           { key: 'create_group', label: '新建身份组', icon: 'fas fa-users-cog' },
           { key: 'modify_group', label: '修改他人身份组', icon: 'fas fa-user-edit' },
         ],
-        adminDataCache: { users: [], groups: [], userGroups: [], sections: [], sectionPermissions: [] },
+        adminDataCache: { users: [], groups: [], userGroups: [], },
         adminDataLoading: false,
         userSearchQuery: '',
+        userRoleFilter: '',
         currentAdminUser: null,
         userDropdownOpen: false,
       },
@@ -1498,16 +1466,14 @@
           var data = this.loadAdminDataRaw();
           return data.groups || [];
         },
-        allSections: function(){
-          var data = this.loadAdminDataRaw();
-          return data.sections || [];
-        },
         filteredUserList: function(){
           var query = (this.userSearchQuery || '').toLowerCase().trim();
+          var roleFilter = this.userRoleFilter || '';
           var list = this.adminList || [];
-          if (!query) return list;
           if (this.activeTab !== 'users') return list;
           return list.filter(function(u) {
+            if (roleFilter && u.role !== roleFilter) return false;
+            if (!query) return true;
             return (u.username || '').toLowerCase().indexOf(query) !== -1 ||
                    (u.nickname || '').toLowerCase().indexOf(query) !== -1;
           });
@@ -1599,7 +1565,7 @@
           } catch(e){ return Promise.resolve(); }
         },
         loadAdminDataRaw: function(){
-          return this.adminDataCache || { users: [], groups: [], userGroups: [], sections: [], sectionPermissions: [] };
+          return this.adminDataCache || { users: [], groups: [], userGroups: [] };
         },
         loadAdminData: function(){
           var self = this;
@@ -1612,7 +1578,6 @@
               }
               if (self.activeTab === 'users') self.adminList = self.adminDataCache.users || [];
               else if (self.activeTab === 'groups') self.adminList = self.adminDataCache.groups || [];
-              else if (self.activeTab === 'sections') self.adminList = self.adminDataCache.sections || [];
             })
             .catch(function(err){
               showToast('加载管理数据失败: ' + (err.message || err), 'error');
@@ -1632,9 +1597,21 @@
           var g = (data.groups || []).find(function(g){ return g.id === groupId; });
           return g ? g.name : groupId;
         },
+        getGroupMembers: function(groupId){
+          var self = this;
+          var data = this.loadAdminDataRaw();
+          var userIds = (data.userGroups || []).filter(function(ug){ return ug.groupId === groupId; }).map(function(ug){ return ug.userId; });
+          return (data.users || []).filter(function(u){ return userIds.indexOf(u.id) !== -1; });
+        },
         getGroupMemberCount: function(groupId){
           var data = this.loadAdminDataRaw();
           return (data.userGroups || []).filter(function(ug){ return ug.groupId === groupId; }).length;
+        },
+        showGroupMembers: function(group){
+          var members = this.getGroupMembers(group.id);
+          if (!members.length) { showToast('该身份组暂无成员', 'info'); return; }
+          var names = members.map(function(u){ return (u.nickname || u.username) + (u.role === 'admin' ? ' (管理员)' : ''); }).join('\n');
+          showAlert('<div style="text-align:left;max-height:300px;overflow-y:auto;"><strong style="font-size:1.1em;">' + group.name + '</strong> 的成员 (' + members.length + '人)<br><br>' + names.split('\n').map(function(n){ return '• ' + n; }).join('<br>') + '</div>', '身份组成员');
         },
         getGroupBuiltinPerms: function(groupId){
           var data = this.loadAdminDataRaw();
@@ -1645,27 +1622,6 @@
           var map = {};
           (this.builtinPermOptions || []).forEach(function(o){ map[o.key] = o.label; });
           return map[key] || key;
-        },
-        getGroupPermissions: function(groupId){
-          var data = this.loadAdminDataRaw();
-          return (data.sectionPermissions || []).filter(function(sp){ return sp.groupId === groupId; });
-        },
-        getSectionName: function(sectionId){
-          var data = this.loadAdminDataRaw();
-          var s = (data.sections || []).find(function(s){ return s.id === sectionId; });
-          return s ? s.name : sectionId;
-        },
-        getSectionGroups: function(sectionId){
-          var data = this.loadAdminDataRaw();
-          return (data.sectionPermissions || []).filter(function(sp){ return sp.sectionId === sectionId; });
-        },
-        getSectionPermissionForGroup: function(sectionId, groupId){
-          var perm = this.adminFormPerms[sectionId + '_' + groupId];
-          return perm || 'none';
-        },
-        setSectionPermissionForGroup: function(sectionId, value){
-          var self = this;
-          self.$set(self.adminFormPerms, sectionId + '_' + (self.adminForm.id || ''), value);
         },
         showAdminModal: function(type, item){
           this.adminModalType = type;
@@ -1678,9 +1634,9 @@
             if (item) {
               var data = this.loadAdminDataRaw();
               var ug = (data.userGroups || []).filter(function(ug){ return ug.userId === item.id; }).map(function(ug){ return ug.groupId; });
-              self.adminForm = { username: item.username, nickname: item.nickname || '', role: item.role || 'user', enabled: item.enabled !== false, groupIds: ug.slice() };
+              self.adminForm = { username: item.username, nickname: item.nickname || '', role: item.role || 'guest', enabled: item.enabled !== false, groupIds: ug.slice() };
             } else {
-              self.adminForm = { username: '', nickname: '', role: 'user', password: '', enabled: true, groupIds: [] };
+              self.adminForm = { username: '', nickname: '', role: 'guest', password: '', enabled: true, groupIds: [] };
             }
             this.adminModalVisible = true;
           } else if (type === 'group') {
@@ -1701,13 +1657,6 @@
             } else {
               this.loadAdminData().then(showGroupModal).catch(showGroupModal);
             }
-          } else if (type === 'section') {
-            if (item) {
-              self.adminForm = { id: item.id, name: item.name, slug: item.slug, description: item.description || '' };
-            } else {
-              self.adminForm = { id: 'section_' + Date.now(), name: '', slug: '', description: '' };
-            }
-            this.adminModalVisible = true;
           }
         },
         closeAdminModal: function(){
@@ -1727,7 +1676,7 @@
             var payload = {
               username: form.username,
               nickname: form.nickname || form.username,
-              role: form.role || 'user',
+              role: form.role || 'guest',
               enabled: form.enabled !== false,
               groupIds: form.groupIds || []
             };
@@ -1781,42 +1730,14 @@
                 self.closeAdminModal(); self.loadAdminData();
               }).catch(function(err){ showToast(err.message || '保存失败', 'error'); });
             }
-          } else if (self.adminModalType === 'section') {
-            if (!form.name) { showToast('请输入版块名称', 'warning'); return; }
-            if (!form.slug) { showToast('请输入版块标识', 'warning'); return; }
-
-            var sectionPayload = { name: form.name, slug: form.slug, description: form.description || '' };
-
-            if (self.adminModalMode === 'create') {
-              fetch('./api/admin/sections', {
-                method: 'POST', credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(sectionPayload)
-              }).then(function(r){ return r.json(); }).then(function(res){
-                if (!res.success) throw new Error(res.error);
-                showToast('版块创建成功', 'success');
-                self.closeAdminModal(); self.loadAdminData();
-              }).catch(function(err){ showToast(err.message || '创建失败', 'error'); });
-            } else {
-              fetch('./api/admin/sections/' + encodeURIComponent(self.adminEditingId), {
-                method: 'PATCH', credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(sectionPayload)
-              }).then(function(r){ return r.json(); }).then(function(res){
-                if (!res.success) throw new Error(res.error);
-                showToast('保存成功', 'success');
-                self.closeAdminModal(); self.loadAdminData();
-              }).catch(function(err){ showToast(err.message || '保存失败', 'error'); });
-            }
           }
         },
         deleteAdminItem: function(type, id){
           var self = this;
-          var typeName = type === 'user' ? '用户' : type === 'group' ? '身份组' : '版块';
+          var typeName = type === 'user' ? '用户' : '身份组';
           showConfirm('确认删除此' + typeName + '吗？', '确认删除').then(function(){
             var url = type === 'user' ? './api/admin/users/' + encodeURIComponent(id)
-                    : type === 'group' ? './api/admin/groups/' + encodeURIComponent(id)
-                    : './api/admin/sections/' + encodeURIComponent(id);
+                    : './api/admin/groups/' + encodeURIComponent(id);
             fetch(url, { method: 'DELETE', credentials: 'include' })
               .then(function(r){ return r.json(); })
               .then(function(res){

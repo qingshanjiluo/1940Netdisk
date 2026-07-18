@@ -63,7 +63,7 @@ export async function onRequestPost(context) {
       username,
       nickname: nickname || username,
       passwordHash,
-      role: role || 'user',
+      role: role || 'guest',
       enabled: enabled !== false,
       createdAt: Date.now()
     };

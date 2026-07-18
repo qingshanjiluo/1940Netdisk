@@ -740,7 +740,7 @@
       fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username, nickname: nickname, password: password, role: 'user', enabled: true })
+        body: JSON.stringify({ username: username, nickname: nickname, password: password, role: 'guest', enabled: true })
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {

@@ -801,6 +801,24 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* ========== 原生元素统一样式 ========== */
+    select.input-glass,
+    .modal-form select {
+      background:var(--input-bg); border:1px solid var(--border); color:var(--text-primary);
+      border-radius:3px; padding:6px 10px; font-size:.85em; cursor:pointer;
+      appearance:auto; -webkit-appearance:auto; min-height:34px;
+    }
+    select.input-glass:focus,
+    .modal-form select:focus { border-color:var(--gold); outline:none; box-shadow:0 0 0 2px rgba(212,175,55,.15); }
+    .modal-form input[type="checkbox"],
+    .checkbox-wrap input[type="checkbox"] {
+      accent-color:var(--olive); width:16px; height:16px; cursor:pointer;
+      vertical-align:middle; margin-right:4px;
+    }
+    .modal-form input[type="checkbox"]:hover,
+    .checkbox-wrap input[type="checkbox"]:hover { filter:brightness(1.2); }
+    input[type="file"] { color:var(--text-primary); font-size:.82em; }
   </style>
   <link rel="stylesheet" href="/mobile-refactor.css">
 </head>
